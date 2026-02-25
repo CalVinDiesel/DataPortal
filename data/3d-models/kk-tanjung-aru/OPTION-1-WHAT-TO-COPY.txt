@@ -1,0 +1,47 @@
+================================================================================
+OPTION 1: COPY THE WHOLE "top" FOLDER — NO LINES FROM tileset.json
+================================================================================
+
+You do NOT take any part of the tileset.json code and put it somewhere.
+
+  • tileset.json is already in place:  data/3d-models/kk-tanjung-aru/tileset.json
+  • That file is the index. It stays as it is.
+
+For Option 1 you only copy FILES AND FOLDERS from your 3D Tiles export:
+
+  WHERE TO GET THE "top" FOLDER
+  ----------------------------
+  From the same place that produced this tileset (e.g. GridMaster export, or
+  the server/folder that 3dhub.temadigital.my uses for this model). That
+  export has:
+    - tileset.json  (you already have this)
+    - a folder named  top
+  Inside "top" there are folders: Level_11, Level_12, Level_13, Level_14,
+  Level_15, Level_16, each containing .b3dm and/or .json files.
+
+  WHAT TO COPY
+  ------------
+  Copy the entire folder named  top  (with Level_11, Level_12, ... Level_16
+  and all the files inside them). Paste it into:
+
+    data/3d-models/kk-tanjung-aru/
+
+  RESULT
+  ------
+  Your folder should look like:
+
+    data/3d-models/kk-tanjung-aru/
+    ├── tileset.json          ← already there (do not replace with "lines of code")
+    ├── top/                  ← YOU ADD THIS FOLDER (from your export)
+    │   ├── Level_11/
+    │   │   └── Tile_p0000_p0000.b3dm
+    │   ├── Level_12/
+    │   ├── Level_13/
+    │   ├── Level_14/
+    │   ├── Level_15/
+    │   └── Level_16/
+    └── (other .txt guides)
+
+  The JSON you have only describes which files are needed; the actual 3D
+  data is in the .b3dm and .json files inside the "top" folder. Get that
+  "top" folder from your export and put it next to tileset.json.

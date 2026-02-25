@@ -1,0 +1,19 @@
+1. The tileset is complete and valid (tileset.json is ready).
+
+2. You need to add the tile files in a "top" folder with these subfolders:
+     top/Level_11/
+     top/Level_12/
+     top/Level_13/
+     top/Level_14/
+     top/Level_15/
+     top/Level_16/
+   Put the correct .b3dm and .json files in each folder (see list below).
+
+3. Exact list of which files to take:
+   Open  TILE-FILES-YOU-NEED.txt  in this folder.
+   It lists every file name by folder (84 files total), so you know exactly
+   which part to take from the entire tile export.
+
+4. Easiest approach: copy the whole "top" folder (with Level_11 through
+   Level_16 and all contents) from your GridMaster/3dhub export into this
+   folder, next to tileset.json. Then you have everything in one go.

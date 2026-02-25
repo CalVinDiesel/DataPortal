@@ -1,0 +1,31 @@
+.unit-toggle {
+    position: absolute;
+    top: 20px;
+    left: 738px;
+    z-index: 1000;
+    padding: 8px 14px;
+    background: white;
+    border: none;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    color: #1e3a8a;
+    line-height: 36px;
+    transition: all 0.2s ease, left 0.3s ease;
+}
+
+.unit-toggle.sidebar-collapsed {
+    left: 418px;
+}
+
+.unit-toggle:hover {
+    background: #e0f2fe;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.unit-toggle:active {
+    transform: translateY(0);
+}

@@ -1,0 +1,14 @@
+{
+    "name": "Test CURL",
+    "description": "Created via curl",
+    "type": "marker",
+    "category": "annotation",
+    "geom": {
+        "type": "Point",
+        "coordinates": [
+            -75.59,
+            40.04,
+            100
+        ]
+    }
+}

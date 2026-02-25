@@ -1,0 +1,62 @@
+[
+  {
+    "mapDataID": "KK_OSPREY",
+    "title": "KK OSPREY",
+    "description": "3D model from GeoSabah 3D Hub (Kota Kinabalu area).",
+    "xAxis": 116.070466,
+    "yAxis": 5.957839,
+    "3dTiles": "https://3dhub.geosabah.my/3dmodel/KK_OSPREY/tileset.json",
+    "thumbNailUrl": "",
+    "updateDateTime": "2025-02-20T12:00:00.000Z"
+  },
+  {
+    "mapDataID": "kk-city-centre",
+    "title": "Kota Kinabalu City Centre",
+    "description": "High-resolution drone photogrammetry 3D model of Kota Kinabalu city centre including commercial buildings and urban infrastructure.",
+    "xAxis": 116.0735,
+    "yAxis": 5.9804,
+    "3dTiles": "REPLACE_WITH_REAL_TILESET_URL",
+    "thumbNailUrl": "../../assets/img/front-pages/locations/kkCityCentre.jpg",
+    "updateDateTime": "2025-02-20T12:00:00.000Z"
+  },
+  {
+    "mapDataID": "kk-waterfront",
+    "title": "Kota Kinabalu Waterfront",
+    "description": "Coastal drone capture of Kota Kinabalu waterfront including marina, shoreline, and coastal infrastructure.",
+    "xAxis": 116.0712,
+    "yAxis": 5.9785,
+    "3dTiles": "REPLACE_WITH_REAL_TILESET_URL",
+    "thumbNailUrl": "../../assets/img/front-pages/locations/kkWaterFront.jpg",
+    "updateDateTime": "2025-02-20T12:00:00.000Z"
+  },
+  {
+    "mapDataID": "kk-likas-bay",
+    "title": "Likas Bay Area",
+    "description": "Drone mapping of Likas Bay including beach zones, coastal vegetation, and shoreline protection structures.",
+    "xAxis": 116.0952,
+    "yAxis": 6.0106,
+    "3dTiles": "REPLACE_WITH_REAL_TILESET_URL",
+    "thumbNailUrl": "../../assets/img/front-pages/locations/likasBayArea.jpg",
+    "updateDateTime": "2025-02-20T12:00:00.000Z"
+  },
+  {
+    "mapDataID": "kk-tanjung-aru",
+    "title": "Tanjung Aru Zone",
+    "description": "Urban-coastal drone capture of Tanjung Aru including residential zones, resorts, and transportation corridors.",
+    "xAxis": 116.070466,
+    "yAxis": 5.957839,
+    "3dTiles": "REPLACE_WITH_REAL_TILESET_URL",
+    "thumbNailUrl": "../../assets/img/front-pages/locations/tanjungAruBeach.jpg",
+    "updateDateTime": "2025-02-20T12:00:00.000Z"
+  },
+  {
+    "mapDataID": "kk-teleuk-layang",
+    "title": "Teluk Likas Coastal Strip",
+    "description": "Drone survey of Teluk Likas coastline including beach morphology and coastal erosion mapping.",
+    "xAxis": 116.0891,
+    "yAxis": 6.0068,
+    "3dTiles": "REPLACE_WITH_REAL_TILESET_URL",
+    "thumbNailUrl": "../../assets/img/front-pages/locations/telukLikasCoastalStrip.jpg",
+    "updateDateTime": "2025-02-20T12:00:00.000Z"
+  }
+]

@@ -1,0 +1,50 @@
+.annotation-toolbar {
+    position: absolute;
+    top: 20px;
+    left: 340px;
+    display: flex;
+    flex-direction: row;
+    gap: 6px;
+    z-index: 1000;
+    background: rgba(255, 255, 255, 0.95);
+    padding: 8px;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    backdrop-filter: blur(10px);
+    transition: left 0.3s ease;
+}
+
+.annotation-toolbar.sidebar-collapsed {
+    left: 20px;
+}
+
+.annotation-tool-btn {
+    width: 36px;
+    height: 36px;
+    border: none;
+    background: #ffffff;
+    color: #1e3a8a;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.annotation-tool-btn:hover {
+    background: #e0f2fe;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(30, 58, 138, 0.2);
+}
+
+.annotation-tool-btn.active {
+    background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+    color: #ffffff;
+    box-shadow: 0 4px 12px rgba(30, 58, 138, 0.4);
+}
+
+.annotation-tool-btn:active {
+    transform: translateY(0);
+}

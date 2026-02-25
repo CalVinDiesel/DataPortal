@@ -1,0 +1,141 @@
+================================================================================
+EXACT TILE FILES THIS TILESET NEEDS
+================================================================================
+Your tileset.json is complete and valid. Copy ONLY these files from your full
+3D Tiles export (e.g. from GridMaster or 3dhub server) into this folder, keeping
+the same folder structure (top/Level_11/, top/Level_12/, etc.).
+
+Place them inside:  data/3d-models/kk-tanjung-aru/
+
+--------------------------------------------------------------------------------
+top/Level_11/  (1 file)
+--------------------------------------------------------------------------------
+  Tile_p0000_p0000.b3dm
+
+--------------------------------------------------------------------------------
+top/Level_12/  (3 files)
+--------------------------------------------------------------------------------
+  Tile_p0000_p0000_L12_0.b3dm
+  Tile_p0000_p0000_L12_1.b3dm
+  Tile_p0000_p0000_L12_2.b3dm
+
+--------------------------------------------------------------------------------
+top/Level_13/  (8 files)
+--------------------------------------------------------------------------------
+  Tile_p0000_p0000_L13_00.b3dm
+  Tile_p0000_p0000_L13_01.b3dm
+  Tile_p0000_p0000_L13_02.b3dm
+  Tile_p0000_p0000_L13_03.b3dm
+  Tile_p0000_p0000_L13_10.b3dm
+  Tile_p0000_p0000_L13_11.b3dm
+  Tile_p0000_p0000_L13_20.b3dm
+  Tile_p0000_p0000_L13_21.b3dm
+
+--------------------------------------------------------------------------------
+top/Level_14/  (24 files)
+--------------------------------------------------------------------------------
+  Tile_p0000_p0000_L14_000.b3dm
+  Tile_p0000_p0000_L14_001.b3dm
+  Tile_p0000_p0000_L14_002.b3dm
+  Tile_p0000_p0000_L14_010.b3dm
+  Tile_p0000_p0000_L14_011.b3dm
+  Tile_p0000_p0000_L14_012.b3dm
+  Tile_p0000_p0000_L14_013.b3dm
+  Tile_p0000_p0000_L14_020.b3dm
+  Tile_p0000_p0000_L14_021.b3dm
+  Tile_p0000_p0000_L14_022.b3dm
+  Tile_p0000_p0000_L14_023.b3dm
+  Tile_p0000_p0000_L14_030.b3dm
+  Tile_p0000_p0000_L14_031.b3dm
+  Tile_p0000_p0000_L14_032.b3dm
+  Tile_p0000_p0000_L14_033.b3dm
+  Tile_p0000_p0000_L14_100.b3dm
+  Tile_p0000_p0000_L14_101.b3dm
+  Tile_p0000_p0000_L14_110.b3dm
+  Tile_p0000_p0000_L14_200.b3dm
+  Tile_p0000_p0000_L14_201.b3dm
+  Tile_p0000_p0000_L14_202.b3dm
+  Tile_p0000_p0000_L14_210.b3dm
+  Tile_p0000_p0000_L14_211.b3dm
+  Tile_p0000_p0000_L14_212.b3dm
+
+--------------------------------------------------------------------------------
+top/Level_15/  (24 files)
+--------------------------------------------------------------------------------
+  Tile_p0000_p0000_L15_0000.b3dm
+  Tile_p0000_p0000_L15_0010.b3dm
+  Tile_p0000_p0000_L15_0020.b3dm
+  Tile_p0000_p0000_L15_0100.b3dm
+  Tile_p0000_p0000_L15_0110.b3dm
+  Tile_p0000_p0000_L15_0120.b3dm
+  Tile_p0000_p0000_L15_0130.b3dm
+  Tile_p0000_p0000_L15_0200.b3dm
+  Tile_p0000_p0000_L15_0210.b3dm
+  Tile_p0000_p0000_L15_0220.b3dm
+  Tile_p0000_p0000_L15_0230.b3dm
+  Tile_p0000_p0000_L15_0300.b3dm
+  Tile_p0000_p0000_L15_0310.b3dm
+  Tile_p0000_p0000_L15_0320.b3dm
+  Tile_p0000_p0000_L15_0330.b3dm
+  Tile_p0000_p0000_L15_1000.b3dm
+  Tile_p0000_p0000_L15_1010.b3dm
+  Tile_p0000_p0000_L15_1100.b3dm
+  Tile_p0000_p0000_L15_2000.b3dm
+  Tile_p0000_p0000_L15_2010.b3dm
+  Tile_p0000_p0000_L15_2020.b3dm
+  Tile_p0000_p0000_L15_2100.b3dm
+  Tile_p0000_p0000_L15_2110.b3dm
+  Tile_p0000_p0000_L15_2120.b3dm
+
+--------------------------------------------------------------------------------
+top/Level_16/  (24 files — these are .json)
+--------------------------------------------------------------------------------
+  Tile_+000_+001.json
+  Tile_+000_+002.json
+  Tile_+000_+003.json
+  Tile_+000_+004.json
+  Tile_+001_+000.json
+  Tile_+001_+001.json
+  Tile_+001_+002.json
+  Tile_+001_+003.json
+  Tile_+001_+004.json
+  Tile_+002_+000.json
+  Tile_+002_+001.json
+  Tile_+002_+002.json
+  Tile_+002_+003.json
+  Tile_+002_+004.json
+  Tile_+003_+000.json
+  Tile_+003_+001.json
+  Tile_+003_+002.json
+  Tile_+003_+003.json
+  Tile_+004_+000.json
+  Tile_+004_+001.json
+  Tile_+004_+002.json
+  Tile_+004_+003.json
+  Tile_+005_+001.json
+  Tile_+005_+002.json
+
+================================================================================
+SUMMARY
+================================================================================
+  Level_11:  1 file   (.b3dm)
+  Level_12:  3 files  (.b3dm)
+  Level_13:  8 files  (.b3dm)
+  Level_14: 24 files  (.b3dm)
+  Level_15: 24 files  (.b3dm)
+  Level_16: 24 files  (.json)
+  -------------------------
+  TOTAL:    84 files
+
+HOW TO USE THIS LIST
+--------------------
+1. Open your full 3D Tiles export (the folder that contains "top" with Level_11
+   through Level_16).
+2. Copy the "top" folder into:  data/3d-models/kk-tanjung-aru/
+   So you get:  data/3d-models/kk-tanjung-aru/top/Level_11/ ... Level_16/
+3. Or copy only the files listed above from each Level_* folder into the
+   matching Level_* folder here (create Level_11 ... Level_16 if needed).
+4. File names must match exactly (including + and _ and zeros).
+
+After all 84 files are in place, the 3D model will load when you open the
+viewer for Tanjung Aru.

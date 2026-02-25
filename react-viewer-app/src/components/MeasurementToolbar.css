@@ -1,0 +1,48 @@
+.measurement-toolbar {
+    position: absolute;
+    top: 20px;
+    left: 498px;
+    display: flex;
+    gap: 6px;
+    z-index: 1000;
+    background: white;
+    padding: 8px;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    transition: left 0.3s ease;
+}
+
+.measurement-toolbar.sidebar-collapsed {
+    left: 178px;
+}
+
+.tool-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border: none;
+    background: #ffffff;
+    color: #1e3a8a;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.tool-button:hover {
+    background: #e0f2fe;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(30, 58, 138, 0.2);
+}
+
+.tool-button.active {
+    background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+    color: white;
+    box-shadow: 0 4px 12px rgba(30, 58, 138, 0.4);
+}
+
+.tool-button:active {
+    transform: translateY(0);
+}

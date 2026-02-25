@@ -1,0 +1,22 @@
+{
+  "name": "temadataportal-auth-server",
+  "version": "1.0.0",
+  "description": "OAuth server for Google and Facebook sign-up (TemaDataPortal)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "init-mapdata": "node scripts/init-mapdata-db.js",
+    "create-db": "node scripts/create-mapdata-table-sqlite.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "express-session": "^1.17.3",
+    "passport": "^0.7.0",
+    "passport-facebook": "^3.0.0",
+    "passport-google-oauth20": "^2.0.0",
+    "sql.js": "^1.11.0"
+  }
+}

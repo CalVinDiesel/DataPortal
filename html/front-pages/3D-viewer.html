@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>TemaDigital | 3D Data Viewer</title>
+  <!-- Cesium loads at end of body so this page can paint the loading screen first -->
+  <link rel="stylesheet" href="../../assets/css/cesium-map.css">
+  <style>
+    html, body { height: 100%; margin: 0; padding: 0; background: #1a1a2e; }
+    body { position: relative; }
+    #cesiumContainer.fullscreen { position: absolute !important; top: 0; left: 0; right: 0; bottom: 0; z-index: 1; }
+    @keyframes viewer-spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+<!-- Loading: no blocking scripts above – this paints first. Inline styles so nothing can hide it. -->
+<div id="mapLoading" class="map-loading show" style="position:fixed;top:0;left:0;right:0;bottom:0;z-index:10001;display:flex !important;align-items:center;justify-content:center;background:#1a1a2e;flex-direction:row;gap:16px;">
+  <div class="spinner" style="width:48px;height:48px;border:4px solid rgba(255,255,255,0.25);border-top-color:#696cff;border-radius:50%;animation:viewer-spin 0.8s linear infinite;flex-shrink:0;"></div>
+  <span style="color:#ffffff;font-size:20px;font-weight:700;letter-spacing:0.02em;">Loading 3D Data...</span>
+</div>
+
+<!-- Viewer Container -->
+<div id="cesiumContainer" class="fullscreen"></div>
+
+<!-- Location Info Card -->
+<div id="locationInfoCard" class="location-info-card"></div>
+
+<!-- No Cesium script here – loaded dynamically so "Loading 3D Data..." always paints first -->
+<script>
+  (function () {
+    var loadingEl = document.getElementById('mapLoading');
+    var CESIUM_JS = 'https://cesium.com/downloads/cesiumjs/releases/1.138/Build/Cesium/Cesium.js';
+    var CESIUM_CSS = 'https://cesium.com/downloads/cesiumjs/releases/1.138/Build/Cesium/Widgets/widgets.css';
+    function showLoading(msg, showSpinner) {
+      if (!loadingEl) return;
+      loadingEl.innerHTML = (showSpinner ? '<div class="spinner" style="width:40px;height:40px;border:3px solid rgba(255,255,255,0.2);border-top-color:#696cff;border-radius:50%;animation:viewer-spin 0.8s linear infinite;"></div>' : '') + '<span style="color:#fff;font-size:16px;font-weight:600;">' + msg + '</span>';
+      loadingEl.style.display = 'flex';
+      loadingEl.style.flexDirection = 'column';
+      loadingEl.style.gap = '16px';
+      loadingEl.style.alignItems = 'center';
+      loadingEl.style.justifyContent = 'center';
+      loadingEl.style.textAlign = 'center';
+    }
+    function showDoneOrMessage(msg) {
+      if (!loadingEl) return;
+      // Override cesium-map.css .map-loading (transform: translate(-50%, -50%)) – it was clipping the button
+      loadingEl.style.cssText = 'position:fixed !important;top:0 !important;left:0 !important;right:0 !important;bottom:0 !important;z-index:10001 !important;display:flex !important;align-items:center;justify-content:center;background:#1a1a2e !important;flex-direction:column;gap:20px;text-align:center;padding:32px;overflow:visible !important;box-sizing:border-box;transform:none !important;';
+      loadingEl.innerHTML = '<div style="max-width:100%;display:flex;flex-direction:column;align-items:center;gap:20px;padding:0 24px;"><span style="color:#ffffff;font-size:20px;font-weight:700;">' + msg + '</span><a href="landing-page.html" style="display:inline-block;padding:14px 28px;background:#696cff;color:#fff;text-decoration:none;border-radius:8px;font-size:16px;font-weight:600;white-space:nowrap;">Back to map</a></div>';
+    }
+    function hideLoading() {
+      if (loadingEl) loadingEl.style.display = 'none';
+    }
+    async function runInit() {
+    try {
+      if (typeof Cesium === 'undefined') {
+        showDoneOrMessage('3D library failed to load.');
+        return;
+      }
+      // Cesium Access Token
+      Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiIxZmMwNzc5Zi1iNjFjLTQ0YzMtYmU3Mi01N2ZmMjgwNzhkMTciLCJpZCI6MzgzNzUyLCJpYXQiOjE3Njk0ODA1NjR9.nCxJ1YTHxbd6zc-BZXgkdI_tDysXXOo0B3BpAGxNzvI';
+
+      console.log("🚀 Initializing 3D Viewer...");
+
+      // World terrain is async in Cesium 1.104+ (createWorldTerrain was removed)
+      var terrainProvider = await Cesium.createWorldTerrainAsync({
+        requestWaterMask: true,
+        requestVertexNormals: true
+      });
+
+      // Initialize viewer
+      var viewer = new Cesium.Viewer('cesiumContainer', {
+    imageryProvider: new Cesium.IonImageryProvider({ assetId: 2 }),
+    terrainProvider: terrainProvider,
+    animation: false,
+    timeline: false,
+    fullscreenButton: true,
+    vrButton: false,
+    geocoder: false,
+    homeButton: true,
+    infoBox: false,
+    sceneModePicker: true,
+    selectionIndicator: false,
+    navigationHelpButton: false,
+    baseLayerPicker: true,
+    shadows: true,
+    shouldAnimate: true
+      });
+
+      console.log("✅ Viewer created");
+
+      // Scene quality
+      viewer.scene.globe.enableLighting = true;
+      viewer.scene.globe.depthTestAgainstTerrain = true;
+
+      // Read URL parameter
+      var params = new URLSearchParams(window.location.search);
+      var locationId = params.get('id');
+      // MapData API base (auth server). Override with window.TemaDataPortal_API_BASE if needed.
+      var API_BASE = (typeof window !== 'undefined' && window.TemaDataPortal_API_BASE) || 'http://localhost:3000';
+
+      console.log('📍 Loading location: ' + locationId);
+
+      // Load location: first try MapData API (DB), then fall back to locations.json
+      async function loadLocation() {
+    try {
+      var location = null;
+
+      // 1) Try MapData API by id (table MapData, column 3dTiles)
+      if (locationId) {
+        try {
+          var apiRes = await fetch(API_BASE + '/api/map-data/' + encodeURIComponent(locationId));
+          if (apiRes.ok) {
+            var mapData = await apiRes.json();
+            location = {
+              name: mapData.title,
+              description: mapData.description || '',
+              coordinates: {
+                longitude: mapData.xAxis,
+                latitude: mapData.yAxis,
+                height: 50
+              },
+              dataPaths: { tileset: mapData['3dTiles'] },
+              fromMapData: true
+            };
+            console.log('✅ Loaded from MapData API: ' + location.name);
+          }
+        } catch (apiErr) {
+          console.warn('MapData API not available, falling back to locations.json:', apiErr.message || apiErr);
+        }
+      }
+
+      // 2) Fallback: locations.json
+      if (!location) {
+        const res = await fetch('../../data/locations.json');
+        if (!res.ok) throw new Error('Failed to load locations.json');
+        const data = await res.json();
+        var loc = data.locations.find(function(l) { return l.id === locationId; });
+        if (!loc) {
+          showDoneOrMessage('Location not found.');
+          return;
+        }
+        location = loc;
+        console.log('✅ Loaded from locations.json: ' + location.name);
+      }
+
+      if (!location) {
+        showDoneOrMessage('Location not found.');
+        return;
+      }
+
+      // Show view immediately: fly to location and hide loading so user is not stuck on "Loading 3D Data..."
+      const flyHeight = location.coordinates.height ? Math.max(800, location.coordinates.height * 80) : 3000;
+      viewer.camera.flyTo({
+        destination: Cesium.Cartesian3.fromDegrees(
+          location.coordinates.longitude,
+          location.coordinates.latitude,
+          flyHeight
+        ),
+        orientation: {
+          heading: Cesium.Math.toRadians(0),
+          pitch: Cesium.Math.toRadians(-45),
+          roll: 0
+        },
+        duration: 1.5
+      });
+
+      // Load 3D Tiles (from MapData 3dTiles or locations.json dataPaths.tileset)
+      // Skip when placeholder (replace with real URL in map-data.json when you have data)
+      var tilesetUrl = location.dataPaths && location.dataPaths.tileset ? location.dataPaths.tileset : '';
+      var isPlaceholder = !tilesetUrl || tilesetUrl.indexOf('REPLACE_WITH_REAL') === 0;
+      if (tilesetUrl && !isPlaceholder) {
+        const TIMEOUT_MS = 12000;
+        const loadTileset = Cesium.Cesium3DTileset.fromUrl(tilesetUrl);
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Tileset load timeout')), TIMEOUT_MS)
+        );
+        Promise.race([loadTileset, timeoutPromise])
+          .then(function (tileset) {
+            viewer.scene.primitives.add(tileset);
+            viewer.zoomTo(tileset);
+            console.log("✅ 3D Tileset loaded");
+          })
+          .catch(function (e) {
+            console.warn('Tileset not loaded:', e.message || e);
+          });
+      } else if (isPlaceholder) {
+        console.log('3D tileset placeholder – replace 3dTiles in map-data.json with real URL when ready.');
+      }
+
+      // Load glTF model if available
+      if (location.dataPaths && location.dataPaths.gltf) {
+        try {
+          console.log(`📦 Loading glTF model: ${location.dataPaths.gltf}`);
+          viewer.entities.add({
+            position: Cesium.Cartesian3.fromDegrees(
+              location.coordinates.longitude,
+              location.coordinates.latitude,
+              location.coordinates.height
+            ),
+            model: {
+              uri: location.dataPaths.gltf,
+              scale: 1.0
+            }
+          });
+          console.log("✅ glTF model loaded");
+        } catch (e) {
+          console.warn('⚠️ glTF model not loaded (file may not exist yet):', e);
+        }
+      }
+
+      // Populate info card (full for locations.json, simple for MapData)
+      const infoCard = document.getElementById('locationInfoCard');
+      if (location.fromMapData) {
+        infoCard.innerHTML = `
+          <button class="close-btn" onclick="document.getElementById('locationInfoCard').classList.remove('show')">&times;</button>
+          <h5>${location.name}</h5>
+          <p>${location.description || '3D model from database.'}</p>
+          <button class="btn-view-3d" onclick="alert('Contact sales: sales@temadigital.my\\nPhone: +60 12-345-6789')">Request Quote</button>
+          <button class="btn-view-3d" onclick="window.location.href='landing-page.html'" style="background:#6c757d;margin-top:8px;">← Back to Map</button>
+        `;
+      } else {
+        infoCard.innerHTML = `
+          <button class="close-btn" onclick="document.getElementById('locationInfoCard').classList.remove('show')">&times;</button>
+          <h5>${location.name}</h5>
+          <span class="category-badge">${location.category}</span>
+          <p>${location.description}</p>
+          <div class="location-details">
+            <div class="detail-item">
+              <label>Capture Date</label>
+              <span>${location.captureDate ? new Date(location.captureDate).toLocaleDateString() : '—'}</span>
+            </div>
+            <div class="detail-item">
+              <label>Area</label>
+              <span>${location.area || '—'}</span>
+            </div>
+            <div class="detail-item">
+              <label>Resolution</label>
+              <span>${location.resolution || '—'}</span>
+            </div>
+            <div class="detail-item">
+              <label>Price</label>
+              <span>${location.price || '—'}</span>
+            </div>
+          </div>
+          <div style="margin-bottom:12px;">
+            <label style="font-size:11px;color:#999;text-transform:uppercase;display:block;margin-bottom:6px;">Available Formats</label>
+            <div>
+              ${(location.formats || []).map(function(f) { return '<span class="category-badge" style="background:#6c757d;margin-right:4px;margin-bottom:4px;">' + f + '</span>'; }).join('')}
+            </div>
+          </div>
+          ${location.tags && location.tags.length ? '<div style="margin-bottom:12px;"><label style="font-size:11px;color:#999;text-transform:uppercase;display:block;margin-bottom:6px;">Tags</label><div>' + location.tags.map(function(t) { return '<span class="category-badge" style="background:#71dd37;margin-right:4px;margin-bottom:4px;">' + t + '</span>'; }).join('') + '</div></div>' : ''}
+          <button class="btn-view-3d" onclick="alert(\'Contact sales: sales@temadigital.my\\nPhone: +60 12-345-6789\')">Request Quote</button>
+          <button class="btn-view-3d" onclick="window.location.href=\'landing-page.html\'" style="background:#6c757d;margin-top:8px;">← Back to Map</button>
+        `;
+      }
+
+      infoCard.classList.add('show');
+
+      // Hide loading and show viewer
+      hideLoading();
+
+      console.log("✅ 3D Viewer ready!");
+
+    } catch (err) {
+      console.error('❌ Error loading location:', err);
+      showDoneOrMessage('3D model data not yet available. Upload your 3D model data to view it here.');
+    }
+  }
+
+      loadLocation();
+    } catch (err) {
+      console.error('3D Viewer init error:', err);
+      showDoneOrMessage('Could not start 3D viewer. ' + (err.message || ''));
+    }
+  }
+    // Load Cesium dynamically so the page paints "Loading 3D Data..." immediately (no blocking script)
+    var link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = CESIUM_CSS;
+    document.head.appendChild(link);
+    var script = document.createElement('script');
+    script.src = CESIUM_JS;
+    script.onload = function () { setTimeout(runInit, 200); };
+    script.onerror = function () { showDoneOrMessage('3D library failed to load.'); };
+    document.body.appendChild(script);
+  })();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en" class="layout-navbar-fixed layout-wide" dir="ltr" data-assets-path="../../assets/" data-template="front-pages" data-bs-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Log in | TemaDigital Data Portal</title>
+  <link rel="icon" type="image/x-icon" href="../../assets/img/favicon/favicon.ico">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Public+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&amp;display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../assets/vendor/fonts/iconify-icons.css">
+  <link rel="stylesheet" href="../../assets/vendor/css/core.css">
+  <link rel="stylesheet" href="../../assets/css/demo.css">
+  <link rel="stylesheet" href="../../assets/vendor/css/pages/front-page.css">
+  <script src="../../assets/vendor/js/helpers.js"></script>
+  <script src="../../assets/js/front-config.js"></script>
+  <style>
+    .btn-google { background-color: #fff; color: #3c4043; border: 1px solid #dadce0; }
+    .btn-google:hover { background-color: #f8f9fa; border-color: #dadce0; color: #3c4043; }
+    .btn-social { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.625rem 1.25rem; font-weight: 500; }
+  </style>
+</head>
+<body class="min-vh-100 d-flex flex-column">
+  <nav class="layout-navbar shadow-none py-0">
+    <div class="container">
+      <div class="navbar navbar-expand-lg landing-navbar px-3">
+        <a href="landing-page.html" class="app-brand-link d-flex align-items-center">
+          <span class="app-brand-logo demo">
+            <img src="../../assets/img/front-pages/landing-page/temadigital_logo.png" alt="TemaDigital" style="height: 40px; display: block;">
+          </span>
+          <span class="app-brand-text demo menu-text fw-bold ms-2 ps-1">Temadigital</span>
+        </a>
+        <div class="ms-auto">
+          <a href="landing-page.html" class="btn btn-outline-primary btn-sm">Back to Home</a>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <div class="flex-grow-1 d-flex align-items-center">
+  <div class="container py-5">
+    <div class="row justify-content-center">
+      <div class="col-md-6 col-lg-5">
+        <div class="card shadow">
+          <div class="card-body p-4 p-sm-5">
+            <div class="text-center mb-4">
+              <h4 class="mb-1">Log in</h4>
+              <p class="text-body small">Sign in with your account, or create one if you're new.</p>
+            </div>
+
+            <div class="d-grid gap-2 mb-3">
+              <a href="#" id="btnLoginGoogle" class="btn btn-google btn-social">
+                <i class="bx bxl-google icon-base" style="font-size: 1.25rem;"></i>
+                Log in with Google
+              </a>
+            </div>
+            <p class="small text-body text-center mb-3">Signed up with Google? Use the button above. Signed up with email? Use the form below.</p>
+            <div class="text-center small text-body mb-3">— or log in with email and password —</div>
+
+            <form id="loginForm" novalidate>
+              <div class="mb-3">
+                <label class="form-label" for="loginUsername">Email <span class="text-danger">*</span></label>
+                <input type="email" class="form-control" id="loginUsername" name="loginUsername" placeholder="your@email.com" autocomplete="username">
+                <div class="invalid-feedback">Please enter your email.</div>
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label" for="loginPassword">Password <span class="text-danger">*</span></label>
+                <input type="password" class="form-control" id="loginPassword" name="loginPassword" placeholder="Password" autocomplete="current-password">
+                <div class="invalid-feedback">Please enter your password.</div>
+              </div>
+
+              <div class="mb-3 text-end small">
+                <a href="forgot-credentials.html" class="text-body">Forgot username or password?</a>
+              </div>
+
+              <p id="loginMessage" class="small mt-2 mb-0 text-center"></p>
+              <div class="d-grid gap-2 mt-4">
+                <button type="submit" id="loginBtn" class="btn btn-primary">Log in</button>
+              </div>
+            </form>
+
+            <hr class="my-4">
+            <div class="text-center small">
+              Don't have an account? <a href="register.html" class="fw-medium">Sign up / Register</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  </div>
+
+  <script src="../../assets/vendor/libs/jquery/jquery.js"></script>
+  <script src="../../assets/vendor/libs/popper/popper.js"></script>
+  <script src="../../assets/vendor/js/bootstrap.js"></script>
+  <script>
+    var AUTH_GOOGLE_URL = 'http://localhost:3000/api/auth/google';
+    var AUTH_API = 'http://localhost:3000';
+    document.getElementById('btnLoginGoogle').addEventListener('click', function (e) {
+      e.preventDefault();
+      if (AUTH_GOOGLE_URL) { window.location.href = AUTH_GOOGLE_URL; return; }
+      alert('Google login not configured. Set AUTH_GOOGLE_URL and run the auth-server.');
+    });
+    document.getElementById('loginForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var emailEl = document.getElementById('loginUsername');
+      var passEl = document.getElementById('loginPassword');
+      var msg = document.getElementById('loginMessage');
+      var btn = document.getElementById('loginBtn');
+      msg.textContent = '';
+      msg.className = 'small mt-2 mb-0 text-center';
+      var ok = true;
+      emailEl.classList.toggle('is-invalid', !emailEl.value.trim());
+      if (!emailEl.value.trim()) ok = false;
+      passEl.classList.toggle('is-invalid', !passEl.value.trim());
+      if (!passEl.value.trim()) ok = false;
+      if (!ok) return;
+      btn.disabled = true;
+      fetch(AUTH_API + '/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: emailEl.value.trim(), password: passEl.value }),
+        credentials: 'include'
+      })
+        .then(function (r) { return r.json().then(function (j) { return { status: r.status, body: j }; }); })
+        .then(function (x) {
+          if (x.body.success && x.body.redirect) {
+            window.location.href = x.body.redirect;
+          } else {
+            msg.className = 'small mt-2 mb-0 text-center text-danger';
+            msg.textContent = x.body.message || 'Invalid email or password.';
+            btn.disabled = false;
+          }
+        })
+        .catch(function () {
+          msg.className = 'small mt-2 mb-0 text-center text-danger';
+          msg.textContent = 'Cannot reach server. Is the auth server running (npm start)?';
+          btn.disabled = false;
+        });
+    });
+  </script>
+</body>
+</html>
