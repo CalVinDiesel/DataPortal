@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="en" class="layout-navbar-fixed layout-wide" dir="ltr" data-assets-path="../../assets/" data-template="front-pages" data-bs-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Upload Geospatial Data | TemaDigital Data Portal</title>
+  <link rel="icon" type="image/x-icon" href="../../assets/img/favicon/favicon.ico">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Public+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&amp;display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../assets/vendor/fonts/iconify-icons.css">
+  <link rel="stylesheet" href="../../assets/vendor/css/core.css">
+  <link rel="stylesheet" href="../../assets/css/demo.css">
+  <link rel="stylesheet" href="../../assets/vendor/css/pages/front-page.css">
+  <script src="../../assets/vendor/js/helpers.js"></script>
+  <script src="../../assets/js/front-config.js"></script>
+  <style>
+    .layout-navbar {
+      background: white !important;
+    }
+
+    .flex-grow-1 {
+      padding-top: 3rem;
+    }
+
+    .upload-form-container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    .upload-form-container > .text-center {
+      margin-top: 1rem;
+    }
+    .form-section {
+      margin-bottom: 2rem;
+      padding-bottom: 2rem;
+      border-bottom: 1px solid #e0e0e0;
+    }
+    .form-section:last-child {
+      border-bottom: none;
+    }
+    .section-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .section-icon {
+      width: 24px;
+      height: 24px;
+      background: #696cff;
+      color: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.85rem;
+      font-weight: bold;
+    }
+    .required-badge {
+      color: #dc3545;
+      font-size: 0.9rem;
+    }
+    .form-text-small {
+      font-size: 0.85rem;
+      color: #6c757d;
+      margin-top: 0.25rem;
+    }
+    .folder-structure {
+      background: #f8f9fa;
+      border: 1px solid #dee2e6;
+      border-radius: 0.5rem;
+      padding: 1rem;
+      margin: 1rem 0;
+      font-family: 'Courier New', monospace;
+      font-size: 0.9rem;
+      overflow-x: auto;
+    }
+    .folder-structure code {
+      color: #495057;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    .info-box {
+      background: #e7f3ff;
+      border-left: 4px solid #696cff;
+      padding: 1rem;
+      margin: 1rem 0;
+      border-radius: 0.25rem;
+    }
+    .info-box strong {
+      color: #004085;
+    }
+    .camera-config-group {
+      background: #f9f9f9;
+      padding: 1rem;
+      border-radius: 0.5rem;
+      margin-top: 1rem;
+    }
+    .hidden-field {
+      display: none;
+    }
+    .file-upload-zone {
+      border: 2px dashed #696cff;
+      border-radius: 0.5rem;
+      padding: 2rem;
+      text-align: center;
+      background: #f9f9ff;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    .file-upload-zone:hover {
+      background: #efefff;
+      border-color: #5568d3;
+    }
+    .file-upload-zone.dragover {
+      background: #efefff;
+      border-color: #5568d3;
+    }
+    .upload-icon {
+      font-size: 2rem;
+      color: #696cff;
+      margin-bottom: 0.5rem;
+    }
+    .progress-steps {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 2rem;
+    }
+    .progress-step {
+      flex: 1;
+      text-align: center;
+      padding: 1rem;
+    }
+    .progress-step.active .step-number {
+      background: #696cff;
+      color: white;
+    }
+    .step-number {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: #e0e0e0;
+      color: #666;
+      font-weight: bold;
+      margin-bottom: 0.5rem;
+    }
+    .step-label {
+      font-size: 0.9rem;
+      color: #666;
+    }
+  </style>
+</head>
+<body class="min-vh-100 d-flex flex-column">
+  <nav class="layout-navbar shadow-none py-0">
+    <div class="container">
+      <div class="navbar navbar-expand-lg landing-navbar px-3 px-md-8">
+        <!-- Menu logo wrapper: Start -->
+        <div class="navbar-brand app-brand demo d-flex py-0 me-4 me-xl-8">
+          <!-- Mobile menu toggle: Start-->
+          <button class="navbar-toggler border-0 px-0 me-4" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+            <i class="icon-base bx bx-menu icon-lg align-middle text-heading fw-medium"></i>
+          </button>
+          <!-- Mobile menu toggle: End-->
+          <a href="landing-page.html" class="app-brand-link">
+            <span class="app-brand-logo demo">
+              <img src="../../assets/img/front-pages/landing-page/temadigital_logo.png" alt="TemaDigital Logo" style="height: 40px; display: block;" />
+            </span>
+            <span class="app-brand-text demo menu-text fw-bold ms-2 ps-1">Temadigital</span>
+          </a>
+        </div>
+        <!-- Menu logo wrapper: End -->
+        <!-- Menu wrapper: Start -->
+        <div class="collapse navbar-collapse landing-nav-menu" id="navbarSupportedContent">
+          <button class="navbar-toggler border-0 text-heading position-absolute end-0 top-0 scaleX-n1-rtl p-2" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+            <i class="icon-base bx bx-x icon-lg"></i>
+          </button>
+          <ul class="navbar-nav me-auto">
+            <li class="nav-item">
+              <a class="nav-link fw-medium" aria-current="page" href="landing-page.html#landingHero">Home</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link fw-medium" href="landing-page.html#landingShowCase">ShowCase</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link fw-medium" href="upload-data.html">Upload</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link fw-medium" href="landing-page.html#landingFAQ">FAQ</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link fw-medium" href="landing-page.html#landingContact">Contact us</a>
+            </li>
+            <li class="nav-item mega-dropdown">
+              <a href="#" class="nav-link dropdown-toggle navbar-ex-14-mega-dropdown mega-dropdown fw-medium" aria-expanded="false" data-bs-toggle="mega-dropdown" data-trigger="hover" onclick="return false;">
+                <span data-i18n="Pages">Pages</span>
+              </a>
+              <div class="dropdown-menu p-4 p-xl-8">
+                <div class="row gy-4">
+                  <div class="col-12 col-lg">
+                    <div class="h6 d-flex align-items-center mb-3 mb-lg-4">
+                      <div class="avatar flex-shrink-0 me-3">
+                        <span class="avatar-initial rounded bg-label-primary"><i class="icon-base bx bx-grid-alt"></i></span>
+                      </div>
+                      <span class="ps-1">Other</span>
+                    </div>
+                    <ul class="nav flex-column">
+                      <li class="nav-item">
+                        <a class="nav-link mega-dropdown-link" href="pricing-page.html">
+                          <i class="icon-base bx bx-radio-circle me-1"></i>
+                          <span data-i18n="Pricing">Pricing</span>
+                        </a>
+                      </li>
+                      <li class="nav-item">
+                        <a class="nav-link mega-dropdown-link" href="payment-page.html">
+                          <i class="icon-base bx bx-radio-circle me-1"></i>
+                          <span data-i18n="Payment">Payment</span>
+                        </a>
+                      </li>
+                    </ul>
+                  </div>
+                  <div class="col-lg-4 d-none d-lg-block">
+                    <div class="bg-body nav-img-col p-2">
+                      <img src="../../assets/img/front-pages/misc/nav-item-col-img.png" alt="nav item col image" class="w-100" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link fw-medium" href="../vertical-menu-template/index.html" target="_blank">Admin</a>
+            </li>
+          </ul>
+        </div>
+        <div class="landing-menu-overlay d-lg-none"></div>
+        <!-- Menu wrapper: End -->
+        <!-- Toolbar: Start -->
+        <ul class="navbar-nav flex-row align-items-center ms-auto">
+          <!-- Style Switcher -->
+          <li class="nav-item dropdown-style-switcher dropdown me-2 me-xl-0">
+            <a class="nav-link dropdown-toggle hide-arrow" id="nav-theme" href="javascript:void(0);" data-bs-toggle="dropdown">
+              <i class="icon-base bx bx-sun icon-lg theme-icon-active"></i>
+              <span class="d-none ms-2" id="nav-theme-text">Toggle theme</span>
+            </a>
+            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="nav-theme-text">
+              <li>
+                <button type="button" class="dropdown-item align-items-center active" data-bs-theme-value="light" aria-pressed="false">
+                  <span><i class="icon-base bx bx-sun icon-md me-3" data-icon="sun"></i>Light</span>
+                </button>
+              </li>
+              <li>
+                <button type="button" class="dropdown-item align-items-center" data-bs-theme-value="dark" aria-pressed="true">
+                  <span><i class="icon-base bx bx-moon icon-md me-3" data-icon="moon"></i>Dark</span>
+                </button>
+              </li>
+              <li>
+                <button type="button" class="dropdown-item align-items-center" data-bs-theme-value="system" aria-pressed="false">
+                  <span><i class="icon-base bx bx-desktop icon-md me-3" data-icon="desktop"></i>System</span>
+                </button>
+              </li>
+            </ul>
+          </li>
+          <!-- / Style Switcher-->
+          <!-- navbar button: Start -->
+          <li>
+            <a href="login.html" class="btn btn-primary"><span class="tf-icons icon-base bx bx-log-in-circle scaleX-n1-rtl me-md-1"></span><span class="d-none d-md-block">Login/Register</span></a>
+          </li>
+          <!-- navbar button: End -->
+        </ul>
+        <!-- Toolbar: End -->
+      </div>
+    </div>
+  </nav>
+
+  <div class="flex-grow-1 d-flex align-items-center">
+    <div class="container py-5">
+      <div class="upload-form-container">
+        
+        <!-- Header -->
+        <div class="text-center mb-5">
+          <h2 class="mb-3">Upload Your Geospatial Data</h2>
+          <p class="text-body">Share your raw geospatial data with us. We'll process your images and sensor data to create high-quality 3D models.</p>
+        </div>
+
+        <!-- Progress Steps -->
+        <div class="progress-steps mb-4">
+          <div class="progress-step active">
+            <div class="step-number">1</div>
+            <div class="step-label">Project Info</div>
+          </div>
+          <div class="progress-step">
+            <div class="step-number">2</div>
+            <div class="step-label">Location</div>
+          </div>
+          <div class="progress-step">
+            <div class="step-number">3</div>
+            <div class="step-label">Sensor Data</div>
+          </div>
+          <div class="progress-step">
+            <div class="step-number">4</div>
+            <div class="step-label">Upload</div>
+          </div>
+          <div class="progress-step">
+            <div class="step-number">5</div>
+            <div class="step-label">Review</div>
+          </div>
+        </div>
+
+        <form id="uploadForm" novalidate enctype="multipart/form-data">
+
+          <!-- Section 1: Project Information -->
+          <div class="form-section">
+            <div class="section-title">
+              <div class="section-icon">1</div>
+              Project Information
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label" for="projectID">Project ID <span class="required-badge">*</span></label>
+              <input type="text" class="form-control" id="projectID" name="projectID" placeholder="e.g., kk-city-centre" required>
+              <div class="form-text-small">Unique identifier (letters, numbers, hyphens only). Used in URLs and system records.</div>
+              <div class="invalid-feedback">Project ID is required and must be unique.</div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label" for="projectTitle">Project Title <span class="required-badge">*</span></label>
+              <input type="text" class="form-control" id="projectTitle" name="projectTitle" placeholder="e.g., Kota Kinabalu City Centre" required>
+              <div class="form-text-small">Display name for your project in the portal.</div>
+              <div class="invalid-feedback">Project title is required.</div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label" for="projectDescription">Description <span class="required-badge">*</span></label>
+              <textarea class="form-control" id="projectDescription" name="projectDescription" rows="3" placeholder="Describe your project, survey area, and purpose..." required></textarea>
+              <div class="form-text-small">Provide details about the survey area and what the data covers.</div>
+              <div class="invalid-feedback">Description is required.</div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label" for="category">Category <span class="required-badge">*</span></label>
+              <select class="form-select" id="category" name="category" required>
+                <option value="">-- Select a category --</option>
+                <option value="Urban">Urban Development</option>
+                <option value="Coastal">Coastal Area</option>
+                <option value="Infrastructure">Infrastructure</option>
+                <option value="Environmental">Environmental Monitoring</option>
+                <option value="Agricultural">Agricultural</option>
+                <option value="Other">Other</option>
+              </select>
+              <div class="invalid-feedback">Please select a category.</div>
+            </div>
+          </div>
+
+          <!-- Section 2: Location Information -->
+          <div class="form-section">
+            <div class="section-title">
+              <div class="section-icon">2</div>
+              Location Information
+            </div>
+
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label class="form-label" for="latitude">Latitude (Y-Axis) <span class="required-badge">*</span></label>
+                <input type="number" class="form-control" id="latitude" name="latitude" placeholder="e.g., 5.957839" step="0.000001" min="-90" max="90" required>
+                <div class="form-text-small">Decimal degrees format (e.g., 5.957839)</div>
+                <div class="invalid-feedback">Please enter a valid latitude between -90 and 90.</div>
+              </div>
+
+              <div class="col-md-6 mb-3">
+                <label class="form-label" for="longitude">Longitude (X-Axis) <span class="required-badge">*</span></label>
+                <input type="number" class="form-control" id="longitude" name="longitude" placeholder="e.g., 116.070466" step="0.000001" min="-180" max="180" required>
+                <div class="form-text-small">Decimal degrees format (e.g., 116.070466)</div>
+                <div class="invalid-feedback">Please enter a valid longitude between -180 and 180.</div>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label" for="areaCoverage">Area Coverage <span class="required-badge">*</span></label>
+              <input type="text" class="form-control" id="areaCoverage" name="areaCoverage" placeholder="e.g., 4.2 km² or 200 hectares" required>
+              <div class="form-text-small">Total area covered by the survey (e.g., 4.2 km², 500 acres, etc.)</div>
+              <div class="invalid-feedback">Area coverage is required.</div>
+            </div>
+          </div>
+
+          <!-- Section 3: Image & Sensor Data -->
+          <div class="form-section">
+            <div class="section-title">
+              <div class="section-icon">3</div>
+              Image & Sensor Data
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label" for="imageMetadata">Image Metadata <span class="required-badge">*</span></label>
+              <select class="form-select" id="imageMetadata" name="imageMetadata" required>
+                <option value="">-- Select metadata available --</option>
+                <option value="exif-only">EXIF data only (embedded in images)</option>
+                <option value="pos-only">POS file only (external positioning file)</option>
+                <option value="exif-and-pos">Both EXIF and POS file</option>
+                <option value="other">Other format</option>
+              </select>
+              <div class="form-text-small">
+                <strong>EXIF:</strong> Camera metadata (GPS, altitude) embedded in images.<br>
+                <strong>POS:</strong> High-precision position/orientation file from advanced flight systems.
+              </div>
+              <div class="invalid-feedback">Please select the available metadata format.</div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">Camera Configuration <span class="required-badge">*</span></label>
+              <div class="camera-config-group">
+                <div class="form-check mb-3">
+                  <input class="form-check-input" type="radio" id="singleCamera" name="cameraConfiguration" value="single" required>
+                  <label class="form-check-label" for="singleCamera">
+                    <strong>Single Camera</strong>
+                    <div class="form-text" style="margin-top: 0.25rem;">All images taken with one camera model</div>
+                  </label>
+                </div>
+
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" id="multipleCamera" name="cameraConfiguration" value="multiple" required>
+                  <label class="form-check-label" for="multipleCamera">
+                    <strong>Multiple Cameras</strong>
+                    <div class="form-text" style="margin-top: 0.25rem;">Images taken with different camera models</div>
+                  </label>
+                </div>
+              </div>
+              <div class="invalid-feedback d-block">Please select a camera configuration.</div>
+            </div>
+
+            <div id="cameraDetailsSection" class="hidden-field">
+              <div class="mb-3">
+                <label class="form-label" for="numCameras">Number of Cameras</label>
+                <input type="number" class="form-control" id="numCameras" name="numCameras" placeholder="e.g., 2" min="2" max="10">
+                <div class="form-text-small">Total number of different camera models used.</div>
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label" for="cameraModels">Camera Models/Details</label>
+                <textarea class="form-control" id="cameraModels" name="cameraModels" rows="3" placeholder="e.g., DJI Phantom 4 Pro, Sony A7R IV&#10;Include sensor size, focal length, GSD if known"></textarea>
+                <div class="form-text-small">List all camera models used and any available specifications (sensor size, focal length, etc.)</div>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label" for="captureDate">Capture Date <span class="required-badge">*</span></label>
+              <input type="date" class="form-control" id="captureDate" name="captureDate" required>
+              <div class="form-text-small">When the survey/photography was conducted.</div>
+              <div class="invalid-feedback">Please select a capture date.</div>
+            </div>
+          </div>
+
+          <!-- Section 4: Folder Structure & Upload -->
+          <div class="form-section">
+            <div class="section-title">
+              <div class="section-icon">4</div>
+              Folder Structure & Data Upload
+            </div>
+
+            <div class="info-box">
+              <strong>📋 Important:</strong> Your data must be organized in the correct folder structure before uploading as a ZIP file.
+            </div>
+
+            <p style="margin-top: 1.5rem; margin-bottom: 1rem;"><strong>Required Folder Structure:</strong></p>
+            <div class="folder-structure">
+              <code>project-folder/
+├── images/                 (Required: All survey images here)
+│   ├── image_001.jpg
+│   ├── image_002.jpg
+│   └── ... (all images)
+├── EXIF_data/             (Optional: Metadata from images)
+│   └── metadata.txt
+├── POS_file/              (Optional: Position/orientation file)
+│   └── positions.pos
+└── camera_config.txt      (Optional: Camera specifications)</code>
+            </div>
+
+            <p style="margin-top: 1.5rem; margin-bottom: 1rem;"><strong>📝 Preparation Steps:</strong></p>
+            <ol>
+              <li><strong>Create the folder structure</strong> as shown above on your computer</li>
+              <li><strong>Place all images</strong> in the <code>images/</code> folder</li>
+              <li><strong>Add metadata files</strong> (EXIF data, POS file, camera config) if available</li>
+              <li><strong>Compress the folder:</strong>
+                <ul>
+                  <li><em>Windows:</em> Right-click folder → "Send to" → "Compressed (zipped) folder"</li>
+                  <li><em>Mac:</em> Right-click folder → "Compress"</li>
+                  <li><em>Linux:</em> <code>zip -r project-folder.zip project-folder/</code></li>
+                </ul>
+              </li>
+              <li><strong>Upload the .zip file</strong> below</li>
+            </ol>
+
+            <div class="mb-3" style="margin-top: 2rem;">
+              <label class="form-label" for="dataFile">Upload Data (ZIP File) <span class="required-badge">*</span></label>
+              <div class="file-upload-zone" id="fileUploadZone">
+                <div class="upload-icon">📦</div>
+                <p class="mb-2"><strong>Drag and drop your ZIP file here</strong></p>
+                <p class="text-muted mb-2">or</p>
+                <input type="file" class="form-control d-none" id="dataFile" name="dataFile" accept=".zip" required>
+                <button type="button" class="btn btn-outline-primary btn-sm" onclick="document.getElementById('dataFile').click()">Choose ZIP File</button>
+                <p class="form-text-small mt-2">Maximum file size: 5 GB</p>
+              </div>
+              <div id="fileSelected" class="mt-2 d-none">
+                <div class="alert alert-success mb-0">
+                  <i class="bx bx-check-circle"></i> <strong id="selectedFileName"></strong> selected
+                </div>
+              </div>
+              <div class="invalid-feedback d-block">Please select a ZIP file to upload.</div>
+            </div>
+          </div>
+
+          <!-- Section 5: Additional Information -->
+          <div class="form-section">
+            <div class="section-title">
+              <div class="section-icon">5</div>
+              Additional Information
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label" for="organizationName">Organization/Provider Name <span class="required-badge">*</span></label>
+              <input type="text" class="form-control" id="organizationName" name="organizationName" placeholder="e.g., GeoSabah Solutions" required>
+              <div class="form-text-small">Organization responsible for the survey or data.</div>
+              <div class="invalid-feedback">Organization name is required.</div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label" for="tags">Tags (Keywords)</label>
+              <input type="text" class="form-control" id="tags" name="tags" placeholder="e.g., kinabalu, urban, photogrammetry, drone">
+              <div class="form-text-small">Comma-separated keywords to help users find this dataset.</div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label" for="dataQualityNotes">Data Quality Notes</label>
+              <textarea class="form-control" id="dataQualityNotes" name="dataQualityNotes" rows="3" placeholder="Any known issues, accuracy limitations, or special notes about the data..."></textarea>
+              <div class="form-text-small">Optional: Document any known quality issues, accuracy specifications, or special notes.</div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label" for="thumbnail">Thumbnail Image (Preview)</label>
+              <input type="file" class="form-control" id="thumbnail" name="thumbnail" accept="image/*">
+              <div class="form-text-small">Optional: A small image (JPG or PNG) to display as a preview in the portal. Recommended size: 400x300px or larger.</div>
+            </div>
+          </div>
+
+          <!-- Processing Information -->
+          <div class="alert alert-info mb-4">
+            <i class="bx bx-info-circle"></i>
+            <strong>Processing Timeline:</strong> After submission, our team will review your data structure and begin processing within 24-48 hours. You'll receive email updates on the progress.
+          </div>
+
+          <!-- Submit Button -->
+          <div class="d-grid gap-2">
+            <button type="submit" class="btn btn-primary btn-lg">
+              <i class="bx bx-upload me-2"></i> Submit Data for Processing
+            </button>
+          </div>
+
+          <p id="submitMessage" class="small mt-3 mb-0 text-center"></p>
+
+        </form>
+
+      </div>
+    </div>
+  </div>
+
+  <script src="../../assets/vendor/libs/jquery/jquery.js"></script>
+  <script src="../../assets/vendor/libs/popper/popper.js"></script>
+  <script src="../../assets/vendor/js/bootstrap.js"></script>
+
+  <script>
+    // API Configuration
+    var UPLOAD_API = 'http://localhost:3000';
+
+    // Camera Configuration Toggle
+    document.querySelectorAll('input[name="cameraConfiguration"]').forEach(radio => {
+      radio.addEventListener('change', function() {
+        const detailsSection = document.getElementById('cameraDetailsSection');
+        if (this.value === 'multiple') {
+          detailsSection.classList.remove('hidden-field');
+        } else {
+          detailsSection.classList.add('hidden-field');
+        }
+      });
+    });
+
+    // File Upload Zone Handling
+    const fileUploadZone = document.getElementById('fileUploadZone');
+    const fileInput = document.getElementById('dataFile');
+    const fileSelected = document.getElementById('fileSelected');
+    const selectedFileName = document.getElementById('selectedFileName');
+
+    fileUploadZone.addEventListener('click', () => {
+      fileInput.click();
+    });
+
+    fileUploadZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      fileUploadZone.classList.add('dragover');
+    });
+
+    fileUploadZone.addEventListener('dragleave', () => {
+      fileUploadZone.classList.remove('dragover');
+    });
+
+    fileUploadZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      fileUploadZone.classList.remove('dragover');
+      
+      const files = e.dataTransfer.files;
+      if (files.length > 0) {
+        const file = files[0];
+        if (file.type === 'application/zip' || file.name.endsWith('.zip')) {
+          fileInput.files = files;
+          updateFileDisplay(file);
+        } else {
+          alert('Please upload a ZIP file.');
+        }
+      }
+    });
+
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files.length > 0) {
+        updateFileDisplay(e.target.files[0]);
+      }
+    });
+
+    function updateFileDisplay(file) {
+      const fileSizeInMB = (file.size / (1024 * 1024)).toFixed(2);
+      selectedFileName.textContent = `${file.name} (${fileSizeInMB} MB)`;
+      fileSelected.classList.remove('d-none');
+      fileUploadZone.classList.add('d-none');
+    }
+
+    // Form Submission
+    document.getElementById('uploadForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+
+      // Validate form
+      if (!this.checkValidity()) {
+        e.stopPropagation();
+        this.classList.add('was-validated');
+        return;
+      }
+
+      const submitBtn = this.querySelector('button[type="submit"]');
+      const msgDiv = document.getElementById('submitMessage');
+      msgDiv.textContent = '';
+      msgDiv.className = 'small mt-3 mb-0 text-center';
+
+      // Create FormData
+      const formData = new FormData();
+      formData.append('projectID', document.getElementById('projectID').value.trim());
+      formData.append('projectTitle', document.getElementById('projectTitle').value.trim());
+      formData.append('projectDescription', document.getElementById('projectDescription').value.trim());
+      formData.append('category', document.getElementById('category').value);
+      formData.append('latitude', document.getElementById('latitude').value);
+      formData.append('longitude', document.getElementById('longitude').value);
+      formData.append('areaCoverage', document.getElementById('areaCoverage').value.trim());
+      formData.append('imageMetadata', document.getElementById('imageMetadata').value);
+      formData.append('cameraConfiguration', document.querySelector('input[name="cameraConfiguration"]:checked').value);
+      
+      if (document.getElementById('multipleCamera').checked) {
+        formData.append('numCameras', document.getElementById('numCameras').value);
+        formData.append('cameraModels', document.getElementById('cameraModels').value);
+      }
+
+      formData.append('captureDate', document.getElementById('captureDate').value);
+      formData.append('organizationName', document.getElementById('organizationName').value.trim());
+      formData.append('tags', document.getElementById('tags').value);
+      formData.append('dataQualityNotes', document.getElementById('dataQualityNotes').value);
+
+      // Add files
+      const dataFile = document.getElementById('dataFile').files[0];
+      if (dataFile) {
+        formData.append('dataFile', dataFile);
+      }
+
+      const thumbnailFile = document.getElementById('thumbnail').files[0];
+      if (thumbnailFile) {
+        formData.append('thumbnail', thumbnailFile);
+      }
+
+      submitBtn.disabled = true;
+      msgDiv.textContent = 'Uploading data... Please wait.';
+      msgDiv.className = 'small mt-3 mb-0 text-center text-info';
+
+      // Submit to API
+      fetch(UPLOAD_API + '/api/upload-geospatial-data', {
+        method: 'POST',
+        body: formData,
+        credentials: 'include'
+      })
+        .then(r => r.json().then(j => ({ status: r.status, body: j })))
+        .then(x => {
+          if (x.status === 200 && x.body.success) {
+            msgDiv.className = 'small mt-3 mb-0 text-center text-success';
+            msgDiv.textContent = '✓ Data submitted successfully! You will receive a confirmation email shortly.';
+            setTimeout(() => {
+              window.location.href = 'landing-page.html';
+            }, 2000);
+          } else {
+            msgDiv.className = 'small mt-3 mb-0 text-center text-danger';
+            msgDiv.textContent = '✗ ' + (x.body.message || 'Failed to upload data. Please try again.');
+            submitBtn.disabled = false;
+          }
+        })
+        .catch(err => {
+          msgDiv.className = 'small mt-3 mb-0 text-center text-danger';
+          msgDiv.textContent = '✗ Error: Could not connect to server. Please ensure the server is running and try again.';
+          submitBtn.disabled = false;
+        });
+    });
+  </script>
+</body>
+</html>
