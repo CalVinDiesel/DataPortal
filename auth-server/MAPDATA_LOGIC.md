@@ -38,7 +38,7 @@ Note: Column name is `3dTiles` (not tilesetUrl) as requested. In SQL it is quote
    - User opens `3D-viewer.html?id=KK_OSPREY` (or via `loading-3d.html?id=KK_OSPREY`).
    - Page calls **GET /api/map-data/KK_OSPREY**.
    - If found: use `3dTiles` as the tileset URL for `Cesium.Cesium3DTileset.fromUrl(...)`, and use (xAxis, yAxis) as (longitude, latitude) for camera flyTo.
-   - If API fails or 404: fall back to existing `locations.json` and match by `id` (so existing ids like `kk-city-centre` still work).
+   - If API fails or 404: fall back to existing `locations.json` and match by `id` (so existing ids like `KK_OSPREY` still work).
 
 ## KK_OSPREY seed row
 - **mapDataID**: `KK_OSPREY`

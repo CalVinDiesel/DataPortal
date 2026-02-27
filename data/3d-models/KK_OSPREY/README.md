@@ -7,7 +7,7 @@ The 3D viewer loads the **KK OSPREY** model from this folder. For it to run you 
 1. **tileset.json** – the index file that lists all tiles.
 2. **top/** (or whatever your export uses) – the folder containing all tile files (e.g. `Level_13/`, `Level_14/`, `.b3dm`, tile `.json` files).
 
-Same idea as `data/3d-models/kk-tanjung-aru/` – see **data/3d-models/HOW-TO-MAKE-3D-MODEL-WORK.md** for the full steps.
+See **data/3d-models/HOW-TO-MAKE-3D-MODEL-WORK.md** for the full steps.
 
 ## Target layout
 

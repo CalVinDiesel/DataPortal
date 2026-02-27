@@ -35,6 +35,20 @@ function writeUsers(users) {
 }
 
 // ---- MapData (Temadigital_Data_Portal.MapData – from SQLite table or map-data.json) ----
+// These ids were used as temporary demo locations and should never appear on the live overview map.
+const REMOVED_MAPDATA_IDS = new Set([
+  'kk-city-centre',
+  'kk-waterfront',
+  'kk-likas-bay',
+  'kk-tanjung-aru',
+  'kk-teleuk-layang'
+]);
+
+function filterMapDataRows(rows) {
+  if (!Array.isArray(rows)) return [];
+  return rows.filter(r => !REMOVED_MAPDATA_IDS.has(String(r.mapDataID || '').trim()));
+}
+
 function readMapDataFromDb() {
   if (!mapDataDb) return null;
   try {
@@ -54,7 +68,7 @@ function readMapDataFromDb() {
       });
     }
     stmt.free();
-    return rows;
+    return filterMapDataRows(rows);
   } catch (e) {
     console.error('readMapDataFromDb', e);
     return null;
@@ -66,7 +80,7 @@ function readMapData() {
   if (fromDb && fromDb.length > 0) return fromDb;
   try {
     const data = fs.readFileSync(MAPDATA_FILE, 'utf8');
-    return JSON.parse(data);
+    return filterMapDataRows(JSON.parse(data));
   } catch (e) {
     fs.mkdirSync(path.dirname(MAPDATA_FILE), { recursive: true });
     const seed = [{

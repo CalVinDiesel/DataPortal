@@ -5,25 +5,18 @@
  * <img src="../../assets/..."> on the landing page) and load on the overview map.
  * Loads locations from data/locations.json and from MapData API; pins use project images as thumbnails.
  * KK_OSPREY uses a blank placeholder thumbnail. Clustering groups nearby pins when zoomed out and shows count.
- * Expected locations (10): Kota Kinabalu City Centre, Kota Kinabalu Waterfront, Tanjung Aru Zone, Likas Bay Area,
- * Teluk Likas Coastal Strip, KK Osprey, KB 3DTiles Lite, Kolombong (fisheye test), Wisma Merdeka, PPNS YS.
- * Clustering concept: Split/merge depends on how close pins are (lat/lon → screen distance). Zoom IN = clusters split
- * into smaller groups where pins are farther apart on screen, down to single pins. Zoom OUT = nearby pins merge by
- * screen proximity. The count on each pin (e.g. 10, 7, 4, 2, 1) is whatever the proximity dictates—no fixed sequence.
+ * Expected locations (5): KK Osprey, KB 3DTiles Lite, Kolombong (fisheye test), Wisma Merdeka, PPNS YS.
+ * Clustering concept: The number on each pin is not fixed—it is how many locations are grouped in that cluster.
+ * Zoom IN = clusters split into smaller groups (pin number decreases), down to single pins (1). Zoom OUT = nearby
+ * locations merge (pin number increases). Only the location choice bar is shown on hover; it must show exactly that many cards.
  */
 (function () {
   var API_BASE = (typeof window !== 'undefined' && window.TemaDataPortal_API_BASE) || 'http://localhost:3000';
 
-  // Thumbnail paths: KK_OSPREY = empty; 5 locations use uploaded images (kkCityCentre, kkWaterFront, likasBayArea, tanjungAruBeach, telukLikasCoastalStrip; kotakinabalucity optional for city)
+  // Thumbnail paths: KK_OSPREY = empty; others use API/previewImage or placeholder
   var THUMBNAIL_BY_ID = {
-    'KK_OSPREY': '', // empty preview on map
-    'kk-city-centre': '../../assets/img/front-pages/locations/kkCityCentre.jpg',
-    'kk-waterfront': '../../assets/img/front-pages/locations/kkWaterFront.jpg',
-    'kk-likas-bay': '../../assets/img/front-pages/locations/likasBayArea.jpg',
-    'kk-tanjung-aru': '../../assets/img/front-pages/locations/tanjungAruBeach.jpg',
-    'kk-teleuk-layang': '../../assets/img/front-pages/locations/telukLikasCoastalStrip.jpg'
+    'KK_OSPREY': '' // empty preview on map
   };
-  // Optional fallback if primary image fails (e.g. kotakinabalucity.jpg for kk-city-centre)
   var THUMBNAIL_FALLBACK = {};
 
   // Base URL for resolving relative image paths. Prefer script location so ../../ is always project root.
@@ -55,7 +48,7 @@
 
   var IMAGE_BASE_URL = getImageBaseUrl();
 
-  var DEBUG_IMAGE_URLS = true;
+  var DEBUG_IMAGE_URLS = false;
 
   function resolveLocationImageUrl(relativePath) {
     if (!relativePath || typeof relativePath !== 'string') return null;
@@ -96,12 +89,7 @@
   };
 
   var ALL_PINS_FALLBACK = [
-    { id: 'KK_OSPREY', name: 'KK OSPREY', description: '3D model from GeoSabah 3D Hub (Kota Kinabalu area).', thumbnailUrl: '', longitude: 116.070466, latitude: 5.957839 },
-    { id: 'kk-city-centre', name: 'Kota Kinabalu City Centre', description: 'High-resolution drone photogrammetry 3D model of Kota Kinabalu city centre.', thumbnailUrl: '', longitude: 116.0735, latitude: 5.9804 },
-    { id: 'kk-waterfront', name: 'Kota Kinabalu Waterfront', description: 'Coastal drone capture of Kota Kinabalu waterfront including marina and shoreline.', thumbnailUrl: '', longitude: 116.0712, latitude: 5.9785 },
-    { id: 'kk-likas-bay', name: 'Likas Bay Area', description: 'Drone mapping of Likas Bay including beach zones and coastal vegetation.', thumbnailUrl: '', longitude: 116.0952, latitude: 6.0106 },
-    { id: 'kk-tanjung-aru', name: 'Tanjung Aru Zone', description: 'Urban-coastal drone capture of Tanjung Aru including residential zones and resorts.', thumbnailUrl: '', longitude: 116.070466, latitude: 5.957839 },
-    { id: 'kk-teleuk-layang', name: 'Teluk Likas Coastal Strip', description: 'Drone survey of Teluk Likas coastline including beach morphology.', thumbnailUrl: '', longitude: 116.0891, latitude: 6.0068 }
+    { id: 'KK_OSPREY', name: 'KK OSPREY', description: '3D model from GeoSabah 3D Hub (Kota Kinabalu area).', thumbnailUrl: '', longitude: 116.070466, latitude: 5.957839 }
   ];
 
   function getViewer(cb) {
@@ -207,10 +195,11 @@
       var canvas = viewer.scene.canvas;
       if (!canvas || !canvas.clientWidth || !canvas.clientHeight) return INITIAL_PIXEL_RANGE;
       var minDim = Math.min(canvas.clientWidth, canvas.clientHeight);
-      var rect = viewer.camera.computeViewRectangle(viewer.scene.globe.ellipsoid);
       var is2D = viewer.scene.mode === C.SceneMode.SCENE2D;
+      // In 2D mode, avoid expensive computeViewRectangle and rely only on frustum width.
+      if (is2D) return getClusterPixelRange2DFallback();
+      var rect = viewer.camera.computeViewRectangle(viewer.scene.globe.ellipsoid);
       if (!rect) {
-        if (is2D) return getClusterPixelRange2DFallback();
         return Math.max(INITIAL_PIXEL_RANGE, minDim * 0.9);
       }
       var heightRad = rect.north - rect.south;
@@ -558,9 +547,8 @@
     }
     setupLocationChoiceBar(viewer, locations, clusterToLocationIds, getLocationsForClusterEntity);
 
-    // Keep clustering smooth while zooming: just update pixelRange as the camera moves.
-    // We do NOT toggle clustering on every moveEnd (that caused brief \"glitches\" where pins regrouped twice).
-    viewer.camera.changed.addEventListener(updateClusterPixelRange);
+    // Update cluster pixel range only when camera stops. Do NOT use camera.changed: it fires every frame
+    // during zoom/pan and caused 5–10s lag (getClusterPixelRange + requestRender every frame).
     viewer.camera.moveEnd.addEventListener(updateClusterPixelRange);
 
     // Initial render; clustering will re-evaluate automatically as pixelRange changes with zoom.
@@ -578,6 +566,14 @@
     var clusterMap = clusterToLocationIds || new Map();
     var locationById = {};
     locations.forEach(function (loc) { locationById[loc.id] = loc; });
+    var cameraIsMoving = false;
+    viewer.camera.moveStart.addEventListener(function () {
+      cameraIsMoving = true;
+      hideBar();
+    });
+    viewer.camera.moveEnd.addEventListener(function () {
+      cameraIsMoving = false;
+    });
     var getClusterLocs = typeof getLocationsForClusterEntity === 'function' ? getLocationsForClusterEntity : null;
 
     function getNearbyLocations(screenX, screenY) {
@@ -645,10 +641,27 @@
       return locs;
     }
 
-    /** Return the cluster (and its canonical location ids) whose screen position is under the cursor.
-     *  preferredLocationId: prefer cluster that contains this location.
-     *  preferredCount: when set (e.g. from picked cluster), prefer cluster with this many locations so pin "4" shows 4, pin "6" shows 6. */
-    var TIGHT_CLUSTER_PX = 32;
+    /** Cluster screen position from centroid of its locations (reliable in 2D). */
+    function getClusterScreenPositionFromIds(ids) {
+      if (!ids || !ids.length) return null;
+      var scene = viewer.scene;
+      var sumX = 0, sumY = 0, count = 0;
+      for (var i = 0; i < ids.length; i++) {
+        var loc = locationById[ids[i]];
+        if (!loc || loc.longitude == null || loc.latitude == null) continue;
+        try {
+          var cartesian = C.Cartesian3.fromDegrees(loc.longitude, loc.latitude, 0);
+          var screenPos = C.SceneTransforms.worldToWindowCoordinates(scene, cartesian);
+          if (screenPos && typeof screenPos.x === 'number' && typeof screenPos.y === 'number') {
+            sumX += screenPos.x; sumY += screenPos.y; count++;
+          }
+        } catch (e) { /* skip */ }
+      }
+      if (count === 0) return null;
+      return { x: sumX / count, y: sumY / count };
+    }
+    /** Return the cluster (and its canonical location ids) whose screen position is under the cursor. */
+    var TIGHT_CLUSTER_PX = 60;
     function getClusterUnderCursor(screenX, screenY, maxPx, preferredLocationId, preferredCount) {
       var maxSq = (maxPx || 56) * (maxPx || 56);
       var tightSq = TIGHT_CLUSTER_PX * TIGHT_CLUSTER_PX;
@@ -664,13 +677,16 @@
       var byCountDistSq = Infinity;
       clusterMap.forEach(function (ids, entity) {
         if (!entity || !ids || ids.length < 2) return;
-        var pos = entity.position;
-        var cartesian = pos && typeof pos.getValue === 'function' ? pos.getValue(time) : pos;
-        if (!cartesian) return;
-        var screenPos;
-        try {
-          screenPos = C.SceneTransforms.worldToWindowCoordinates(scene, cartesian);
-        } catch (e) { return; }
+        var screenPos = getClusterScreenPositionFromIds(ids);
+        if (!screenPos) {
+          var pos = entity.position;
+          var cartesian = pos && typeof pos.getValue === 'function' ? pos.getValue(time) : pos;
+          if (cartesian) {
+            try {
+              screenPos = C.SceneTransforms.worldToWindowCoordinates(scene, cartesian);
+            } catch (e) { /* skip */ }
+          }
+        }
         if (!screenPos || typeof screenPos.x !== 'number' || typeof screenPos.y !== 'number') return;
         var dx = screenPos.x - screenX, dy = screenPos.y - screenY;
         var dSq = dx * dx + dy * dy;
@@ -712,212 +728,121 @@
       } catch (e) { return Infinity; }
     }
 
-    function getLocationsForHover(screenX, screenY) {
-      var CLUSTER_HOVER_RADIUS = 700;
-      var TIGHT_PX = 36;
-      var PIN_RADIUS_PX = 56 * PIN_SIZE_SCALE;
-      var picked = viewer.scene.pick(new C.Cartesian2(screenX, screenY));
-      // When the user picks a cluster, always use that cluster's data so the choice box matches the pin number at every zoom level.
-      if (C.defined(picked) && picked.id && clusterMap.has(picked.id)) {
+    /** Pick cluster when cursor touches the pin box. Sample grid over the pin so touching any part of the box hits. */
+    var PIN_BOX_HALF = Math.max(48 * PIN_SIZE_SCALE, 56);
+    var PICK_GRID_STEP = 18;
+    var PICK_NEAR_EXACT = (function () {
+      var out = [[0, 0]];
+      for (var x = -PIN_BOX_HALF; x <= PIN_BOX_HALF; x += PICK_GRID_STEP) {
+        for (var y = -PIN_BOX_HALF; y <= PIN_BOX_HALF; y += PICK_GRID_STEP) {
+          if (x === 0 && y === 0) continue;
+          out.push([x, y]);
+        }
+      }
+      return out;
+    })();
+    var PICK_EDGE_OFFSETS = (function () {
+      var out = [[0, 0]];
+      for (var r = 1; r <= 6; r++) {
+        var step = r * 12;
+        out.push([step, 0], [-step, 0], [0, step], [0, -step]);
+        if (r >= 2) out.push([step, step], [-step, step], [step, -step], [-step, -step]);
+      }
+      return out;
+    })();
+    function pickClusterNearCursor(screenX, screenY) {
+      for (var e = 0; e < PICK_NEAR_EXACT.length; e++) {
+        var ex = PICK_NEAR_EXACT[e][0], ey = PICK_NEAR_EXACT[e][1];
+        var exact = viewer.scene.pick(new C.Cartesian2(screenX + ex, screenY + ey));
+        if (C.defined(exact) && exact.id && clusterMap.has(exact.id)) {
+          var ids = clusterMap.get(exact.id);
+          if (ids && ids.length >= 2) return { entity: exact.id, ids: ids };
+        }
+      }
+      var byEntity = new Map();
+      for (var i = 0; i < PICK_EDGE_OFFSETS.length; i++) {
+        var ox = PICK_EDGE_OFFSETS[i][0], oy = PICK_EDGE_OFFSETS[i][1];
+        var px = screenX + ox, py = screenY + oy;
+        var picked = viewer.scene.pick(new C.Cartesian2(px, py));
+        if (!C.defined(picked) || !picked.id || !clusterMap.has(picked.id)) continue;
         var ids = clusterMap.get(picked.id);
-        if (ids && ids.length >= 2) {
-          var n = getClusterCountFromEntity(picked.id) || ids.length;
-          var list = ids.map(function (id) { return locationById[id]; }).filter(Boolean);
-          return ensureExactlyNLocs(list, n);
+        if (!ids || ids.length < 2) continue;
+        var offsetSq = ox * ox + oy * oy;
+        var key = picked.id;
+        if (!byEntity.has(key) || byEntity.get(key).offsetSq > offsetSq) {
+          byEntity.set(key, { entity: picked.id, ids: ids, offsetSq: offsetSq });
         }
       }
-      var preferredId = null;
-      var preferredCount = null;
-      if (C.defined(picked) && picked.id) {
-        var eid = typeof picked.id.id === 'string' ? picked.id.id : (picked.id.id && picked.id.id.id);
-        if (eid && locationById[eid]) preferredId = eid;
-        var pickedCount = getClusterCountFromEntity(picked.id);
-        if (pickedCount >= 2) preferredCount = pickedCount;
-      }
-      var under = getClusterUnderCursor(screenX, screenY, PIN_RADIUS_PX, preferredId, preferredCount);
-      if (under && under.ids && under.ids.length >= 2) {
-        var n = getClusterCountFromEntity(under.entity) || under.ids.length;
-        var list = under.ids.map(function (id) { return locationById[id]; }).filter(Boolean);
-        return ensureExactlyNLocs(list, n);
-      }
-      if (C.defined(picked) && picked.id) {
-        var entityId = typeof picked.id.id === 'string' ? picked.id.id : (picked.id.id && picked.id.id.id);
-        if (entityId && locationById[entityId]) {
-          var inRadius = getLocationsInRadiusForHover(screenX, screenY, CLUSTER_HOVER_RADIUS);
-          var probed = probeClusterAt(screenX, screenY);
-          if (probed.count >= 2) {
-            var nProbe = getClusterCountFromEntity(probed.entity) || probed.count;
-            if (probed.ids) {
-              var listProbe = probed.ids.map(function (id) { return locationById[id]; }).filter(Boolean);
-              return ensureExactlyNLocs(listProbe, nProbe);
-            }
-            var byPos = getClusterUnderCursor(screenX, screenY, PIN_RADIUS_PX, entityId, null);
-            if (byPos && byPos.ids && byPos.ids.length >= 2) {
-              var nBy = getClusterCountFromEntity(byPos.entity) || byPos.ids.length;
-              var listBy = byPos.ids.map(function (id) { return locationById[id]; }).filter(Boolean);
-              return ensureExactlyNLocs(listBy, nBy);
-            }
-            if (getClusterLocs && probed.entity) {
-              var locs = getClusterLocs(probed.entity);
-              if (locs.length > 0) return ensureExactlyNLocs(locs, nProbe);
-            }
-            return ensureExactlyNLocs(inRadius, nProbe);
+      if (byEntity.size === 0) return null;
+      var best = null;
+      byEntity.forEach(function (v) {
+        if (!best || v.offsetSq < best.offsetSq) best = v;
+      });
+      return { entity: best.entity, ids: best.ids };
+    }
+
+    /** Pin box size in pixels for "cursor on cluster" check. Matches the blue cluster label (font 32px + padding). */
+    var PIN_BOX_HALF_W = 60;
+    var PIN_BOX_HALF_H = 45;
+
+    /** Only show choice bar when cursor is on the pin box (blue cluster or single pin). */
+    function getLocationsForHover(screenX, screenY) {
+      // 1. Position-based cluster check. When the cursor is inside the pin box of multiple clusters (e.g. upper "4" and a nearby "6"), prefer the cluster with the *smallest* count so we show the pin that is actually under the cursor (upper 4 → 4 locations, not the 6-cluster).
+      var bestCluster = null;
+      var bestCount = Infinity;
+      var bestDistSq = Infinity;
+      clusterMap.forEach(function (ids, entity) {
+        if (!ids || ids.length < 2) return;
+        var pos = getClusterScreenPositionFromIds(ids);
+        if (!pos || typeof pos.x !== 'number' || typeof pos.y !== 'number') return;
+        var dx = Math.abs(screenX - pos.x), dy = Math.abs(screenY - pos.y);
+        if (dx <= PIN_BOX_HALF_W && dy <= PIN_BOX_HALF_H) {
+          var distSq = (screenX - pos.x) * (screenX - pos.x) + (screenY - pos.y) * (screenY - pos.y);
+          var prefer = ids.length < bestCount || (ids.length === bestCount && distSq < bestDistSq);
+          if (prefer) {
+            bestCount = ids.length;
+            bestDistSq = distSq;
+            var list = ids.map(function (id) { return locationById[id]; }).filter(Boolean);
+            if (list.length >= 2) bestCluster = ensureExactlyNLocs(list, ids.length);
           }
-          var n = getClusterCountFromEntity(picked.id);
-          if (n >= 2) return ensureExactlyNLocs(inRadius, n);
-          if (inRadius.length >= 2) {
-            var sumX = 0, sumY = 0, scene = viewer.scene;
-            for (var r = 0; r < inRadius.length; r++) {
-              try {
-                var sc = C.SceneTransforms.wgs84ToWindowCoordinates(scene, C.Cartesian3.fromDegrees(inRadius[r].longitude, inRadius[r].latitude, 0));
-                if (sc) { sumX += sc.x; sumY += sc.y; }
-              } catch (e) { /* skip */ }
-            }
-            var cx = sumX / inRadius.length, cy = sumY / inRadius.length;
-            probed = probeClusterAt(cx, cy);
-            if (probed.count >= 2) {
-              var nProbe2 = getClusterCountFromEntity(probed.entity) || probed.count;
-              if (probed.ids) {
-                var listProbe2 = probed.ids.map(function (id) { return locationById[id]; }).filter(Boolean);
-                return ensureExactlyNLocs(listProbe2, nProbe2);
-              }
-              var byPos2 = getClusterUnderCursor(cx, cy, PIN_RADIUS_PX, entityId, null);
-              if (byPos2 && byPos2.ids && byPos2.ids.length >= 2) {
-                var nBy2 = getClusterCountFromEntity(byPos2.entity) || byPos2.ids.length;
-                var listBy2 = byPos2.ids.map(function (id) { return locationById[id]; }).filter(Boolean);
-                return ensureExactlyNLocs(listBy2, nBy2);
-              }
-              if (getClusterLocs && probed.entity) {
-                var locs = getClusterLocs(probed.entity);
-                if (locs.length > 0) return ensureExactlyNLocs(locs, nProbe2);
-              }
-              return ensureExactlyNLocs(inRadius, nProbe2);
-            }
-          }
-          return [locationById[entityId]];
         }
+      });
+      if (bestCluster && bestCluster.length) return bestCluster;
+
+      var picked = viewer.scene.pick(new C.Cartesian2(screenX, screenY));
+
+      // 2. Exact pick: cluster or single pin.
+      if (C.defined(picked) && picked.id) {
         if (clusterMap.has(picked.id)) {
-          var ids = clusterMap.get(picked.id);
-          var n = getClusterCountFromEntity(picked.id) || ids.length;
-          var list = ids.map(function (id) { return locationById[id]; }).filter(Boolean);
-          return ensureExactlyNLocs(list, n);
-        }
-        var n = getClusterCountFromEntity(picked.id);
-        if (n >= 2) {
-          var byPos = getClusterUnderCursor(screenX, screenY, PIN_RADIUS_PX, null, n);
-          if (byPos && byPos.ids && byPos.ids.length >= 2) {
-            var list = byPos.ids.map(function (id) { return locationById[id]; }).filter(Boolean);
-            return ensureExactlyNLocs(list, n);
+          var ids0 = clusterMap.get(picked.id) || [];
+          if (ids0.length >= 2) {
+            var list0 = ids0.map(function (id) { return locationById[id]; }).filter(Boolean);
+            if (list0.length >= 2) return ensureExactlyNLocs(list0, ids0.length);
           }
-          if (getClusterLocs) {
-            var clusterLocs = getClusterLocs(picked.id);
-            if (clusterLocs.length > 0) return ensureExactlyNLocs(clusterLocs, n);
-          }
-          var inRadius = getLocationsInRadiusForHover(screenX, screenY, CLUSTER_HOVER_RADIUS);
-          return ensureExactlyNLocs(inRadius, n);
+          return [];
         }
-        if (getClusterLocs && picked.id && picked.id.position) {
-          var clusterLocs = getClusterLocs(picked.id);
-          if (clusterLocs.length >= 2) return clusterLocs;
+        var eid = typeof picked.id.id === 'string' ? picked.id.id : (picked.id.id && picked.id.id.id);
+        if (eid && locationById[eid]) return [locationById[eid]];
+      }
+
+      // 3. Multi-point pick over pin box (in case pick works but exact pixel missed).
+      var near = pickClusterNearCursor(screenX, screenY);
+      if (near && near.ids && near.ids.length >= 2) {
+        var list = near.ids.map(function (id) { return locationById[id]; }).filter(Boolean);
+        if (list.length >= 2) return ensureExactlyNLocs(list, near.ids.length);
+      }
+
+      // 4. Single pin: probe pin-box grid.
+      for (var i = 0; i < PICK_NEAR_EXACT.length; i++) {
+        var px = screenX + PICK_NEAR_EXACT[i][0], py = screenY + PICK_NEAR_EXACT[i][1];
+        var p = viewer.scene.pick(new C.Cartesian2(px, py));
+        if (C.defined(p) && p.id) {
+          var id = typeof p.id.id === 'string' ? p.id.id : (p.id.id && p.id.id.id);
+          if (id && locationById[id]) return [locationById[id]];
         }
       }
-      var tightRadius = getLocationsInRadiusForHover(screenX, screenY, TIGHT_PX);
-      if (tightRadius.length === 0) {
-        var singlePinRadius = getLocationsInRadiusForHover(screenX, screenY, 52);
-        if (singlePinRadius.length === 1) return [singlePinRadius[0]];
-        return [];
-      }
-      var inRadius700 = getLocationsInRadiusForHover(screenX, screenY, CLUSTER_HOVER_RADIUS);
-      if (tightRadius.length === 1) {
-        var wider = getLocationsInRadiusForHover(screenX, screenY, 600);
-        if (wider.length >= 2) {
-          var sumX = 0, sumY = 0, scene = viewer.scene;
-          for (var w = 0; w < wider.length; w++) {
-            try {
-              var sw = C.SceneTransforms.wgs84ToWindowCoordinates(scene, C.Cartesian3.fromDegrees(wider[w].longitude, wider[w].latitude, 0));
-              if (sw) { sumX += sw.x; sumY += sw.y; }
-            } catch (e) { /* skip */ }
-          }
-          var probed = probeClusterAt(sumX / wider.length, sumY / wider.length);
-          if (probed.count === 0) probed = probeClusterAt(screenX, screenY);
-          if (probed.count >= 2) {
-            var nProbe3 = getClusterCountFromEntity(probed.entity) || probed.count;
-            if (probed.ids) {
-              var listProbe3 = probed.ids.map(function (id) { return locationById[id]; }).filter(Boolean);
-              return ensureExactlyNLocs(listProbe3, nProbe3);
-            }
-            var byPos3 = getClusterUnderCursor(screenX, screenY, PIN_RADIUS_PX, null, null);
-            if (byPos3 && byPos3.ids && byPos3.ids.length >= 2) {
-              var nBy3 = getClusterCountFromEntity(byPos3.entity) || byPos3.ids.length;
-              var listBy3 = byPos3.ids.map(function (id) { return locationById[id]; }).filter(Boolean);
-              return ensureExactlyNLocs(listBy3, nBy3);
-            }
-            if (getClusterLocs && probed.entity) {
-              var locs = getClusterLocs(probed.entity);
-              if (locs.length > 0) return ensureExactlyNLocs(locs, nProbe3);
-            }
-            return ensureExactlyNLocs(wider, nProbe3);
-          }
-        }
-        return [tightRadius[0]];
-      }
-      if (tightRadius.length >= 2 && tightRadius.length <= 12) {
-        var probed = probeClusterAt(screenX, screenY);
-        var count = getClusterCountFromEntity(probed.entity) || probed.count;
-        if (count >= 2) {
-          if (probed.ids) {
-            var listT = probed.ids.map(function (id) { return locationById[id]; }).filter(Boolean);
-            return ensureExactlyNLocs(listT, count);
-          }
-          var byPosT = getClusterUnderCursor(screenX, screenY, PIN_RADIUS_PX, null, null);
-          if (byPosT && byPosT.ids && byPosT.ids.length >= 2) {
-            var nByT = getClusterCountFromEntity(byPosT.entity) || byPosT.ids.length;
-            var listByT = byPosT.ids.map(function (id) { return locationById[id]; }).filter(Boolean);
-            return ensureExactlyNLocs(listByT, nByT);
-          }
-          if (getClusterLocs && probed.entity) {
-            var clusterLocs = getClusterLocs(probed.entity);
-            if (clusterLocs.length > 0) return ensureExactlyNLocs(clusterLocs, count);
-          }
-          if (tightRadius.length >= count) return tightRadius.slice(0, count);
-          var wider = getLocationsInRadiusForHover(screenX, screenY, CLUSTER_HOVER_RADIUS);
-          return ensureExactlyNLocs(wider, count);
-        }
-        var sumX = 0, sumY = 0, scene = viewer.scene;
-        for (var t = 0; t < tightRadius.length; t++) {
-          var c = C.Cartesian3.fromDegrees(tightRadius[t].longitude, tightRadius[t].latitude, 0);
-          try {
-            var sp = C.SceneTransforms.wgs84ToWindowCoordinates(scene, c);
-            if (sp) { sumX += sp.x; sumY += sp.y; }
-          } catch (e) { /* skip */ }
-        }
-        if (tightRadius.length > 0) {
-          var cx = sumX / tightRadius.length, cy = sumY / tightRadius.length;
-          probed = probeClusterAt(cx, cy);
-          count = getClusterCountFromEntity(probed.entity) || probed.count;
-          if (count >= 2) {
-            if (probed.ids) {
-              var listT2 = probed.ids.map(function (id) { return locationById[id]; }).filter(Boolean);
-              return ensureExactlyNLocs(listT2, count);
-            }
-            var byPosT2 = getClusterUnderCursor(cx, cy, PIN_RADIUS_PX, null, null);
-            if (byPosT2 && byPosT2.ids && byPosT2.ids.length >= 2) {
-              var nByT2 = getClusterCountFromEntity(byPosT2.entity) || byPosT2.ids.length;
-              var listByT2 = byPosT2.ids.map(function (id) { return locationById[id]; }).filter(Boolean);
-              return ensureExactlyNLocs(listByT2, nByT2);
-            }
-            if (getClusterLocs && probed.entity) {
-              clusterLocs = getClusterLocs(probed.entity);
-              if (clusterLocs.length > 0) return ensureExactlyNLocs(clusterLocs, count);
-            }
-            if (tightRadius.length >= count) return tightRadius.slice(0, count);
-            var wider2 = getLocationsInRadiusForHover(cx, cy, CLUSTER_HOVER_RADIUS);
-            return ensureExactlyNLocs(wider2, count);
-          }
-        }
-        return tightRadius;
-      }
-      return tightRadius.length ? [tightRadius[0]] : [];
+
+      return [];
     }
 
     function getLocationsInRadiusForHover(screenX, screenY, radiusPx) {
@@ -1105,13 +1030,15 @@
 
     var canvas = viewer.scene.canvas;
     var canvasRect = canvas.getBoundingClientRect();
+    var hoverRaf = null;
+    var lastHoverX = -1;
+    var lastHoverY = -1;
 
-    var moveHandler = new Cesium.ScreenSpaceEventHandler(canvas);
-    moveHandler.setInputAction(function (movement) {
+    function runHoverUpdate(screenX, screenY) {
       canvasRect = canvas.getBoundingClientRect();
-      var clientX = canvasRect.left + movement.endPosition.x;
-      var clientY = canvasRect.top + movement.endPosition.y;
-      var nearby = getLocationsForHover(movement.endPosition.x, movement.endPosition.y);
+      var clientX = canvasRect.left + screenX;
+      var clientY = canvasRect.top + screenY;
+      var nearby = getLocationsForHover(screenX, screenY);
       if (nearby.length > 0) {
         var anchor = getPinCenterClientPosition(nearby);
         if (anchor) {
@@ -1122,28 +1049,48 @@
       } else {
         if (!isMouseOverBar(clientX, clientY)) hideBar();
       }
+    }
+
+    var moveHandler = new Cesium.ScreenSpaceEventHandler(canvas);
+    moveHandler.setInputAction(function (movement) {
+      if (cameraIsMoving) return;
+      var x = movement.endPosition.x;
+      var y = movement.endPosition.y;
+      if (x === lastHoverX && y === lastHoverY) return;
+      lastHoverX = x;
+      lastHoverY = y;
+      if (hoverRaf) cancelAnimationFrame(hoverRaf);
+      hoverRaf = requestAnimationFrame(function () {
+        hoverRaf = null;
+        runHoverUpdate(x, y);
+      });
     }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
 
     mapContainer.addEventListener('mouseleave', function () {
       hideBar();
     });
 
+    var docMoveRaf = null;
     document.addEventListener('mousemove', function (e) {
-      if (!barVisible) return;
+      if (!barVisible || cameraIsMoving) return;
       var clientX = e.clientX;
       var clientY = e.clientY;
       var rect = canvas.getBoundingClientRect();
       var overBar = isMouseOverBar(clientX, clientY);
-      var overCanvas = (rect.left <= clientX && clientX <= rect.right && rect.top <= clientY && clientY <= rect.bottom);
       if (overBar) return;
-      if (overCanvas) {
-        var canvasX = clientX - rect.left;
-        var canvasY = clientY - rect.top;
+      var overCanvas = (rect.left <= clientX && clientX <= rect.right && rect.top <= clientY && clientY <= rect.bottom);
+      if (!overCanvas) {
+        hideBar();
+        return;
+      }
+      if (docMoveRaf) cancelAnimationFrame(docMoveRaf);
+      var canvasX = clientX - rect.left;
+      var canvasY = clientY - rect.top;
+      docMoveRaf = requestAnimationFrame(function () {
+        docMoveRaf = null;
         var nearby = getLocationsForHover(canvasX, canvasY);
         if (nearby.length === 0) hideBar();
-      } else {
-        hideBar();
-      }
+      });
     });
   }
 

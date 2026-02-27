@@ -1,6 +1,6 @@
 # How to make the 3D model work (without 3dhub)
 
-Follow these steps so that when a user clicks **"View full 3D model"** on the landing page, the Tanjung Aru 3D model loads from your own project.
+Follow these steps so that when a user clicks **"View full 3D model"** on the landing page, the 3D model loads from your own project.
 
 ---
 
@@ -18,12 +18,12 @@ Without the tile files, the viewer will load the index but then get 404 for ever
 
 ---
 
-## 2. Put everything inside `data/3d-models/kk-tanjung-aru/`
+## 2. Put everything inside your project folder (e.g. `data/3d-models/KK_OSPREY/`)
 
-Your folder must look like this (paths in tileset.json are relative to this folder):
+Your folder must look like this (paths in tileset.json are relative to this folder). Replace `your-project-id` with your location id (e.g. KK_OSPREY):
 
 ```
-data/3d-models/kk-tanjung-aru/
+data/3d-models/your-project-id/
 ├── tileset.json          ← you already have this
 └── top/
     ├── Level_13/
@@ -38,8 +38,8 @@ data/3d-models/kk-tanjung-aru/
 **Steps:**
 
 1. Get the full export folder (tileset.json + top/ and all contents).
-2. Copy **tileset.json** into `data/3d-models/kk-tanjung-aru/` (overwrite if needed).
-3. Copy the **entire `top/` folder** (and everything inside it) into `data/3d-models/kk-tanjung-aru/`.
+2. Copy **tileset.json** into `data/3d-models/your-project-id/` (overwrite if needed).
+3. Copy the **entire `top/` folder** (and everything inside it) into `data/3d-models/your-project-id/`.
 4. Do not put tileset.json inside `top/` — it must sit next to the `top/` folder as above.
 
 ---
@@ -73,9 +73,9 @@ Then open: **http://localhost:8080/html/front-pages/landing-page.html**
 ## 4. Test the flow
 
 1. Open the landing page in the browser (via the URL from step 3).
-2. On the map, click the **Tanjung Aru** pin (or the area that shows the “View full 3D model” link).
+2. On the map, click the pin for your project (or the area that shows the “View full 3D model” link).
 3. Click **“View full 3D model →”**.
-4. You should be taken to the 3D viewer, camera flies to Tanjung Aru, and the 3D tiles load from `data/3d-models/kk-tanjung-aru/`.
+4. You should be taken to the 3D viewer, camera flies to the location, and the 3D tiles load from your project folder.
 
 If the model still does not appear:
 
@@ -89,8 +89,8 @@ If the model still does not appear:
 | Step | Action |
 |------|--------|
 | 1 | Get the full 3D Tiles package (tileset.json + top/ with all .b3dm and tile .json files) from your export tool or from the 3dhub server files. |
-| 2 | Put tileset.json and the whole top/ folder inside `data/3d-models/kk-tanjung-aru/`. |
+| 2 | Put tileset.json and the whole top/ folder inside your project folder (e.g. `data/3d-models/KK_OSPREY/`). |
 | 3 | Run the project with a local HTTP server (npx serve, Python, or Live Server). |
-| 4 | Open landing page → click Tanjung Aru → “View full 3D model” and confirm the model loads. |
+| 4 | Open landing page → click your project pin → “View full 3D model” and confirm the model loads. |
 
 No 3dhub approval or external server is needed once the tile files are in this folder; the viewer loads everything from your project.
