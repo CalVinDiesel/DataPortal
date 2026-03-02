@@ -1,1 +1,86 @@
-{"locations":[{"id":"KK_OSPREY","name":"KK OSPREY","category":"Urban","featured":true,"description":"3D model from GeoSabah 3D Hub (Kota Kinabalu area).","coordinates":{"latitude":5.957839,"longitude":116.070466,"height":50},"captureDate":"2025-02-20","area":"Kota Kinabalu area","resolution":"3D Tiles","price":"","formats":["Cesium 3D Tiles"],"tags":["3d-tiles","geosabah","sabah","kota-kinabalu"],"previewImage":"","dataPaths":{"tileset":"https://3dhub.geosabah.my/3dmodel/KK_OSPREY/tileset.json"}},{"id":"kb-3dtiles-lite","name":"KB 3DTiles Lite","category":"Urban","featured":false,"description":"Building Planning KB 3DTiles Lite.","coordinates":{"latitude":5.95,"longitude":116.07,"height":50},"dataPaths":{"tileset":"https://3dhub.geosabah.my/3dmodel/Building_Planning/KB_3DTiles_Lite/tileset.json"}},{"id":"kolombong-fisheye","name":"Kolombong","category":"Urban","featured":false,"description":"Kolombong Fisheye Test.","coordinates":{"latitude":5.95,"longitude":116.07,"height":50},"dataPaths":{"tileset":"https://3dhub.geosabah.my/3dmodel/Building_Planning/fisheye_test_kolombong_18mac2025/tileset.json"}},{"id":"wisma-merdeka","name":"WISMA MERDEKA","category":"Urban","featured":true,"description":"WISMA MERDEKA 3D Model.","coordinates":{"latitude":5.95,"longitude":116.07,"height":50},"dataPaths":{"tileset":"https://3dhub.geosabah.my/3dmodel/wismamerdeka/tileset.json"}},{"id":"ppns-ys","name":"PPNS YS","category":"Urban","featured":false,"description":"PPNS YS 3D Model.","coordinates":{"latitude":5.95,"longitude":116.07,"height":50},"dataPaths":{"tileset":"https://3dhub.geosabah.my/3dmodel/ppns_ys/tileset.json"}}]}
+{
+  "locations": [
+    {
+      "id": "KK_OSPREY",
+      "name": "KK OSPREY",
+      "category": "Urban",
+      "featured": true,
+      "description": "3D model from GeoSabah 3D Hub (Kota Kinabalu area).",
+      "coordinates": {
+        "latitude": 5.957839,
+        "longitude": 116.070466,
+        "height": 31.3
+      },
+      "captureDate": "2025-02-20",
+      "area": "Kota Kinabalu area",
+      "resolution": "3D Tiles",
+      "price": "",
+      "formats": ["Cesium 3D Tiles"],
+      "tags": ["3d-tiles", "geosabah", "sabah", "kota-kinabalu"],
+      "previewImage": "",
+      "dataPaths": {
+        "tileset": "https://3dhub.geosabah.my/3dmodel/KK_OSPREY/tileset.json"
+      }
+    },
+    {
+      "id": "kb-3dtiles-lite",
+      "name": "KB 3DTiles Lite",
+      "category": "Urban",
+      "featured": false,
+      "description": "Building Planning KB 3DTiles Lite.",
+      "coordinates": {
+        "latitude": 6.355876,
+        "longitude": 116.430814,
+        "height": 39.87
+      },
+      "dataPaths": {
+        "tileset": "https://3dhub.geosabah.my/3dmodel/Building_Planning/KB_3DTiles_Lite/tileset.json"
+      }
+    },
+    {
+      "id": "kolombong-fisheye",
+      "name": "Kolombong",
+      "category": "Urban",
+      "featured": false,
+      "description": "Kolombong Fisheye Test.",
+      "coordinates": {
+        "latitude": 5.982689,
+        "longitude": 116.115222,
+        "height": 73.94
+      },
+      "dataPaths": {
+        "tileset": "https://3dhub.geosabah.my/3dmodel/Building_Planning/fisheye_test_kolombong_18mac2025/tileset.json"
+      }
+    },
+    {
+      "id": "wisma-merdeka",
+      "name": "WISMA MERDEKA",
+      "category": "Urban",
+      "featured": true,
+      "description": "WISMA MERDEKA 3D Model.",
+      "coordinates": {
+        "latitude": 5.985513,
+        "longitude": 116.075578,
+        "height": 27.36
+      },
+      "dataPaths": {
+        "tileset": "https://3dhub.geosabah.my/3dmodel/wismamerdeka/tileset.json"
+      }
+    },
+    {
+      "id": "ppns-ys",
+      "name": "PPNS YS",
+      "category": "Urban",
+      "featured": false,
+      "description": "PPNS YS 3D Model.",
+      "coordinates": {
+        "latitude": 6.006459,
+        "longitude": 116.106505,
+        "height": -47
+      },
+      "dataPaths": {
+        "tileset": "https://3dhub.geosabah.my/3dmodel/ppns_ys/tileset.json"
+      }
+    }
+  ]
+}

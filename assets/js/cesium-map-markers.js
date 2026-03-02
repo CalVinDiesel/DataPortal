@@ -4,7 +4,7 @@
  * both scripts run on the same page, so image URLs are resolved from the document (same base as
  * <img src="../../assets/..."> on the landing page) and load on the overview map.
  * Loads locations from data/locations.json and from MapData API; pins use project images as thumbnails.
- * KK_OSPREY uses a blank placeholder thumbnail. Clustering groups nearby pins when zoomed out and shows count.
+ * KK_OSPREY uses kkOsprey_pin_image.jpg as pin/choice-bar thumbnail. Clustering groups nearby pins when zoomed out and shows count.
  * Expected locations (5): KK Osprey, KB 3DTiles Lite, Kolombong (fisheye test), Wisma Merdeka, PPNS YS.
  * Clustering concept: The number on each pin is not fixed—it is how many locations are grouped in that cluster.
  * Zoom IN = clusters split into smaller groups (pin number decreases), down to single pins (1). Zoom OUT = nearby
@@ -13,9 +13,13 @@
 (function () {
   var API_BASE = (typeof window !== 'undefined' && window.TemaDataPortal_API_BASE) || 'http://localhost:3000';
 
-  // Thumbnail paths: KK_OSPREY = empty; others use API/previewImage or placeholder
+  // Thumbnail paths: pin images for map and location choice bar (single + cluster hover)
   var THUMBNAIL_BY_ID = {
-    'KK_OSPREY': '' // empty preview on map
+    'KK_OSPREY': '../../assets/img/front-pages/locations/kkOsprey_pin_image.jpg',
+    'kb-3dtiles-lite': '../../assets/img/front-pages/locations/kb 3dtiles lite_pin_image.jpg',
+    'kolombong-fisheye': '../../assets/img/front-pages/locations/kolombong_pin_image.jpg',
+    'ppns-ys': '../../assets/img/front-pages/locations/ppns ys_pin_image.jpg',
+    'wisma-merdeka': '../../assets/img/front-pages/locations/wisma merdeka_pin_image.jpg'
   };
   var THUMBNAIL_FALLBACK = {};
 
@@ -62,7 +66,7 @@
   }
 
   // 1x1 transparent GIF for blank thumbnail (KK_OSPREY)
-  var BLANK_THUMBNAIL_DATAURL = 'data:image/gif;base64,R0lGOODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+  var BLANK_THUMBNAIL_DATAURL = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
 
   // Placeholder as inline SVG so it always shows (no external request); displays location name on a dark box
   function getPlaceholderImageUrl(name) {
@@ -84,12 +88,12 @@
     xAxis: 116.070466,
     yAxis: 5.957839,
     '3dTiles': 'https://3dhub.geosabah.my/3dmodel/KK_OSPREY/tileset.json',
-    thumbNailUrl: '',
+    thumbNailUrl: '../../assets/img/front-pages/locations/kkOsprey_pin_image.jpg',
     updateDateTime: null
   };
 
   var ALL_PINS_FALLBACK = [
-    { id: 'KK_OSPREY', name: 'KK OSPREY', description: '3D model from GeoSabah 3D Hub (Kota Kinabalu area).', thumbnailUrl: '', longitude: 116.070466, latitude: 5.957839 }
+    { id: 'KK_OSPREY', name: 'KK OSPREY', description: '3D model from GeoSabah 3D Hub (Kota Kinabalu area).', thumbnailUrl: '../../assets/img/front-pages/locations/kkOsprey_pin_image.jpg', longitude: 116.070466, latitude: 5.957839 }
   ];
 
   function getViewer(cb) {
@@ -125,7 +129,7 @@
     return url;
   }
 
-  /** Normalize to { id, name, description, thumbnailUrl, longitude, latitude } */
+  /** Normalize to { id, name, description, thumbnailUrl, longitude, latitude }. Only x/y (lon/lat) are used for the overview map; z (height) is for 3D viewer only and is not applied here. */
   function normalizeLocations(locationsJson, mapDataArray) {
     var list = [];
     if (locationsJson && locationsJson.locations && Array.isArray(locationsJson.locations)) {
@@ -213,8 +217,10 @@
         var f = viewer.camera.frustum;
         if (f && typeof f.right === 'number' && typeof f.left === 'number') {
           var width = Math.abs(f.right - f.left);
-          var zoomedOutWidth = 1e6;
-          var zoomedInWidth = 1e5;
+          // Frustum width in 2D (meters): larger = zoomed out, smaller = zoomed in.
+          // Use generous thresholds so zooming in splits clusters into smaller groups or singles.
+          var zoomedOutWidth = 2e6;   // fully clustered when view is very wide
+          var zoomedInWidth = 4e5;    // split to small/single when view width <= 400km
           if (width >= zoomedOutWidth) return INITIAL_PIXEL_RANGE;
           if (width <= zoomedInWidth) return MIN_CLUSTER_PX;
           var t = (width - zoomedInWidth) / (zoomedOutWidth - zoomedInWidth);
@@ -230,6 +236,14 @@
       viewer.scene.requestRender();
     }
     dataSource.clustering.pixelRange = INITIAL_PIXEL_RANGE;
+    var clusterRangeThrottle = null;
+    function throttledUpdateClusterPixelRange() {
+      if (clusterRangeThrottle) return;
+      clusterRangeThrottle = setTimeout(function () {
+        clusterRangeThrottle = null;
+        updateClusterPixelRange();
+      }, 180);
+    }
 
     var clusterToBounds = new Map(); // bounding rectangle for each cluster (for click-to-zoom)
     dataSource.clustering.clusterEvent.addEventListener(function (entities, cluster) {
@@ -278,6 +292,7 @@
     viewer.dataSources.add(dataSource);
 
     locations.forEach(function (loc) {
+      // Overview map is 2D: use only x/y (longitude, latitude). Height = 0; z is for 3D model view only.
       var position = C.Cartesian3.fromDegrees(loc.longitude, loc.latitude, 0);
       var labelText = loc.name + (loc.description ? '\n' + shortDesc(loc.description, labelMaxDesc) : '');
       var thumbUrl = getThumbnailUrl(loc);
@@ -505,7 +520,7 @@
           }
         }
       }
-      var probeOffsets = [[0, 0], [15, 0], [-15, 0], [0, 15], [0, -15], [10, 10], [-10, 10]];
+      var probeOffsets = [[0, 0], [20, 0], [-20, 0], [0, 20], [0, -20], [15, 15], [-15, 15]];
       for (var p = 0; p < probeOffsets.length; p++) {
         var px = screenX + probeOffsets[p][0], py = screenY + probeOffsets[p][1];
         var probe = viewer.scene.pick(new C.Cartesian2(px, py));
@@ -547,9 +562,9 @@
     }
     setupLocationChoiceBar(viewer, locations, clusterToLocationIds, getLocationsForClusterEntity);
 
-    // Update cluster pixel range only when camera stops. Do NOT use camera.changed: it fires every frame
-    // during zoom/pan and caused 5–10s lag (getClusterPixelRange + requestRender every frame).
+    // Update on moveEnd for final state; throttle during zoom so clusters split as user zooms in (no per-frame lag).
     viewer.camera.moveEnd.addEventListener(updateClusterPixelRange);
+    viewer.camera.changed.addEventListener(throttledUpdateClusterPixelRange);
 
     // Initial render; clustering will re-evaluate automatically as pixelRange changes with zoom.
     viewer.scene.requestRender();
@@ -599,42 +614,6 @@
       return nearby;
     }
 
-    function getClusterCountFromEntity(entity) {
-      if (!entity) return 0;
-      try {
-        var labelProp = entity.label && entity.label.text;
-        if (labelProp == null) return 0;
-        var labelText = typeof labelProp.getValue === 'function'
-          ? String(labelProp.getValue(viewer.clock.currentTime) || '')
-          : String(labelProp);
-        labelText = (labelText || '').trim();
-        var n = /^\d+$/.test(labelText) ? parseInt(labelText, 10) : 0;
-        return n >= 2 ? n : 0;
-      } catch (e) { return 0; }
-    }
-
-    function probeClusterAt(screenX, screenY) {
-      var probeOffsets = [[0, 0], [20, 0], [-20, 0], [0, 20], [0, -20], [15, 15], [-15, 15], [15, -15], [-15, -15], [40, 0], [-40, 0], [0, 40], [0, -40], [28, 28], [-28, 28], [28, -28], [-28, -28], [50, 0], [0, 50], [-50, 0], [0, -50]];
-      for (var i = 0; i < probeOffsets.length; i++) {
-        var px = screenX + probeOffsets[i][0], py = screenY + probeOffsets[i][1];
-        var probe = viewer.scene.pick(new C.Cartesian2(px, py));
-        if (C.defined(probe) && probe.id) {
-          if (clusterMap.has(probe.id)) {
-            var ids = clusterMap.get(probe.id);
-            var count = ids ? ids.length : (getClusterCountFromEntity(probe.id) || 0);
-            if (count >= 2) return { count: count, entity: probe.id, ids: ids || null };
-          }
-          var count = getClusterCountFromEntity(probe.id);
-          if (count >= 2) return { count: count, entity: probe.id, ids: null };
-        }
-      }
-      return { count: 0, entity: null, ids: null };
-    }
-    function probeClusterCountAt(screenX, screenY) {
-      var r = probeClusterAt(screenX, screenY);
-      return r.count;
-    }
-
     function ensureExactlyNLocs(locs, n) {
       if (!locs || n < 1) return locs || [];
       if (locs.length >= n) return locs.slice(0, n);
@@ -660,158 +639,13 @@
       if (count === 0) return null;
       return { x: sumX / count, y: sumY / count };
     }
-    /** Return the cluster (and its canonical location ids) whose screen position is under the cursor. */
-    var TIGHT_CLUSTER_PX = 60;
-    function getClusterUnderCursor(screenX, screenY, maxPx, preferredLocationId, preferredCount) {
-      var maxSq = (maxPx || 56) * (maxPx || 56);
-      var tightSq = TIGHT_CLUSTER_PX * TIGHT_CLUSTER_PX;
-      var scene = viewer.scene;
-      var time = viewer.clock.currentTime;
-      var best = null;
-      var bestDistSq = Infinity;
-      var bestInTight = null;
-      var bestInTightDistSq = Infinity;
-      var preferred = null;
-      var preferredDistSq = Infinity;
-      var byCount = null;
-      var byCountDistSq = Infinity;
-      clusterMap.forEach(function (ids, entity) {
-        if (!entity || !ids || ids.length < 2) return;
-        var screenPos = getClusterScreenPositionFromIds(ids);
-        if (!screenPos) {
-          var pos = entity.position;
-          var cartesian = pos && typeof pos.getValue === 'function' ? pos.getValue(time) : pos;
-          if (cartesian) {
-            try {
-              screenPos = C.SceneTransforms.worldToWindowCoordinates(scene, cartesian);
-            } catch (e) { /* skip */ }
-          }
-        }
-        if (!screenPos || typeof screenPos.x !== 'number' || typeof screenPos.y !== 'number') return;
-        var dx = screenPos.x - screenX, dy = screenPos.y - screenY;
-        var dSq = dx * dx + dy * dy;
-        if (dSq > maxSq) return;
-        if (preferredLocationId && ids.indexOf(preferredLocationId) !== -1) {
-          if (dSq < preferredDistSq) {
-            preferredDistSq = dSq;
-            preferred = { entity: entity, ids: ids };
-          }
-          return;
-        }
-        if (preferredCount && ids.length === preferredCount && dSq < byCountDistSq) {
-          byCountDistSq = dSq;
-          byCount = { entity: entity, ids: ids };
-        }
-        if (dSq <= tightSq && dSq < bestInTightDistSq) {
-          bestInTightDistSq = dSq;
-          bestInTight = { entity: entity, ids: ids };
-        }
-        if (dSq < bestDistSq) {
-          bestDistSq = dSq;
-          best = { entity: entity, ids: ids };
-        }
-      });
-      return preferred || byCount || bestInTight || best;
-    }
-
-    function getClusterScreenDistance(entity, screenX, screenY) {
-      if (!entity || !entity.position) return Infinity;
-      var scene = viewer.scene;
-      var time = viewer.clock.currentTime;
-      var cartesian = typeof entity.position.getValue === 'function' ? entity.position.getValue(time) : entity.position;
-      if (!cartesian) return Infinity;
-      try {
-        var screenPos = C.SceneTransforms.worldToWindowCoordinates(scene, cartesian);
-        if (!screenPos || typeof screenPos.x !== 'number') return Infinity;
-        var dx = screenPos.x - screenX, dy = screenPos.y - screenY;
-        return Math.sqrt(dx * dx + dy * dy);
-      } catch (e) { return Infinity; }
-    }
-
-    /** Pick cluster when cursor touches the pin box. Sample grid over the pin so touching any part of the box hits. */
-    var PIN_BOX_HALF = Math.max(48 * PIN_SIZE_SCALE, 56);
-    var PICK_GRID_STEP = 18;
-    var PICK_NEAR_EXACT = (function () {
-      var out = [[0, 0]];
-      for (var x = -PIN_BOX_HALF; x <= PIN_BOX_HALF; x += PICK_GRID_STEP) {
-        for (var y = -PIN_BOX_HALF; y <= PIN_BOX_HALF; y += PICK_GRID_STEP) {
-          if (x === 0 && y === 0) continue;
-          out.push([x, y]);
-        }
-      }
-      return out;
-    })();
-    var PICK_EDGE_OFFSETS = (function () {
-      var out = [[0, 0]];
-      for (var r = 1; r <= 6; r++) {
-        var step = r * 12;
-        out.push([step, 0], [-step, 0], [0, step], [0, -step]);
-        if (r >= 2) out.push([step, step], [-step, step], [step, -step], [-step, -step]);
-      }
-      return out;
-    })();
-    function pickClusterNearCursor(screenX, screenY) {
-      for (var e = 0; e < PICK_NEAR_EXACT.length; e++) {
-        var ex = PICK_NEAR_EXACT[e][0], ey = PICK_NEAR_EXACT[e][1];
-        var exact = viewer.scene.pick(new C.Cartesian2(screenX + ex, screenY + ey));
-        if (C.defined(exact) && exact.id && clusterMap.has(exact.id)) {
-          var ids = clusterMap.get(exact.id);
-          if (ids && ids.length >= 2) return { entity: exact.id, ids: ids };
-        }
-      }
-      var byEntity = new Map();
-      for (var i = 0; i < PICK_EDGE_OFFSETS.length; i++) {
-        var ox = PICK_EDGE_OFFSETS[i][0], oy = PICK_EDGE_OFFSETS[i][1];
-        var px = screenX + ox, py = screenY + oy;
-        var picked = viewer.scene.pick(new C.Cartesian2(px, py));
-        if (!C.defined(picked) || !picked.id || !clusterMap.has(picked.id)) continue;
-        var ids = clusterMap.get(picked.id);
-        if (!ids || ids.length < 2) continue;
-        var offsetSq = ox * ox + oy * oy;
-        var key = picked.id;
-        if (!byEntity.has(key) || byEntity.get(key).offsetSq > offsetSq) {
-          byEntity.set(key, { entity: picked.id, ids: ids, offsetSq: offsetSq });
-        }
-      }
-      if (byEntity.size === 0) return null;
-      var best = null;
-      byEntity.forEach(function (v) {
-        if (!best || v.offsetSq < best.offsetSq) best = v;
-      });
-      return { entity: best.entity, ids: best.ids };
-    }
-
-    /** Pin box size in pixels for "cursor on cluster" check. Matches the blue cluster label (font 32px + padding). */
+    /** Pin box size in pixels for "cursor on cluster" check. Matches the blue cluster label. */
     var PIN_BOX_HALF_W = 60;
     var PIN_BOX_HALF_H = 45;
 
-    /** Only show choice bar when cursor is on the pin box (blue cluster or single pin). */
+    /** Show choice bar only when cursor is on the pin box. Single pick first; fallback: one pass over clusters by position. */
     function getLocationsForHover(screenX, screenY) {
-      // 1. Position-based cluster check. When the cursor is inside the pin box of multiple clusters (e.g. upper "4" and a nearby "6"), prefer the cluster with the *smallest* count so we show the pin that is actually under the cursor (upper 4 → 4 locations, not the 6-cluster).
-      var bestCluster = null;
-      var bestCount = Infinity;
-      var bestDistSq = Infinity;
-      clusterMap.forEach(function (ids, entity) {
-        if (!ids || ids.length < 2) return;
-        var pos = getClusterScreenPositionFromIds(ids);
-        if (!pos || typeof pos.x !== 'number' || typeof pos.y !== 'number') return;
-        var dx = Math.abs(screenX - pos.x), dy = Math.abs(screenY - pos.y);
-        if (dx <= PIN_BOX_HALF_W && dy <= PIN_BOX_HALF_H) {
-          var distSq = (screenX - pos.x) * (screenX - pos.x) + (screenY - pos.y) * (screenY - pos.y);
-          var prefer = ids.length < bestCount || (ids.length === bestCount && distSq < bestDistSq);
-          if (prefer) {
-            bestCount = ids.length;
-            bestDistSq = distSq;
-            var list = ids.map(function (id) { return locationById[id]; }).filter(Boolean);
-            if (list.length >= 2) bestCluster = ensureExactlyNLocs(list, ids.length);
-          }
-        }
-      });
-      if (bestCluster && bestCluster.length) return bestCluster;
-
       var picked = viewer.scene.pick(new C.Cartesian2(screenX, screenY));
-
-      // 2. Exact pick: cluster or single pin.
       if (C.defined(picked) && picked.id) {
         if (clusterMap.has(picked.id)) {
           var ids0 = clusterMap.get(picked.id) || [];
@@ -824,50 +658,26 @@
         var eid = typeof picked.id.id === 'string' ? picked.id.id : (picked.id.id && picked.id.id.id);
         if (eid && locationById[eid]) return [locationById[eid]];
       }
-
-      // 3. Multi-point pick over pin box (in case pick works but exact pixel missed).
-      var near = pickClusterNearCursor(screenX, screenY);
-      if (near && near.ids && near.ids.length >= 2) {
-        var list = near.ids.map(function (id) { return locationById[id]; }).filter(Boolean);
-        if (list.length >= 2) return ensureExactlyNLocs(list, near.ids.length);
-      }
-
-      // 4. Single pin: probe pin-box grid.
-      for (var i = 0; i < PICK_NEAR_EXACT.length; i++) {
-        var px = screenX + PICK_NEAR_EXACT[i][0], py = screenY + PICK_NEAR_EXACT[i][1];
-        var p = viewer.scene.pick(new C.Cartesian2(px, py));
-        if (C.defined(p) && p.id) {
-          var id = typeof p.id.id === 'string' ? p.id.id : (p.id.id && p.id.id.id);
-          if (id && locationById[id]) return [locationById[id]];
+      var bestCluster = null;
+      var bestCount = Infinity;
+      var bestDistSq = Infinity;
+      clusterMap.forEach(function (ids, entity) {
+        if (!ids || ids.length < 2) return;
+        var pos = getClusterScreenPositionFromIds(ids);
+        if (!pos || typeof pos.x !== 'number' || typeof pos.y !== 'number') return;
+        var dx = Math.abs(screenX - pos.x), dy = Math.abs(screenY - pos.y);
+        if (dx <= PIN_BOX_HALF_W && dy <= PIN_BOX_HALF_H) {
+          var distSq = (screenX - pos.x) * (screenX - pos.x) + (screenY - pos.y) * (screenY - pos.y);
+          if (ids.length < bestCount || (ids.length === bestCount && distSq < bestDistSq)) {
+            bestCount = ids.length;
+            bestDistSq = distSq;
+            var list = ids.map(function (id) { return locationById[id]; }).filter(Boolean);
+            if (list.length >= 2) bestCluster = ensureExactlyNLocs(list, ids.length);
+          }
         }
-      }
-
+      });
+      if (bestCluster && bestCluster.length) return bestCluster;
       return [];
-    }
-
-    function getLocationsInRadiusForHover(screenX, screenY, radiusPx) {
-      var scene = viewer.scene;
-      var radius = radiusPx || 90;
-      var radiusSq = radius * radius;
-      var nearby = [];
-      for (var i = 0; i < locations.length; i++) {
-        var loc = locations[i];
-        var cartesian = C.Cartesian3.fromDegrees(loc.longitude, loc.latitude, 0);
-        var screenPos;
-        try {
-          screenPos = C.SceneTransforms.worldToWindowCoordinates(scene, cartesian);
-        } catch (e) {
-          continue;
-        }
-        if (screenPos && typeof screenPos.x === 'number' && typeof screenPos.y === 'number') {
-          var dx = screenPos.x - screenX;
-          var dy = screenPos.y - screenY;
-          var distSq = dx * dx + dy * dy;
-          if (distSq <= radiusSq) nearby.push({ loc: loc, distSq: distSq });
-        }
-      }
-      nearby.sort(function (a, b) { return a.distSq - b.distSq; });
-      return nearby.map(function (a) { return a.loc; });
     }
 
     /** Get pin/cluster center in client coordinates. For a single pin with image (bottom-anchored), use visual center so the bar aligns with the image. */
@@ -1051,46 +861,42 @@
       }
     }
 
+    //new hover function created to prevent too many hover updates that causes laggy and freeze of map
     var moveHandler = new Cesium.ScreenSpaceEventHandler(canvas);
+    var lastHoverTime = 0;
+    var HOVER_THROTTLE_MS = 80; // only check hover every 80ms
+
     moveHandler.setInputAction(function (movement) {
-      if (cameraIsMoving) return;
-      var x = movement.endPosition.x;
-      var y = movement.endPosition.y;
-      if (x === lastHoverX && y === lastHoverY) return;
-      lastHoverX = x;
-      lastHoverY = y;
-      if (hoverRaf) cancelAnimationFrame(hoverRaf);
-      hoverRaf = requestAnimationFrame(function () {
-        hoverRaf = null;
-        runHoverUpdate(x, y);
-      });
+        if (cameraIsMoving) return;
+        var x = movement.endPosition.x;
+        var y = movement.endPosition.y;
+        if (x === lastHoverX && y === lastHoverY) return;
+        lastHoverX = x;
+        lastHoverY = y;
+
+        var now = Date.now();
+        if (now - lastHoverTime < HOVER_THROTTLE_MS) return; // skip if too soon
+        lastHoverTime = now;
+
+        if (hoverRaf) cancelAnimationFrame(hoverRaf);
+        hoverRaf = requestAnimationFrame(function () {
+            hoverRaf = null;
+            runHoverUpdate(x, y);
+        });
     }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
 
     mapContainer.addEventListener('mouseleave', function () {
       hideBar();
     });
 
-    var docMoveRaf = null;
     document.addEventListener('mousemove', function (e) {
       if (!barVisible || cameraIsMoving) return;
       var clientX = e.clientX;
       var clientY = e.clientY;
+      if (isMouseOverBar(clientX, clientY)) return;
       var rect = canvas.getBoundingClientRect();
-      var overBar = isMouseOverBar(clientX, clientY);
-      if (overBar) return;
       var overCanvas = (rect.left <= clientX && clientX <= rect.right && rect.top <= clientY && clientY <= rect.bottom);
-      if (!overCanvas) {
-        hideBar();
-        return;
-      }
-      if (docMoveRaf) cancelAnimationFrame(docMoveRaf);
-      var canvasX = clientX - rect.left;
-      var canvasY = clientY - rect.top;
-      docMoveRaf = requestAnimationFrame(function () {
-        docMoveRaf = null;
-        var nearby = getLocationsForHover(canvasX, canvasY);
-        if (nearby.length === 0) hideBar();
-      });
+      if (!overCanvas) hideBar();
     });
   }
 

@@ -29,6 +29,9 @@ function initializeCesium(containerId = 'cesiumContainer') {
         destination: Cesium.Cartesian3.fromDegrees(116.46905, 5.63444, 710000)
     });
 
+    cesiumViewer.scene.requestRenderMode = true;
+    cesiumViewer.scene.maximumRenderTimeChange = Infinity;
+
     window.cesiumViewer = cesiumViewer;
     return cesiumViewer;
 }

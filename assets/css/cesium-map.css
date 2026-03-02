@@ -115,40 +115,49 @@
     transition: opacity 0.2s ease, visibility 0.2s ease;
 }
 
-/* Floating thumbnail box: positioned near cursor when hovering a pin/cluster */
+/* Floating thumbnail box: compact square box near cursor (does not stretch horizontally) */
 .location-choice-bar-floating {
     position: fixed;
     bottom: auto;
     left: 0;
     right: auto;
-    width: auto;
+    width: 320px;
+    max-width: min(320px, calc(100vw - 24px));
+    max-height: 320px;
     z-index: 1500;
-    max-width: min(420px, calc(100vw - 24px));
-    max-height: min(320px, calc(100vh - 24px));
 }
 
 .location-choice-bar-floating .location-choice-bar-inner {
     border-radius: 12px;
     border: 1px solid rgba(255, 255, 255, 0.12);
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    max-height: 320px;
+    display: flex;
+    flex-direction: column;
 }
 
 .location-choice-bar-floating .location-choice-bar-cards {
-    flex-wrap: wrap;
-    max-height: 280px;
-    overflow-x: auto;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    max-height: 260px;
+    overflow-x: hidden;
     overflow-y: auto;
+    padding: 8px;
 }
 
-/* Single location: compact bar with image beside text (does not block map) */
+/* Single location: compact bar with image beside text */
 .location-choice-bar-single.location-choice-bar-floating {
-    max-width: min(340px, calc(100vw - 24px));
+    width: auto;
+    max-width: min(300px, calc(100vw - 24px));
 }
 
 .location-choice-bar-single .location-choice-bar-cards {
+    display: flex;
     flex-wrap: nowrap;
     max-height: none;
     overflow: visible;
+    padding: 8px;
 }
 
 .location-choice-card-single {
@@ -204,17 +213,17 @@
 }
 
 .location-choice-bar-cards {
-    display: flex;
-    flex-wrap: nowrap;
-    gap: 12px;
-    overflow-x: auto;
-    overflow-y: hidden;
-    padding-bottom: 4px;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    overflow: auto;
+    padding: 8px;
     scrollbar-width: thin;
     scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
 }
 
 .location-choice-bar-cards::-webkit-scrollbar {
+    width: 6px;
     height: 6px;
 }
 
@@ -228,8 +237,9 @@
 }
 
 .location-choice-card {
-    flex: 0 0 auto;
-    width: 160px;
+    min-width: 0;
+    width: 100%;
+    max-width: 140px;
     cursor: pointer;
     background: rgba(255, 255, 255, 0.06);
     border: 1px solid rgba(255, 255, 255, 0.12);

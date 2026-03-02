@@ -28,96 +28,74 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0" />
     <meta name="robots" content="noindex, nofollow" />
-
-    
-      <title>Demo: Landing Page - Front Pages | Sneat - Bootstrap Dashboard PRO</title>
-    
-
-    
-      <!-- Canonical SEO -->
-      <meta name="description" content="Sneat is the best bootstrap 5 dashboard for responsive web apps. Streamline your app development process with ease." />
-      
-        <meta name="keywords" content="Sneat bootstrap dashboard, sneat bootstrap 5 dashboard, themeselection, html dashboard, web dashboard, frontend dashboard, responsive bootstrap theme" />
-        <meta property="og:title" content="Sneat Bootstrap 5 Dashboard PRO by ThemeSelection" />
-        <meta property="og:type" content="product" />
-        <meta property="og:url" content="https://themeselection.com/item/sneat-dashboard-pro-bootstrap/" />
-        <meta property="og:image" content="https://temadigital.my/wp-content/uploads/2025/01/temadigital_logo.png" />
-        <meta property="og:description" content="Sneat is the best bootstrap 5 dashboard for responsive web apps. Streamline your app development process with ease." />
-        <meta property="og:site_name" content="ThemeSelection" />
-        <link rel="canonical" href="https://themeselection.com/item/sneat-dashboard-pro-bootstrap/" />
-      
-    
-    
-      <!-- ? PROD Only: Google Tag Manager (Default ThemeSelection: GTM-5DDHKGP, PixInvent: GTM-5J3LMKC) -->
-      <script>
-        (function (w, d, s, l, i) {
-          w[l] = w[l] || [];
-          w[l].push({ 'gtm.start': new Date().getTime(), event: 'gtm.js' });
-          var f = d.getElementsByTagName(s)[0],
-            j = d.createElement(s),
-            dl = l != 'dataLayer' ? '&l=' + l : '';
-          j.async = true;
-          j.src = 'https://www.googletagmanager.com/gtm.js?id=' + i + dl;
-          f.parentNode.insertBefore(j, f);
-        })(window, document, 'script', 'dataLayer', 'GTM-5DDHKGP');
-      </script>
-      <!-- End Google Tag Manager -->
-
-    <!-- CesiumJS 1.138 -->
-      <link href="https://cesium.com/downloads/cesiumjs/releases/1.138/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
-      <script src="https://cesium.com/downloads/cesiumjs/releases/1.138/Build/Cesium/Cesium.js"></script>
-
-    <!-- Custom Cesium Map -->
-      <link rel="stylesheet" href="../../assets/css/cesium-map.css">
-      <script src="../../assets/js/cesium-map.js" defer></script>
-      <script src="../../assets/js/cesium-map-controls.js" defer></script>
-      <script src="../../assets/js/cesium-map-markers.js" defer></script>
-
-    
+  
+    <title>Demo: Landing Page - Front Pages | Sneat - Bootstrap Dashboard PRO</title>
+  
+    <!-- SEO -->
+    <meta name="description" content="Sneat is the best bootstrap 5 dashboard for responsive web apps. Streamline your app development process with ease." />
+    <meta name="keywords" content="Sneat bootstrap dashboard, sneat bootstrap 5 dashboard, themeselection, html dashboard, web dashboard, frontend dashboard, responsive bootstrap theme" />
+    <meta property="og:title" content="Sneat Bootstrap 5 Dashboard PRO by ThemeSelection" />
+    <meta property="og:type" content="product" />
+    <meta property="og:url" content="https://themeselection.com/item/sneat-dashboard-pro-bootstrap/" />
+    <meta property="og:image" content="https://temadigital.my/wp-content/uploads/2025/01/temadigital_logo.png" />
+    <meta property="og:description" content="Sneat is the best bootstrap 5 dashboard for responsive web apps. Streamline your app development process with ease." />
+    <meta property="og:site_name" content="ThemeSelection" />
+    <link rel="canonical" href="https://themeselection.com/item/sneat-dashboard-pro-bootstrap/" />
+  
+    <!-- ✅ REMOVED: ThemeSelection's Google Tag Manager (GTM-5DDHKGP)
+         REASON: This was ThemeSelection's OWN GTM container, not yours.
+         It was injecting OptinMonster (omappapi.com) which consumed 4,542ms
+         of CPU and is the #1 cause of your map lag. -->
+  
     <!-- Favicon -->
     <link rel="icon" type="image/x-icon" href="../../assets/img/favicon/favicon.ico" />
-
-    <!-- Fonts -->
+  
+    <!-- Fonts — preconnect first for faster DNS -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Public+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&display=swap" rel="stylesheet" />
-
+  
+    <!-- Icons -->
     <link rel="stylesheet" href="../../assets/vendor/fonts/iconify-icons.css" />
-
+  
     <!-- Core CSS -->
-    <!-- build:css assets/vendor/css/theme.css  -->
-    
-      
-      <link rel="stylesheet" href="../../assets/vendor/libs/pickr/pickr-themes.css" />
-    
+    <link rel="stylesheet" href="../../assets/vendor/libs/pickr/pickr-themes.css" />
     <link rel="stylesheet" href="../../assets/vendor/css/core.css" />
     <link rel="stylesheet" href="../../assets/css/demo.css" />
-
-    
-      <link rel="stylesheet" href="../../assets/vendor/css/pages/front-page.css" />
-    
-    <!-- Vendors CSS -->
-    
-    <!-- endbuild -->
-
+    <link rel="stylesheet" href="../../assets/vendor/css/pages/front-page.css" />
+  
+    <!-- Vendor CSS -->
     <link rel="stylesheet" href="../../assets/vendor/libs/nouislider/nouislider.css" />
-  <link rel="stylesheet" href="../../assets/vendor/libs/swiper/swiper.css" />
-
+    <link rel="stylesheet" href="../../assets/vendor/libs/swiper/swiper.css" />
+  
     <!-- Page CSS -->
-    
-  <link rel="stylesheet" href="../../assets/vendor/css/pages/front-page-landing.css" />
-
+    <link rel="stylesheet" href="../../assets/vendor/css/pages/front-page-landing.css" />
+  
+    <!-- Custom Cesium Map CSS -->
+    <link rel="stylesheet" href="../../assets/css/cesium-map.css" />
+  
+    <!-- CesiumJS 1.138
+         ✅ CHANGED: Added defer so Cesium no longer blocks page rendering.
+         The page will load visually first, then Cesium initializes after. -->
+    <link href="https://cesium.com/downloads/cesiumjs/releases/1.138/Build/Cesium/Widgets/widgets.css" rel="stylesheet" />
+    <script src="https://cesium.com/downloads/cesiumjs/releases/1.138/Build/Cesium/Cesium.js" defer></script>
+  
+    <!-- Custom Cesium Map JS
+         ✅ KEPT: defer maintained — loads after HTML is parsed, order preserved -->
+    <script src="../../assets/js/cesium-map.js" defer></script>
+    <script src="../../assets/js/cesium-map-controls.js" defer></script>
+    <script src="../../assets/js/cesium-map-markers.js" defer></script>
+  
     <!-- Helpers -->
     <script src="../../assets/vendor/js/helpers.js"></script>
-    <!--! Template customizer & Theme config files MUST be included after core stylesheets and helpers.js in the <head> section -->
-    
-      <!--? Template customizer: To hide customizer set displayCustomizer value false in config.js.  -->
-      <script src="../../assets/vendor/js/template-customizer.js"></script>
-    
-    <!--? Config:  Mandatory theme config file contain global vars & default theme options, Set your preferred theme option in this file.  -->
-    
-      <script src="../../assets/js/front-config.js"></script>
-
+  
+    <!-- ✅ REMOVED: template-customizer.js
+         REASON: This is a theme development tool only — runs unnecessary
+         background scripts on your live production portal. Safe to remove. -->
+  
+    <!-- Theme Config -->
+    <script src="../../assets/js/front-config.js"></script>
+  
   </head>
 
   <body>
