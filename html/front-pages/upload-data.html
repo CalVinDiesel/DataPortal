@@ -250,6 +250,92 @@
       font-size: 0.9rem;
     }
 
+    .folder-list-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 0.75rem;
+    }
+
+    .folder-list-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #32475c;
+    }
+
+    .folder-list-stats {
+      font-size: 0.9rem;
+      color: #697a8d;
+    }
+
+    .folder-card {
+      border: 1px solid #d9dee3;
+      border-radius: 6px;
+      padding: 0.75rem 1rem;
+      display: flex;
+      align-items: center;
+      background: #fff;
+      margin-bottom: 0.5rem;
+    }
+
+    .folder-card-icon {
+      width: 40px;
+      height: 40px;
+      background: #f1f1f2;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-right: 1rem;
+      font-size: 1.5rem;
+      color: #697a8d;
+    }
+
+    .folder-card-info {
+      flex-grow: 1;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .folder-name {
+      font-weight: 600;
+      color: #32475c;
+      width: 120px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .folder-stat-item {
+      display: flex;
+      align-items: center;
+      color: #697a8d;
+      font-size: 0.85rem;
+      gap: 0.25rem;
+    }
+
+    .folder-stat-item.gps-stat {
+      color: #a1acb8;
+    }
+
+    .folder-stat-item.gps-stat .bx-target-lock {
+      color: #00d2ff;
+      /* cyan dot analog */
+      font-size: 0.9rem;
+    }
+
+    .folder-status-badge {
+      background: #f1f1f2;
+      color: #4b4b4b;
+      padding: 0.25rem 0.75rem;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
     .stats-table th,
     .stats-table td {
       padding: 0.75rem 1rem;
@@ -348,8 +434,10 @@
             <input type="file" class="form-control" id="dataFile" name="dataFile" accept=".zip,image/*" webkitdirectory
               directory multiple>
             <div class="form-text mt-1 text-primary"><i class="bx bx-info-circle"></i> Max size: 5GB</div>
-            <div id="uploadFeedback" class="mt-2"></div>
           </div>
+
+          <!-- Folder List UI Wrapper (Populated via JS) -->
+          <div id="folderListWrapper" class="mt-4" style="display: none;"></div>
 
           <!-- Range of Interest & Map Integration -->
           <div class="d-flex justify-content-between align-items-center mt-4 mb-3">
@@ -818,12 +906,13 @@
         for (let i = 0; i < files.length; i++) {
           const file = files[i];
           const pathParts = file.webkitRelativePath ? file.webkitRelativePath.split('/') : [file.name];
-          const folderName = pathParts.length > 1 ? pathParts[pathParts.length - 2] : 'Root';
+          const folderName = pathParts.length > 1 ? pathParts[0] : 'Root';
 
           if (!folderStats[folderName]) {
-            folderStats[folderName] = { photos: 0, located: 0 };
+            folderStats[folderName] = { photos: 0, located: 0, sizeBytes: 0 };
           }
           folderStats[folderName].photos++;
+          folderStats[folderName].sizeBytes += file.size || 0;
 
           await new Promise(resolve => {
             EXIF.getData(file, function () {
@@ -974,6 +1063,15 @@
       document.getElementById('setPositionModal').classList.remove('show');
     }
 
+    function formatBytes(bytes, decimals = 1) {
+      if (!+bytes) return '0 Bytes';
+      const k = 1024;
+      const dm = decimals < 0 ? 0 : decimals;
+      const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
+    }
+
     function importPositionData() {
       closeSetPositionModal();
 
@@ -1002,10 +1100,60 @@
       placeMarker([centerLat, centerLng]);
       map.setView([centerLat, centerLng], 16);
 
-      // Update UI feedback
-      const fileCount = Object.values(folderStats).reduce((acc, curr) => acc + curr.photos, 0);
-      document.getElementById('fileUploadWrapper').style.display = 'block';
-      document.getElementById('uploadFeedback').innerHTML = `<div class="alert alert-success mt-2 py-2 px-3 mb-0" style="background:#e8fdf2; border-color:#8eebd0; color:#1b6348;"><i class="bx bx-check-circle me-1"></i> ${locatedFilesCount} images parsed & location centered.</div>`;
+      // Build Folder List UI
+      const folderListWrapper = document.getElementById('folderListWrapper');
+
+      let totalPhotos = 0;
+      let totalLocated = 0;
+      let totalBytes = 0;
+
+      let cardsHtml = '';
+
+      for (const [folder, stats] of Object.entries(folderStats)) {
+        totalPhotos += stats.photos;
+        totalLocated += stats.located;
+        totalBytes += stats.sizeBytes;
+
+        cardsHtml += `
+          <div class="folder-card">
+            <div class="folder-card-icon">
+              <!-- Using standard bx image icon, can replace with specific png if needed -->
+              <i class="bx bxs-camera" style="color: #a1acb8;"></i>
+            </div>
+            <div class="folder-card-info">
+              <span class="folder-name" title="${folder}">${folder}</span>
+              <div class="folder-stat-item">
+                <i class="bx bx-image"></i> ${stats.photos}
+              </div>
+              <div class="folder-stat-item gps-stat">
+                <i class="bx bx-target-lock"></i> GPS ${stats.located}
+              </div>
+              <div class="folder-stat-item">
+                <i class="bx bx-cylinder"></i> ${formatBytes(stats.sizeBytes)}
+              </div>
+            </div>
+            <div class="folder-status-badge">
+              <i class="bx bx-time-five"></i> Waiting
+            </div>
+          </div>
+        `;
+      }
+
+      const summaryHtml = `
+        <div class="folder-list-header">
+          <div class="folder-list-title">Folder list</div>
+          <div class="folder-list-stats">
+            ${totalPhotos} Photos | ${totalLocated} Located | ${formatBytes(totalBytes)} in total
+          </div>
+        </div>
+        ${cardsHtml}
+      `;
+
+      folderListWrapper.innerHTML = summaryHtml;
+      folderListWrapper.style.display = 'block';
+
+      // We don't need to show the raw file input block anymore since the folder list represents it
+      document.getElementById('fileUploadWrapper').style.display = 'none';
     }
 
     // Form Submission Logic
