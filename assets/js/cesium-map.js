@@ -8,6 +8,9 @@ function initializeCesium(containerId = 'cesiumContainer') {
         console.error('Cesium is not loaded');
         return null;
     }
+    if (cesiumViewer && cesiumViewer.scene) {
+        return cesiumViewer;
+    }
 
     cesiumViewer = new Cesium.Viewer(containerId, {
         animation: false,

@@ -171,6 +171,14 @@
     var shortDesc = truncate;
     var labelMaxDesc = 50;
 
+    for (var i = viewer.dataSources.length - 1; i >= 0; i--) {
+      var ds = viewer.dataSources.get(i);
+      if (ds && ds.name === 'locationMarkers') {
+        viewer.dataSources.remove(ds);
+        break;
+      }
+    }
+
     if (DEBUG_IMAGE_URLS && typeof console !== 'undefined' && console.log) {
       console.log('[TemaDataPortal map images] Base URL for image paths:', IMAGE_BASE_URL || '(none)');
       console.log('[TemaDataPortal map images] Page URL:', typeof window !== 'undefined' && window.location ? window.location.href : 'N/A');
@@ -900,7 +908,9 @@
     });
   }
 
+  var markersLoaded = false;
   function loadAndAddMarkers() {
+    if (markersLoaded) return;
     getViewer(function (viewer) {
       if (typeof Cesium === 'undefined') return;
 
@@ -930,6 +940,7 @@
           }
         });
         addMarkersWithClustering(viewer, list);
+        markersLoaded = true;
       }
 
       fetch('../../data/locations.json')
