@@ -22,6 +22,8 @@
     integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <!-- EXIF JS for reading GPS coordinates from images -->
+  <script src="https://cdn.jsdelivr.net/npm/exif-js"></script>
 
   <script src="../../assets/vendor/js/helpers.js"></script>
   <script src="../../assets/js/front-config.js"></script>
@@ -341,11 +343,12 @@
               upload type.</div>
           </div>
 
-          <!-- Shared File Upload Input (Revealed after clicking a card) -->
-          <div class="zip-upload-zone" id="fileUploadWrapper">
+          <!-- Shared File Upload Input (Hidden, triggered via JS) -->
+          <div class="zip-upload-zone" id="fileUploadWrapper" style="display: none;">
             <input type="file" class="form-control" id="dataFile" name="dataFile" accept=".zip,image/*" webkitdirectory
-              directory multiple required>
+              directory multiple>
             <div class="form-text mt-1 text-primary"><i class="bx bx-info-circle"></i> Max size: 5GB</div>
+            <div id="uploadFeedback" class="mt-2"></div>
           </div>
 
           <!-- Range of Interest & Map Integration -->
@@ -365,7 +368,7 @@
           <div class="form-section-title">Data Settings</div>
 
           <div class="mb-3">
-            <label class="form-label" for="projectID">Project ID <span class="text-danger">*</span></label>
+            <label class="form-label" for="projectID">Project Name <span class="text-danger">*</span></label>
             <input type="text" class="form-control form-control-sm" id="projectID" name="projectID"
               placeholder="e.g., my-project-id" required>
             <div class="form-text text-muted mb-1" style="font-size: 0.75rem;">Unique identifier. Used in URLs.</div>
@@ -469,7 +472,7 @@
         <button type="button" class="btn-close" onclick="closeSetPositionModal()"></button>
       </div>
       <div class="modal-body-custom">
-        <table class="stats-table">
+        <table class="stats-table" id="exifStatsTable">
           <thead>
             <tr>
               <th>#</th>
@@ -481,46 +484,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr>
-              <td>1</td>
-              <td>5</td>
-              <td>53</td>
-              <td>53</td>
-              <td>53/53</td>
-              <td>EXIF</td>
-            </tr>
-            <tr>
-              <td>2</td>
-              <td>4</td>
-              <td>53</td>
-              <td>53</td>
-              <td>53/53</td>
-              <td>EXIF</td>
-            </tr>
-            <tr>
-              <td>3</td>
-              <td>3</td>
-              <td>53</td>
-              <td>53</td>
-              <td>53/53</td>
-              <td>EXIF</td>
-            </tr>
-            <tr>
-              <td>4</td>
-              <td>2</td>
-              <td>53</td>
-              <td>53</td>
-              <td>53/53</td>
-              <td>EXIF</td>
-            </tr>
-            <tr>
-              <td>5</td>
-              <td>1</td>
-              <td>53</td>
-              <td>53</td>
-              <td>53/53</td>
-              <td>EXIF</td>
-            </tr>
+            <!-- Dynamically populated from EXIF parsing -->
           </tbody>
         </table>
 
@@ -536,6 +500,105 @@
     </div>
   </div>
 
+  <!-- Data Loading Overlay -->
+  <style>
+    .data-loading-modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(248, 249, 250, 0.85);
+      /* Light backdrop matching theme */
+      z-index: 2000;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .data-loading-modal.show {
+      display: flex;
+    }
+
+    .loading-step {
+      display: flex;
+      align-items: center;
+      margin-bottom: 1rem;
+      color: #697a8d;
+      font-size: 1.05rem;
+      transition: color 0.3s;
+    }
+
+    .loading-step.active {
+      color: #696cff;
+      font-weight: 500;
+    }
+
+    .loading-step.completed {
+      color: #71dd37;
+    }
+
+    .step-icon {
+      width: 24px;
+      height: 24px;
+      margin-right: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .step-icon .bx-check {
+      font-size: 1.5rem;
+      display: none;
+    }
+
+    .step-icon .spinner-border {
+      display: none;
+      width: 1rem;
+      height: 1rem;
+      border-width: 0.15em;
+    }
+
+    .loading-step.active .step-icon .spinner-border {
+      display: block;
+    }
+
+    .loading-step.completed .step-icon .bx-check {
+      display: block;
+    }
+  </style>
+
+  <div class="data-loading-modal" id="dataLoadingModal">
+    <div class="card shadow-sm border" style="width: 400px;">
+      <div class="card-body p-4">
+        <h5 class="card-title text-primary mb-4 fw-bold text-center">Reading Dataset</h5>
+        <div class="loading-steps pl-2">
+          <div class="loading-step" id="loadStep1">
+            <div class="step-icon">
+              <span class="spinner-border text-primary" role="status"></span>
+              <i class="bx bx-check"></i>
+            </div>
+            <span>Scanning images</span>
+          </div>
+          <div class="loading-step" id="loadStep2">
+            <div class="step-icon">
+              <span class="spinner-border text-primary" role="status"></span>
+              <i class="bx bx-check"></i>
+            </div>
+            <span>Reading EXIF and location <span id="md5CountDisplay" class="text-muted ms-1 fs-tiny"></span></span>
+          </div>
+          <div class="loading-step" id="loadStep3">
+            <div class="step-icon">
+              <span class="spinner-border text-primary" role="status"></span>
+              <i class="bx bx-check"></i>
+            </div>
+            <span>Organizing local storage</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script>
     var UPLOAD_API = 'http://localhost:3000';
 
@@ -546,20 +609,99 @@
       pID.value = this.value.toLowerCase().replace(/[^a-z0-9]/g, '-');
     });
 
-    // Upload Card Selection Logic
+    // Upload Card Selection & Drag-and-Drop Logic
+    async function handleDrop(e, type) {
+      e.preventDefault();
+      e.stopPropagation();
+
+      selectUploadType(type);
+
+      const items = e.dataTransfer.items;
+      if (!items || items.length === 0) return;
+
+      // Show temporary loading indicator on button to avoid hanging the UI
+      const btn = document.querySelector('.left-footer button[type="submit"]');
+      const originalText = btn.innerHTML;
+      btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Reading Folder...';
+      btn.disabled = true;
+
+      const filesList = [];
+
+      // Helper function to recursively read directories via webkitGetAsEntry
+      async function traverseFileTree(item, path = '') {
+        if (item.isFile) {
+          const file = await new Promise((resolve, reject) => {
+            item.file(resolve, reject);
+          });
+          // Attach simulated path property needed by our EXIF parser
+          file.webkitRelativePath = path + file.name;
+          filesList.push(file);
+        } else if (item.isDirectory) {
+          const dirReader = item.createReader();
+          const entries = await new Promise((resolve, reject) => {
+            dirReader.readEntries(resolve, reject);
+          });
+          for (let i = 0; i < entries.length; i++) {
+            await traverseFileTree(entries[i], path + item.name + "/");
+          }
+        }
+      }
+
+      // Start traversing dropped items
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i].webkitGetAsEntry();
+        if (item) {
+          await traverseFileTree(item);
+        }
+      }
+
+      // Trigger existing parser
+      btn.innerHTML = originalText;
+      btn.disabled = false;
+
+      const syntheticEvent = { target: { files: filesList } };
+      handleFilesSelected(syntheticEvent);
+    }
+
+    function preventDefaults(e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+
+    // Attach drag and drop listeners to cards
+    const singleCard = document.getElementById('cardSingle');
+    const multiCard = document.getElementById('cardMulti');
+
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+      singleCard.addEventListener(eventName, preventDefaults, false);
+      multiCard.addEventListener(eventName, preventDefaults, false);
+
+      // Also prevent on global window to stop accidental page shifts if missed by a pixel
+      window.addEventListener(eventName, preventDefaults, false);
+    });
+
+    singleCard.addEventListener('drop', (e) => handleDrop(e, 'single'), false);
+    multiCard.addEventListener('drop', (e) => handleDrop(e, 'multiple'), false);
+
+
     function selectUploadType(type) {
       document.getElementById('cardSingle').classList.remove('active');
       document.getElementById('cardMulti').classList.remove('active');
-      document.getElementById('fileUploadWrapper').classList.add('active');
       document.getElementById('cameraError').style.setProperty('display', 'none', 'important');
 
+      // Check the respective hidden radio button
       if (type === 'single') {
         document.getElementById('cardSingle').classList.add('active');
+        document.getElementById('singleCamera').checked = true;
         document.getElementById('cameraDetailsSection').classList.add('d-none');
       } else {
         document.getElementById('cardMulti').classList.add('active');
+        document.getElementById('multipleCamera').checked = true;
         document.getElementById('cameraDetailsSection').classList.remove('d-none');
       }
+
+      // Programmatically trigger the hidden file input
+      document.getElementById('dataFile').click();
     }
 
     function toggleOtherInput(selectId, divId, inputId, targetValue = 'Other') {
@@ -624,32 +766,146 @@
 
     // Set Position Modal & Trajectory Logic
     var modalMap = null;
-    var flightPath = [
-      [5.97002688, 116.09384006],
-      [5.97000720, 116.09272552],
-      [5.97053326, 116.09319683],
-      [5.97148983, 116.09335618],
-      [5.97199815, 116.09364157],
-      [5.97120935, 116.09348398],
-      [5.97029977, 116.09309576]
-    ];
+    var flightPath = []; // Dynamically populated now
+    var parsedFilesCount = 0;
+    var locatedFilesCount = 0;
+    var folderStats = {};
 
-    document.getElementById('dataFile').addEventListener('change', function (e) {
+    function convertDMSToDD(degrees, minutes, seconds, direction) {
+      let dd = degrees + minutes / 60 + seconds / (60 * 60);
+      if (direction === "S" || direction === "W") {
+        dd = dd * -1;
+      }
+      return dd;
+    }
+
+    document.getElementById('dataFile').addEventListener('change', handleFilesSelected);
+
+    async function handleFilesSelected(e) {
       if (e.target.files.length > 0) {
-        // Find whichever submit button is currently visible/used
         const btn = document.querySelector('.left-footer button[type="submit"]');
         const originalText = btn.innerHTML;
-
         btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Processing EXIF...';
         btn.disabled = true;
 
-        setTimeout(() => {
+        flightPath = [];
+        folderStats = {};
+        parsedFilesCount = 0;
+        locatedFilesCount = 0;
+
+        const files = Array.from(e.target.files).filter(f => f.type.startsWith('image/'));
+        const totalFiles = files.length;
+
+        if (totalFiles === 0) {
+          alert("No images found to process EXIF data.");
+          btn.innerHTML = originalText;
+          btn.disabled = false;
+          return;
+        }
+
+        openDataLoadingModal(totalFiles);
+
+        // Process files in batches to avoid locking the UI thread entirely
+        let processedImagesCount = 0;
+
+        for (let i = 0; i < files.length; i++) {
+          const file = files[i];
+          const pathParts = file.webkitRelativePath ? file.webkitRelativePath.split('/') : [file.name];
+          const folderName = pathParts.length > 1 ? pathParts[pathParts.length - 2] : 'Root';
+
+          if (!folderStats[folderName]) {
+            folderStats[folderName] = { photos: 0, located: 0 };
+          }
+          folderStats[folderName].photos++;
+
+          await new Promise(resolve => {
+            EXIF.getData(file, function () {
+              const lat = EXIF.getTag(this, "GPSLatitude");
+              const latRef = EXIF.getTag(this, "GPSLatitudeRef");
+              const lng = EXIF.getTag(this, "GPSLongitude");
+              const lngRef = EXIF.getTag(this, "GPSLongitudeRef");
+
+              if (lat && lng && latRef && lngRef) {
+                const latFinal = convertDMSToDD(lat[0].valueOf(), lat[1].valueOf(), lat[2].valueOf(), latRef);
+                const lngFinal = convertDMSToDD(lng[0].valueOf(), lng[1].valueOf(), lng[2].valueOf(), lngRef);
+                flightPath.push([latFinal, lngFinal]);
+                folderStats[folderName].located++;
+                locatedFilesCount++;
+              }
+              processedImagesCount++;
+
+              const percent = Math.floor((processedImagesCount / totalFiles) * 100);
+              updateModalProgress(processedImagesCount, totalFiles);
+
+              resolve();
+            });
+          });
+        }
+
+        // Processing finished
+        finishDataLoadingModal(() => {
+          populateStatsTable();
           btn.innerHTML = originalText;
           btn.disabled = false;
           openSetPositionModal();
-        }, 1200);
+        });
       }
-    });
+    }
+
+    let loadingInterval;
+
+    function openDataLoadingModal(totalFiles) {
+      const modal = document.getElementById('dataLoadingModal');
+      modal.classList.add('show');
+
+      const step1 = document.getElementById('loadStep1');
+      const step2 = document.getElementById('loadStep2');
+      const step3 = document.getElementById('loadStep3');
+      const md5CountDisplay = document.getElementById('md5CountDisplay');
+
+      step1.className = 'loading-step completed';
+      step2.className = 'loading-step active';
+      step3.className = 'loading-step';
+      md5CountDisplay.textContent = `0 / ${totalFiles}`;
+    }
+
+    function updateModalProgress(current, total) {
+      document.getElementById('md5CountDisplay').textContent = `${current} / ${total}`;
+    }
+
+    function finishDataLoadingModal(callback) {
+      const step2 = document.getElementById('loadStep2');
+      const step3 = document.getElementById('loadStep3');
+
+      step2.className = 'loading-step completed';
+      step3.className = 'loading-step active';
+
+      setTimeout(() => {
+        step3.className = 'loading-step completed';
+        setTimeout(() => {
+          document.getElementById('dataLoadingModal').classList.remove('show');
+          if (callback) callback();
+        }, 400);
+      }, 500);
+    }
+
+    function populateStatsTable() {
+      const tbody = document.querySelector('#exifStatsTable tbody');
+      tbody.innerHTML = '';
+      let index = 1;
+
+      for (const [folder, stats] of Object.entries(folderStats)) {
+        const row = `<tr>
+           <td>${index++}</td>
+           <td>${folder}</td>
+           <td>${stats.photos}</td>
+           <td>${stats.located}</td>
+           <td>${stats.located}/${stats.photos}</td>
+           <td>EXIF</td>
+         </tr>`;
+        tbody.insertAdjacentHTML('beforeend', row);
+      }
+    }
 
     function openSetPositionModal() {
       document.getElementById('setPositionModal').classList.add('show');
@@ -659,20 +915,33 @@
         modalMap = L.map('modalMap', { zoomControl: false }).setView([5.9710, 116.0934], 16);
         L.control.zoom({ position: 'bottomright' }).addTo(modalMap);
 
+        // Satellite Basemap
         L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
           attribution: 'Tiles &copy; Esri',
           maxZoom: 19
         }).addTo(modalMap);
 
-        // Draw trajectory
-        var polyline = L.polyline(flightPath, { color: '#00d2ff', weight: 4, dashArray: '8, 8' }).addTo(modalMap);
+        // Places & Boundaries Labels overlay (Hybrid)
+        L.tileLayer('https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
+          maxZoom: 19
+        }).addTo(modalMap);
 
-        // Add dots
+        // Draw trajectory (Light Blue dashed line)
+        var polyline = L.polyline(flightPath, { color: '#00d2ff', weight: 3, dashArray: '5, 8' }).addTo(modalMap);
+
+        // Draw Map Bounds Coverage Area
+        L.rectangle(polyline.getBounds(), {
+          color: 'transparent',
+          fillColor: '#3b82f6',
+          fillOpacity: 0.25
+        }).addTo(modalMap);
+
+        // Add dots (White center, blue border)
         flightPath.forEach(latlng => {
           L.circleMarker(latlng, {
-            radius: 5,
-            fillColor: "#00d2ff",
-            color: "#fff",
+            radius: 4,
+            fillColor: "#ffffff",
+            color: "#00d2ff",
             weight: 2,
             opacity: 1,
             fillOpacity: 1
@@ -692,9 +961,24 @@
     function importPositionData() {
       closeSetPositionModal();
 
-      // Use center of the parsed coordinate path
-      const centerLat = 5.97098;
-      const centerLng = 116.09335;
+      if (flightPath.length === 0) {
+        alert("No GPS data found to import position. Need at least one valid photo.");
+        return;
+      }
+
+      // Calculate Center bounding box mapping
+      let minLat = flightPath[0][0], maxLat = flightPath[0][0];
+      let minLng = flightPath[0][1], maxLng = flightPath[0][1];
+
+      flightPath.forEach(pt => {
+        if (pt[0] < minLat) minLat = pt[0];
+        if (pt[0] > maxLat) maxLat = pt[0];
+        if (pt[1] < minLng) minLng = pt[1];
+        if (pt[1] > maxLng) maxLng = pt[1];
+      });
+
+      const centerLat = (minLat + maxLat) / 2;
+      const centerLng = (minLng + maxLng) / 2;
 
       latInput.value = centerLat.toFixed(6);
       lngInput.value = centerLng.toFixed(6);
@@ -703,8 +987,9 @@
       map.setView([centerLat, centerLng], 16);
 
       // Update UI feedback
-      const fileName = document.getElementById('dataFile').files[0].name;
-      document.getElementById('fileUploadWrapper').innerHTML = `<div class="alert alert-success mt-2 py-2 px-3 mb-0" style="background:#e8fdf2; border-color:#8eebd0; color:#1b6348;"><i class="bx bx-check-circle me-1"></i> Data parsed & location set.</div>`;
+      const fileCount = Object.values(folderStats).reduce((acc, curr) => acc + curr.photos, 0);
+      document.getElementById('fileUploadWrapper').style.display = 'block';
+      document.getElementById('uploadFeedback').innerHTML = `<div class="alert alert-success mt-2 py-2 px-3 mb-0" style="background:#e8fdf2; border-color:#8eebd0; color:#1b6348;"><i class="bx bx-check-circle me-1"></i> ${locatedFilesCount} images parsed & location centered.</div>`;
     }
 
     // Form Submission Logic
