@@ -171,12 +171,17 @@
     var shortDesc = truncate;
     var labelMaxDesc = 50;
 
-    for (var i = viewer.dataSources.length - 1; i >= 0; i--) {
-      var ds = viewer.dataSources.get(i);
-      if (ds && ds.name === 'locationMarkers') {
-        viewer.dataSources.remove(ds);
-        break;
+    while (viewer.dataSources.length > 0) {
+      var found = false;
+      for (var i = 0; i < viewer.dataSources.length; i++) {
+        var ds = viewer.dataSources.get(i);
+        if (ds && ds.name === 'locationMarkers') {
+          viewer.dataSources.remove(ds);
+          found = true;
+          break;
+        }
       }
+      if (!found) break;
     }
 
     if (DEBUG_IMAGE_URLS && typeof console !== 'undefined' && console.log) {
@@ -911,6 +916,7 @@
   var markersLoaded = false;
   function loadAndAddMarkers() {
     if (markersLoaded) return;
+    markersLoaded = true;
     getViewer(function (viewer) {
       if (typeof Cesium === 'undefined') return;
 
@@ -940,7 +946,6 @@
           }
         });
         addMarkersWithClustering(viewer, list);
-        markersLoaded = true;
       }
 
       fetch('../../data/locations.json')
