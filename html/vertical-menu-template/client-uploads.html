@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr" data-assets-path="../../assets/" data-template="vertical-menu-template" data-bs-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Client Uploads - Admin | TemaDataPortal</title>
+  <link rel="icon" type="image/x-icon" href="../../assets/img/favicon/favicon.ico" />
+  <link rel="stylesheet" href="../../assets/vendor/fonts/iconify-icons.css" />
+  <link rel="stylesheet" href="../../assets/vendor/css/core.css" />
+  <link rel="stylesheet" href="../../assets/css/demo.css" />
+  <script src="../../assets/vendor/js/helpers.js"></script>
+  <script src="../../assets/vendor/libs/jquery/jquery.js"></script>
+  <script src="../../assets/vendor/js/bootstrap.js"></script>
+</head>
+<body>
+  <div class="layout-wrapper layout-content-navbar">
+    <div class="layout-container">
+      <aside id="layout-menu" class="layout-menu menu-vertical menu bg-menu-theme">
+        <div class="app-brand demo py-4">
+          <a href="index.html" class="app-brand-link">
+            <span class="app-brand-text demo menu-text fw-bold ms-2">Data Portal Admin</span>
+          </a>
+        </div>
+        <div class="menu-inner-shadow"></div>
+        <ul class="menu-inner py-1">
+          <li class="menu-item">
+            <a href="index.html" class="menu-link">
+              <i class="menu-icon tf-icons bx bx-home-circle"></i>
+              <div>Dashboard</div>
+            </a>
+          </li>
+          <li class="menu-item">
+            <a href="add-3d-model.html" class="menu-link">
+              <i class="menu-icon tf-icons bx bx-cube"></i>
+              <div>Add 3D Model</div>
+            </a>
+          </li>
+          <li class="menu-item active">
+            <a href="client-uploads.html" class="menu-link">
+              <i class="menu-icon tf-icons bx bx-cloud-upload"></i>
+              <div>Client Uploads</div>
+            </a>
+          </li>
+          <li class="menu-item">
+            <a href="../front-pages/landing-page.html" class="menu-link" target="_blank">
+              <i class="menu-icon tf-icons bx bx-map"></i>
+              <div>View Portal</div>
+            </a>
+          </li>
+        </ul>
+      </aside>
+      <div class="layout-page">
+        <nav class="layout-navbar container-xxl navbar navbar-expand-xl navbar-detached align-items-center bg-navbar-theme">
+          <div class="navbar-nav-right d-flex align-items-center">
+            <a href="index.html" class="btn btn-sm btn-outline-primary">Back to Dashboard</a>
+          </div>
+        </nav>
+        <div class="content-wrapper">
+          <div class="container-xxl flex-grow-1 container-p-y">
+            <h4 class="fw-bold mb-4">Client Uploads</h4>
+            <p class="text-muted mb-4">Uploads from the <a href="../front-pages/upload-data.html" target="_blank">Upload Data</a> page. Request 3D model processing for an upload to generate a tileset and add it to the map.</p>
+            <div id="uploadsAlert" class="alert alert-info d-none"></div>
+            <div class="card">
+              <div class="card-body">
+                <div class="table-responsive">
+                  <table class="table table-hover">
+                    <thead>
+                      <tr>
+                        <th>ID</th>
+                        <th>Project</th>
+                        <th>Type</th>
+                        <th>Files</th>
+                        <th>Date</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody id="uploadsTableBody">
+                      <tr><td colspan="6" class="text-center text-muted">Loading…</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+            <div class="card mt-4">
+              <div class="card-header"><h5 class="mb-0">Processing Requests</h5></div>
+              <div class="card-body">
+                <div class="table-responsive">
+                  <table class="table table-hover">
+                    <thead>
+                      <tr>
+                        <th>ID</th>
+                        <th>Upload ID</th>
+                        <th>Status</th>
+                        <th>Requested</th>
+                        <th>Result</th>
+                      </tr>
+                    </thead>
+                    <tbody id="requestsTableBody">
+                      <tr><td colspan="5" class="text-center text-muted">Loading…</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+    (function () {
+      var API_BASE = (typeof window !== 'undefined' && window.TemaDataPortal_API_BASE) || (window.location ? window.location.origin : '') || 'http://localhost:3000';
+
+      function loadUploads() {
+        fetch(API_BASE + '/api/admin/client-uploads')
+          .then(function (r) { return r.json(); })
+          .then(function (rows) {
+            var tbody = document.getElementById('uploadsTableBody');
+            if (!rows || rows.length === 0) {
+              tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No client uploads yet. Uploads appear here when users submit via the upload page and PostgreSQL is configured.</td></tr>';
+              return;
+            }
+            tbody.innerHTML = rows.map(function (r) {
+              var created = r.created_at ? new Date(r.created_at).toLocaleString() : '–';
+              return '<tr><td>' + r.id + '</td><td>' + (r.project_title || r.project_id || '–') + '</td><td>' + (r.upload_type || '–') + '</td><td>' + (r.file_count || 0) + '</td><td>' + created + '</td><td><button type="button" class="btn btn-sm btn-primary request-process-btn" data-upload-id="' + r.id + '">Request 3D processing</button></td></tr>';
+            }).join('');
+            tbody.querySelectorAll('.request-process-btn').forEach(function (btn) {
+              btn.addEventListener('click', function () {
+                var id = this.getAttribute('data-upload-id');
+                this.disabled = true;
+                fetch(API_BASE + '/api/admin/processing-request', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ upload_id: parseInt(id, 10) })
+                })
+                  .then(function (r) { return r.json(); })
+                  .then(function (data) {
+                    if (data.success) {
+                      loadRequests();
+                      var al = document.getElementById('uploadsAlert');
+                      al.textContent = 'Processing request created for upload #' + id + '.';
+                      al.classList.remove('d-none', 'alert-danger');
+                      al.classList.add('alert-success');
+                    } else {
+                      alert(data.message || 'Request failed.');
+                    }
+                  })
+                  .catch(function () { alert('Request failed.'); })
+                  .finally(function () { btn.disabled = false; });
+              });
+            });
+          })
+          .catch(function () {
+            document.getElementById('uploadsTableBody').innerHTML = '<tr><td colspan="6" class="text-center text-danger">Failed to load. Ensure the server is running and PostgreSQL is configured.</td></tr>';
+          });
+      }
+
+      function loadRequests() {
+        fetch(API_BASE + '/api/admin/processing-requests')
+          .then(function (r) { return r.json(); })
+          .then(function (rows) {
+            var tbody = document.getElementById('requestsTableBody');
+            if (!rows || rows.length === 0) {
+              tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No processing requests yet.</td></tr>';
+              return;
+            }
+            tbody.innerHTML = rows.map(function (r) {
+              var requested = r.requested_at ? new Date(r.requested_at).toLocaleString() : '–';
+              var result = r.result_tileset_url ? '<a href="' + r.result_tileset_url + '" target="_blank">View tileset</a>' : '–';
+              return '<tr><td>' + r.id + '</td><td>' + r.upload_id + '</td><td><span class="badge bg-label-' + (r.status === 'completed' ? 'success' : r.status === 'failed' ? 'danger' : 'warning') + '">' + r.status + '</span></td><td>' + requested + '</td><td>' + result + '</td></tr>';
+            }).join('');
+          })
+          .catch(function () {
+            document.getElementById('requestsTableBody').innerHTML = '<tr><td colspan="5" class="text-center text-muted">Could not load processing requests.</td></tr>';
+          });
+      }
+
+      loadUploads();
+      loadRequests();
+    })();
+  </script>
+</body>
+</html>

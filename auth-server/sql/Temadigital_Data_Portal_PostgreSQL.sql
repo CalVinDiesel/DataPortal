@@ -1,9 +1,10 @@
--- MapData table under existing database: Temadigital_Data_Portal (PostgreSQL)
--- Run this script while connected to database Temadigital_Data_Portal (e.g. in pgAdmin or psql).
+-- Data Portal 3D models table (PostgreSQL)
+-- Uses table name "PortalMapData" to avoid conflict with MobilityDB's "MapData" table.
+-- Run this script while connected to database Temadigital_Data_Portal (e.g. in pgAdmin).
 -- Example: psql -U postgres -d Temadigital_Data_Portal -f sql/Temadigital_Data_Portal_PostgreSQL.sql
 
--- Table: public.MapData
-CREATE TABLE IF NOT EXISTS public."MapData" (
+-- Table: public.PortalMapData (Data Portal 3D model entries for the overview map)
+CREATE TABLE IF NOT EXISTS public."PortalMapData" (
   "mapDataID"     VARCHAR(64)   NOT NULL PRIMARY KEY,
   title           VARCHAR(255)  NOT NULL,
   description     TEXT,
@@ -14,14 +15,14 @@ CREATE TABLE IF NOT EXISTS public."MapData" (
   "updateDateTime" TIMESTAMP
 );
 
-COMMENT ON TABLE public."MapData" IS '3D model locations for the data portal map';
-COMMENT ON COLUMN public."MapData"."mapDataID" IS 'Unique id, e.g. KK_OSPREY';
-COMMENT ON COLUMN public."MapData"."xAxis" IS 'Longitude for map position';
-COMMENT ON COLUMN public."MapData"."yAxis" IS 'Latitude for map position';
-COMMENT ON COLUMN public."MapData"."3dTiles" IS 'URL to tileset.json (3D Tiles)';
+COMMENT ON TABLE public."PortalMapData" IS 'Data Portal 3D model locations for the overview map (separate from MobilityDB MapData)';
+COMMENT ON COLUMN public."PortalMapData"."mapDataID" IS 'Unique id, e.g. KK_OSPREY';
+COMMENT ON COLUMN public."PortalMapData"."xAxis" IS 'Longitude for map position';
+COMMENT ON COLUMN public."PortalMapData"."yAxis" IS 'Latitude for map position';
+COMMENT ON COLUMN public."PortalMapData"."3dTiles" IS 'URL to tileset.json (3D Tiles)';
 
--- Seed rows (real + dummy placeholders; replace 3dTiles with real URL when you have data)
-INSERT INTO public."MapData" ("mapDataID", title, description, "xAxis", "yAxis", "3dTiles", "thumbNailUrl", "updateDateTime") VALUES
+-- Seed row
+INSERT INTO public."PortalMapData" ("mapDataID", title, description, "xAxis", "yAxis", "3dTiles", "thumbNailUrl", "updateDateTime") VALUES
 ('KK_OSPREY', 'KK OSPREY', '3D model from GeoSabah 3D Hub (Kota Kinabalu area).', 116.070466, 5.957839, 'https://3dhub.geosabah.my/3dmodel/KK_OSPREY/tileset.json', '', NOW())
 ON CONFLICT ("mapDataID") DO UPDATE SET
   title = EXCLUDED.title,

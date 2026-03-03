@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr" data-assets-path="../../assets/" data-template="vertical-menu-template" data-bs-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin - Data Portal | TemaDataPortal</title>
+  <link rel="icon" type="image/x-icon" href="../../assets/img/favicon/favicon.ico" />
+  <link rel="stylesheet" href="../../assets/vendor/fonts/iconify-icons.css" />
+  <link rel="stylesheet" href="../../assets/vendor/css/core.css" />
+  <link rel="stylesheet" href="../../assets/css/demo.css" />
+  <script src="../../assets/vendor/js/helpers.js"></script>
+  <script src="../../assets/vendor/libs/jquery/jquery.js"></script>
+  <script src="../../assets/vendor/js/bootstrap.js"></script>
+</head>
+<body>
+  <div class="layout-wrapper layout-content-navbar">
+    <div class="layout-container">
+      <aside id="layout-menu" class="layout-menu menu-vertical menu bg-menu-theme">
+        <div class="app-brand demo py-4">
+          <a href="index.html" class="app-brand-link">
+            <span class="app-brand-text demo menu-text fw-bold ms-2">Data Portal Admin</span>
+          </a>
+        </div>
+        <div class="menu-inner-shadow"></div>
+        <ul class="menu-inner py-1">
+          <li class="menu-item active">
+            <a href="index.html" class="menu-link">
+              <i class="menu-icon tf-icons bx bx-home-circle"></i>
+              <div>Dashboard</div>
+            </a>
+          </li>
+          <li class="menu-item">
+            <a href="add-3d-model.html" class="menu-link">
+              <i class="menu-icon tf-icons bx bx-cube"></i>
+              <div>Add 3D Model</div>
+            </a>
+          </li>
+          <li class="menu-item">
+            <a href="client-uploads.html" class="menu-link">
+              <i class="menu-icon tf-icons bx bx-cloud-upload"></i>
+              <div>Client Uploads</div>
+            </a>
+          </li>
+          <li class="menu-item">
+            <a href="../front-pages/landing-page.html" class="menu-link" target="_blank">
+              <i class="menu-icon tf-icons bx bx-map"></i>
+              <div>View Portal</div>
+            </a>
+          </li>
+        </ul>
+      </aside>
+      <div class="layout-page">
+        <nav class="layout-navbar container-xxl navbar navbar-expand-xl navbar-detached align-items-center bg-navbar-theme">
+          <div class="navbar-nav-right d-flex align-items-center">
+            <span class="navbar-text">Admin dashboard for 3D models and client image processing</span>
+          </div>
+        </nav>
+        <div class="content-wrapper">
+          <div class="container-xxl flex-grow-1 container-p-y">
+            <h4 class="fw-bold mb-4">Admin Dashboard</h4>
+            <div class="row">
+              <div class="col-md-6 col-lg-4 mb-4">
+                <a href="add-3d-model.html" class="card text-decoration-none h-100">
+                  <div class="card-body">
+                    <div class="d-flex align-items-center">
+                      <div class="avatar avatar-lg me-3">
+                        <span class="avatar-initial rounded bg-label-primary"><i class="bx bx-cube bx-lg"></i></span>
+                      </div>
+                      <div>
+                        <h5 class="card-title mb-0">Add 3D Model</h5>
+                        <p class="text-muted small mb-0">Create a new 3D model entry and add it to the overview map and showcases.</p>
+                      </div>
+                    </div>
+                  </div>
+                </a>
+              </div>
+              <div class="col-md-6 col-lg-4 mb-4">
+                <a href="client-uploads.html" class="card text-decoration-none h-100">
+                  <div class="card-body">
+                    <div class="d-flex align-items-center">
+                      <div class="avatar avatar-lg me-3">
+                        <span class="avatar-initial rounded bg-label-info"><i class="bx bx-cloud-upload bx-lg"></i></span>
+                      </div>
+                      <div>
+                        <h5 class="card-title mb-0">Client Uploads</h5>
+                        <p class="text-muted small mb-0">View client-uploaded images and request 3D model processing.</p>
+                      </div>
+                    </div>
+                  </div>
+                </a>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-body">
+                <h5 class="card-title">Quick info</h5>
+                <p class="mb-0">This admin portal is linked to the database (PostgreSQL when configured). Use <strong>Add 3D Model</strong> to register new tileset URLs so they appear on the public overview map. Use <strong>Client Uploads</strong> to see uploads from the <a href="../front-pages/upload-data.html" target="_blank">upload page</a> and request image-to-3D processing.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

@@ -2,7 +2,8 @@
  * TemaDataPortal Auth server
  * - Google & Facebook OAuth (redirect flow)
  * - Email/password register and login (stored in data/users.json)
- * - MapData API (SQLite DB Temadigital_Data_Portal, table MapData)
+ * - MapData API (PostgreSQL or SQLite or JSON)
+ * - Admin: create 3D models, view client uploads, request image processing
  */
 const path = require('path');
 const fs = require('fs');
@@ -12,12 +13,16 @@ const session = require('express-session');
 const passport = require('passport');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
+const multer = require('multer');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const FacebookStrategy = require('passport-facebook').Strategy;
+const { query: pgQuery } = require('./db/pg');
 
 const USERS_FILE = path.join(__dirname, 'data', 'users.json');
 const MAPDATA_FILE = path.join(__dirname, 'data', 'map-data.json');
 const MAPDATA_DB_PATH = path.join(__dirname, 'data', 'Temadigital_Data_Portal.sqlite');
+const PROJECT_ROOT = path.join(__dirname, '..');
+const UPLOAD_DIR = path.join(PROJECT_ROOT, process.env.UPLOAD_DIR || 'uploads');
 
 let mapDataDb = null; // SQLite (sql.js) instance when DB file exists
 
@@ -96,6 +101,37 @@ function readMapData() {
     fs.writeFileSync(MAPDATA_FILE, JSON.stringify(seed, null, 2), 'utf8');
     return seed;
   }
+}
+
+// ---- PostgreSQL MapData (when PG_DATABASE is set) ----
+async function readMapDataFromPg() {
+  if (!process.env.PG_DATABASE) return null;
+  try {
+    const res = await pgQuery(
+      'SELECT "mapDataID", title, description, "xAxis" as "xAxis", "yAxis" as "yAxis", "3dTiles" as "3dTiles", "thumbNailUrl", "updateDateTime" FROM public."PortalMapData" ORDER BY "updateDateTime" DESC'
+    );
+    if (!res || !res.rows || res.rows.length === 0) return null;
+    const rows = res.rows.map(r => ({
+      mapDataID: r.mapDataID,
+      title: r.title,
+      description: r.description || '',
+      xAxis: r.xAxis,
+      yAxis: r.yAxis,
+      '3dTiles': r['3dTiles'] || '',
+      thumbNailUrl: r.thumbNailUrl || '',
+      updateDateTime: r.updateDateTime ? new Date(r.updateDateTime).toISOString() : null
+    }));
+    return filterMapDataRows(rows);
+  } catch (e) {
+    console.error('readMapDataFromPg', e);
+    return null;
+  }
+}
+
+async function getMapDataForApi() {
+  const fromPg = await readMapDataFromPg();
+  if (fromPg && fromPg.length > 0) return fromPg;
+  return readMapData();
 }
 
 const PORT = process.env.PORT || 3000;
@@ -263,9 +299,9 @@ app.get('/api/auth/me', (req, res) => {
 });
 
 // ---- MapData API (for overview map and 3D viewer by id) ----
-app.get('/api/map-data', (req, res) => {
+app.get('/api/map-data', async (req, res) => {
   try {
-    const rows = readMapData();
+    const rows = await getMapDataForApi();
     const sorted = [...rows].sort((a, b) => (b.updateDateTime || '').localeCompare(a.updateDateTime || ''));
     res.json(sorted);
   } catch (e) {
@@ -274,11 +310,11 @@ app.get('/api/map-data', (req, res) => {
   }
 });
 
-app.get('/api/map-data/:id', (req, res) => {
+app.get('/api/map-data/:id', async (req, res) => {
   const id = (req.params.id || '').trim();
   if (!id) return res.status(400).json({ error: 'Missing id.' });
   try {
-    const rows = readMapData();
+    const rows = await getMapDataForApi();
     const row = rows.find(r => (r.mapDataID || '').toString() === id);
     if (!row) return res.status(404).json({ error: 'Map data not found.' });
     res.json(row);
@@ -288,11 +324,159 @@ app.get('/api/map-data/:id', (req, res) => {
   }
 });
 
+// ---- Admin: create 3D model (add to MapData for overview map / showcases) ----
+app.post('/api/map-data', express.json(), async (req, res) => {
+  const body = req.body || {};
+  const mapDataID = (body.mapDataID || body.id || '').trim().replace(/[^a-zA-Z0-9_-]/g, '-');
+  const title = (body.title || '').trim() || mapDataID;
+  const description = (body.description || '').trim();
+  const xAxis = body.xAxis != null ? Number(body.xAxis) : null;
+  const yAxis = body.yAxis != null ? Number(body.yAxis) : null;
+  const tilesUrl = (body['3dTiles'] || body.tilesetUrl || body.tileset || '').trim();
+  const thumbNailUrl = (body.thumbNailUrl || body.thumbnailUrl || '').trim();
+  if (!mapDataID) return res.status(400).json({ success: false, message: 'mapDataID is required.' });
+  if (!tilesUrl) return res.status(400).json({ success: false, message: '3dTiles URL is required.' });
+  if (xAxis == null || yAxis == null || isNaN(xAxis) || isNaN(yAxis)) {
+    return res.status(400).json({ success: false, message: 'Valid xAxis (longitude) and yAxis (latitude) are required.' });
+  }
+  const updateDateTime = new Date().toISOString();
+  try {
+    if (process.env.PG_DATABASE) {
+      await pgQuery(
+        `INSERT INTO public."PortalMapData" ("mapDataID", title, description, "xAxis", "yAxis", "3dTiles", "thumbNailUrl", "updateDateTime")
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+         ON CONFLICT ("mapDataID") DO UPDATE SET
+           title = EXCLUDED.title, description = EXCLUDED.description, "xAxis" = EXCLUDED."xAxis", "yAxis" = EXCLUDED."yAxis",
+           "3dTiles" = EXCLUDED."3dTiles", "thumbNailUrl" = EXCLUDED."thumbNailUrl", "updateDateTime" = EXCLUDED."updateDateTime"`,
+        [mapDataID, title, description, xAxis, yAxis, tilesUrl, thumbNailUrl || null, updateDateTime]
+      );
+    } else {
+      const rows = readMapData();
+      const idx = rows.findIndex(r => (r.mapDataID || '').toString() === mapDataID);
+      const row = { mapDataID, title, description, xAxis, yAxis, '3dTiles': tilesUrl, thumbNailUrl: thumbNailUrl || '', updateDateTime };
+      if (idx >= 0) rows[idx] = row; else rows.unshift(row);
+      if (mapDataDb) {
+        mapDataDb.run(
+          `INSERT OR REPLACE INTO MapData (mapDataID, title, description, xAxis, yAxis, "3dTiles", thumbNailUrl, updateDateTime) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          [mapDataID, title, description, xAxis, yAxis, tilesUrl, thumbNailUrl || '', updateDateTime]
+        );
+      } else {
+        fs.writeFileSync(MAPDATA_FILE, JSON.stringify(rows, null, 2), 'utf8');
+      }
+    }
+    res.json({ success: true, mapDataID, message: '3D model saved. It will appear on the overview map.' });
+  } catch (e) {
+    console.error('POST /api/map-data', e);
+    res.status(500).json({ success: false, message: e.message || 'Failed to save map data.' });
+  }
+});
+
+// ---- Client upload: store uploaded images and metadata (linked to upload-data page) ----
+fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const subdir = `project_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const dir = path.join(UPLOAD_DIR, subdir);
+    fs.mkdirSync(dir, { recursive: true });
+    req._uploadSubDir = (process.env.UPLOAD_DIR || 'uploads') + '/' + subdir;
+    cb(null, dir);
+  },
+  filename: (req, file, cb) => cb(null, (file.originalname || 'file').replace(/[^a-zA-Z0-9._-]/g, '_'))
+});
+const upload = multer({ storage, limits: { fileSize: 200 * 1024 * 1024 } }); // 200MB per file
+
+app.post('/api/upload-geospatial-data', upload.single('dataFile'), async (req, res) => {
+  try {
+    const projectId = (req.body.projectID || req.body.projectId || '').trim() || `upload_${Date.now()}`;
+    const projectTitle = (req.body.projectTitle || req.body.project_title || '').trim() || projectId;
+    const uploadType = (req.body.uploadType || req.body.cameraConfiguration || 'single').toLowerCase().includes('multiple') ? 'multiple' : 'single';
+    const cameraModels = (req.body.cameraModels || '').trim() || null;
+    const captureDate = (req.body.captureDate || '').trim() || null;
+    const organizationName = (req.body.organizationName || '').trim() || null;
+    const createdByEmail = (req.user && req.user.email) ? req.user.email : null;
+    let fileCount = 0;
+    const filePaths = [];
+    if (req._uploadSubDir) {
+      const dir = path.join(PROJECT_ROOT, req._uploadSubDir);
+      if (fs.existsSync(dir)) {
+        const files = fs.readdirSync(dir);
+        fileCount = files.length;
+        files.forEach(f => filePaths.push(req._uploadSubDir + '/' + f));
+      }
+    }
+    if (req.file) {
+      fileCount = Math.max(fileCount, 1);
+      const rel = (req._uploadSubDir + '/' + path.basename(req.file.filename || req.file.originalname || 'file')).replace(/\\/g, '/');
+      if (!filePaths.includes(rel)) filePaths.push(rel);
+    }
+    if (process.env.PG_DATABASE) {
+      await pgQuery(
+        `INSERT INTO public."ClientUploads" (project_id, project_title, upload_type, file_count, file_paths, camera_models, capture_date, organization_name, created_by_email)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
+        [projectId, projectTitle, uploadType, fileCount, filePaths.length ? filePaths : null, cameraModels, captureDate || null, organizationName, createdByEmail]
+      );
+    }
+    res.json({ success: true, message: 'Upload saved.', projectId, fileCount });
+  } catch (e) {
+    console.error('POST /api/upload-geospatial-data', e);
+    res.status(500).json({ success: false, message: e.message || 'Upload failed.' });
+  }
+});
+
+// ---- Admin: list client uploads ----
+app.get('/api/admin/client-uploads', async (req, res) => {
+  if (!process.env.PG_DATABASE) {
+    return res.json([]);
+  }
+  try {
+    const q = await pgQuery('SELECT id, project_id, project_title, upload_type, file_count, file_paths, camera_models, capture_date, organization_name, created_at, created_by_email FROM public."ClientUploads" ORDER BY created_at DESC');
+    res.json((q && q.rows) ? q.rows : []);
+  } catch (e) {
+    console.error('GET /api/admin/client-uploads', e);
+    res.status(500).json({ error: 'Failed to load client uploads.' });
+  }
+});
+
+// ---- Admin: request 3D processing for a client upload ----
+app.post('/api/admin/processing-request', express.json(), async (req, res) => {
+  const uploadId = req.body && (req.body.upload_id ?? req.body.uploadId);
+  if (!uploadId || !process.env.PG_DATABASE) {
+    return res.status(400).json({ success: false, message: 'upload_id is required and PostgreSQL must be configured.' });
+  }
+  try {
+    const requestedBy = (req.user && req.user.email) ? req.user.email : (req.body.requested_by || req.body.requestedBy || 'admin');
+    const r = await pgQuery(
+      `INSERT INTO public."ProcessingRequests" (upload_id, status, requested_by) VALUES ($1, 'pending', $2) RETURNING id, upload_id, status, requested_at`,
+      [uploadId, requestedBy]
+    );
+    const row = r && r.rows && r.rows[0];
+    if (!row) return res.status(500).json({ success: false, message: 'Insert failed.' });
+    res.json({ success: true, id: row.id, upload_id: row.upload_id, status: row.status, requested_at: row.requested_at });
+  } catch (e) {
+    console.error('POST /api/admin/processing-request', e);
+    res.status(500).json({ success: false, message: e.message || 'Failed to create processing request.' });
+  }
+});
+
+// ---- Admin: list processing requests ----
+app.get('/api/admin/processing-requests', async (req, res) => {
+  if (!process.env.PG_DATABASE) return res.json([]);
+  try {
+    const q = await pgQuery(
+      `SELECT pr.id, pr.upload_id, pr.status, pr.requested_at, pr.requested_by, pr.completed_at, pr.result_tileset_url, pr.notes
+       FROM public."ProcessingRequests" pr ORDER BY pr.requested_at DESC`
+    );
+    res.json((q && q.rows) ? q.rows : []);
+  } catch (e) {
+    console.error('GET /api/admin/processing-requests', e);
+    res.status(500).json({ error: 'Failed to load processing requests.' });
+  }
+});
+
 // Health check
 app.get('/api/health', (req, res) => res.json({ ok: true }));
 
 // Serve front-end (HTML, assets) from project root so landing page works with npm start
-const PROJECT_ROOT = path.join(__dirname, '..');
 app.use(express.static(PROJECT_ROOT));
 // Open http://localhost:3000/ or http://127.0.0.1:3000/ → landing page
 app.get('/', (req, res) => res.redirect('/html/front-pages/landing-page.html'));
@@ -302,7 +486,9 @@ function startServer() {
   app.listen(PORT, () => {
     console.log('Auth server running on http://localhost:' + PORT + ' (or http://127.0.0.1:' + PORT + ')');
     console.log('  Landing page: http://localhost:' + PORT + '/');
-    if (mapDataDb) console.log('  MapData: using database Temadigital_Data_Portal (table MapData)');
+    console.log('  Admin portal: http://localhost:' + PORT + '/html/vertical-menu-template/index.html');
+    if (process.env.PG_DATABASE) console.log('  MapData & admin: using PostgreSQL database ' + process.env.PG_DATABASE);
+    else if (mapDataDb) console.log('  MapData: using SQLite (table MapData)');
     else console.log('  MapData: using data/map-data.json (run npm run create-db to create SQLite DB)');
   console.log('  Google:  GET http://localhost:' + PORT + '/api/auth/google');
   if (GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET) {

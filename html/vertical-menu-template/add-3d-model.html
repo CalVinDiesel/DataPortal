@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr" data-assets-path="../../assets/" data-template="vertical-menu-template" data-bs-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Add 3D Model - Admin | TemaDataPortal</title>
+  <link rel="icon" type="image/x-icon" href="../../assets/img/favicon/favicon.ico" />
+  <link rel="stylesheet" href="../../assets/vendor/fonts/iconify-icons.css" />
+  <link rel="stylesheet" href="../../assets/vendor/css/core.css" />
+  <link rel="stylesheet" href="../../assets/css/demo.css" />
+  <script src="../../assets/vendor/js/helpers.js"></script>
+  <script src="../../assets/vendor/libs/jquery/jquery.js"></script>
+  <script src="../../assets/vendor/js/bootstrap.js"></script>
+</head>
+<body>
+  <div class="layout-wrapper layout-content-navbar">
+    <div class="layout-container">
+      <aside id="layout-menu" class="layout-menu menu-vertical menu bg-menu-theme">
+        <div class="app-brand demo py-4">
+          <a href="index.html" class="app-brand-link">
+            <span class="app-brand-text demo menu-text fw-bold ms-2">Data Portal Admin</span>
+          </a>
+        </div>
+        <div class="menu-inner-shadow"></div>
+        <ul class="menu-inner py-1">
+          <li class="menu-item">
+            <a href="index.html" class="menu-link">
+              <i class="menu-icon tf-icons bx bx-home-circle"></i>
+              <div>Dashboard</div>
+            </a>
+          </li>
+          <li class="menu-item active">
+            <a href="add-3d-model.html" class="menu-link">
+              <i class="menu-icon tf-icons bx bx-cube"></i>
+              <div>Add 3D Model</div>
+            </a>
+          </li>
+          <li class="menu-item">
+            <a href="client-uploads.html" class="menu-link">
+              <i class="menu-icon tf-icons bx bx-cloud-upload"></i>
+              <div>Client Uploads</div>
+            </a>
+          </li>
+          <li class="menu-item">
+            <a href="../front-pages/landing-page.html" class="menu-link" target="_blank">
+              <i class="menu-icon tf-icons bx bx-map"></i>
+              <div>View Portal</div>
+            </a>
+          </li>
+        </ul>
+      </aside>
+      <div class="layout-page">
+        <nav class="layout-navbar container-xxl navbar navbar-expand-xl navbar-detached align-items-center bg-navbar-theme">
+          <div class="navbar-nav-right d-flex align-items-center">
+            <a href="index.html" class="btn btn-sm btn-outline-primary">Back to Dashboard</a>
+          </div>
+        </nav>
+        <div class="content-wrapper">
+          <div class="container-xxl flex-grow-1 container-p-y">
+            <h4 class="fw-bold mb-4">Add 3D Model to Map</h4>
+            <p class="text-muted mb-4">Create a new 3D model entry. It will appear on the overview map and in showcases. Store a tileset URL (e.g. Cesium 3D Tiles) and position (latitude/longitude).</p>
+            <div class="card">
+              <div class="card-body">
+                <form id="addModelForm">
+                  <div class="row g-3">
+                    <div class="col-12 col-md-6">
+                      <label class="form-label" for="mapDataID">Model ID <span class="text-danger">*</span></label>
+                      <input type="text" class="form-control" id="mapDataID" name="mapDataID" placeholder="e.g. my-building-2025" required />
+                      <div class="form-text">Unique ID (letters, numbers, hyphens, underscores only).</div>
+                    </div>
+                    <div class="col-12 col-md-6">
+                      <label class="form-label" for="title">Title <span class="text-danger">*</span></label>
+                      <input type="text" class="form-control" id="title" name="title" placeholder="Display name on map" required />
+                    </div>
+                    <div class="col-12">
+                      <label class="form-label" for="description">Description</label>
+                      <textarea class="form-control" id="description" name="description" rows="2" placeholder="Short description"></textarea>
+                    </div>
+                    <div class="col-12 col-md-6">
+                      <label class="form-label" for="yAxis">Latitude <span class="text-danger">*</span></label>
+                      <input type="number" step="any" class="form-control" id="yAxis" name="yAxis" placeholder="e.g. 5.957839" required />
+                    </div>
+                    <div class="col-12 col-md-6">
+                      <label class="form-label" for="xAxis">Longitude <span class="text-danger">*</span></label>
+                      <input type="number" step="any" class="form-control" id="xAxis" name="xAxis" placeholder="e.g. 116.070466" required />
+                    </div>
+                    <div class="col-12">
+                      <label class="form-label" for="tilesetUrl">3D Tiles URL (tileset.json) <span class="text-danger">*</span></label>
+                      <input type="url" class="form-control" id="tilesetUrl" name="3dTiles" placeholder="https://example.com/tileset.json" required />
+                    </div>
+                    <div class="col-12">
+                      <label class="form-label" for="thumbNailUrl">Thumbnail image URL</label>
+                      <input type="url" class="form-control" id="thumbNailUrl" name="thumbNailUrl" placeholder="Optional image URL for map pin" />
+                    </div>
+                    <div class="col-12">
+                      <button type="submit" class="btn btn-primary" id="submitBtn">Save 3D Model</button>
+                      <span id="formMessage" class="ms-3"></span>
+                    </div>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+    (function () {
+      var API_BASE = (typeof window !== 'undefined' && window.TemaDataPortal_API_BASE) || (window.location ? window.location.origin : '') || 'http://localhost:3000';
+      var form = document.getElementById('addModelForm');
+      var submitBtn = document.getElementById('submitBtn');
+      var formMessage = document.getElementById('formMessage');
+
+      document.getElementById('mapDataID').addEventListener('input', function () {
+        var v = this.value.replace(/[^a-zA-Z0-9_-]/g, '-');
+        if (v !== this.value) this.value = v;
+      });
+
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        formMessage.textContent = '';
+        formMessage.className = 'ms-3';
+        var mapDataID = document.getElementById('mapDataID').value.trim().replace(/[^a-zA-Z0-9_-]/g, '-');
+        if (!mapDataID) {
+          formMessage.textContent = 'Model ID is required.';
+          formMessage.classList.add('text-danger');
+          return;
+        }
+        var payload = {
+          mapDataID: mapDataID,
+          title: document.getElementById('title').value.trim() || mapDataID,
+          description: document.getElementById('description').value.trim(),
+          yAxis: parseFloat(document.getElementById('yAxis').value),
+          xAxis: parseFloat(document.getElementById('xAxis').value),
+          '3dTiles': document.getElementById('tilesetUrl').value.trim(),
+          thumbNailUrl: document.getElementById('thumbNailUrl').value.trim()
+        };
+        if (isNaN(payload.yAxis) || isNaN(payload.xAxis)) {
+          formMessage.textContent = 'Valid latitude and longitude are required.';
+          formMessage.classList.add('text-danger');
+          return;
+        }
+        submitBtn.disabled = true;
+        fetch(API_BASE + '/api/map-data', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        })
+          .then(function (r) { return r.json().then(function (j) { return { status: r.status, body: j }; }); })
+          .then(function (x) {
+            if (x.status === 200 && x.body.success) {
+              formMessage.textContent = 'Saved. The model will appear on the overview map.';
+              formMessage.classList.add('text-success');
+              form.reset();
+            } else {
+              formMessage.textContent = x.body.message || 'Save failed.';
+              formMessage.classList.add('text-danger');
+            }
+          })
+          .catch(function (err) {
+            formMessage.textContent = 'Request failed: ' + (err.message || 'check server');
+            formMessage.classList.add('text-danger');
+          })
+          .finally(function () { submitBtn.disabled = false; });
+      });
+    })();
+  </script>
+</body>
+</html>
