@@ -140,8 +140,23 @@
               <input type="url" class="form-control" id="editTilesetUrl" required />
             </div>
             <div class="mb-3">
-              <label class="form-label" for="editThumbNailUrl">Thumbnail image URL</label>
-              <input type="url" class="form-control" id="editThumbNailUrl" />
+              <label class="form-label">Thumbnail image (overview map &amp; showcase)</label>
+              <div class="mb-2">
+                <div class="d-flex align-items-start gap-3 flex-wrap">
+                  <div class="flex-shrink-0">
+                    <img id="editThumbPreview" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt="Current thumbnail" class="rounded border" style="width:120px;height:80px;object-fit:cover;background:#f0f0f0" />
+                    <div class="form-text small mt-1">Current</div>
+                  </div>
+                  <div class="flex-grow-1">
+                    <input type="file" class="form-control form-control-sm" id="editThumbnailFile" accept="image/jpeg,image/png,image/gif,image/webp" />
+                    <div class="form-text small">Upload a new image (JPEG, PNG, GIF, WebP; max 5MB). Used on overview map and showcase.</div>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <label class="form-label small text-muted">Or paste thumbnail URL</label>
+                <input type="url" class="form-control" id="editThumbNailUrl" placeholder="e.g. /uploads/map-thumbnails/pin_123.jpg or full URL" />
+              </div>
             </div>
           </form>
         </div>
@@ -211,7 +226,17 @@
                     document.getElementById('editYAxis').value = row.yAxis != null ? row.yAxis : '';
                     document.getElementById('editXAxis').value = row.xAxis != null ? row.xAxis : '';
                     document.getElementById('editTilesetUrl').value = row['3dTiles'] || row.tilesetUrl || '';
-                    document.getElementById('editThumbNailUrl').value = row.thumbNailUrl || row.thumbnailUrl || '';
+                    var thumbUrl = (row.thumbNailUrl || row.thumbnailUrl || '').trim();
+                    document.getElementById('editThumbNailUrl').value = thumbUrl;
+                    var previewEl = document.getElementById('editThumbPreview');
+                    if (thumbUrl) {
+                      var fullUrl = thumbUrl.indexOf('http') === 0 ? thumbUrl : (API_BASE + (thumbUrl.indexOf('/') === 0 ? '' : '/') + thumbUrl);
+                      previewEl.src = fullUrl;
+                      previewEl.onerror = function () { previewEl.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'; };
+                    } else {
+                      previewEl.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+                    }
+                    document.getElementById('editThumbnailFile').value = '';
                     var modal = new bootstrap.Modal(document.getElementById('editModal'));
                     modal.show();
                   })
@@ -265,46 +290,93 @@
           .finally(function () { btn.disabled = false; });
       });
 
+      var editThumbFile = document.getElementById('editThumbnailFile');
+      if (editThumbFile) editThumbFile.addEventListener('change', function () {
+        var file = this.files && this.files[0];
+        var previewEl = document.getElementById('editThumbPreview');
+        if (file && previewEl) {
+          var url = (window.URL || window.webkitURL).createObjectURL(file);
+          previewEl.onerror = null;
+          previewEl.src = url;
+        }
+      });
+
       var editSaveBtn = document.getElementById('editSaveBtn');
       if (editSaveBtn) editSaveBtn.addEventListener('click', function () {
         var mapDataID = document.getElementById('editMapDataID').value.trim();
         if (!mapDataID) return;
-        var payload = {
-          mapDataID: mapDataID,
-          title: document.getElementById('editTitle').value.trim() || mapDataID,
-          description: document.getElementById('editDescription').value.trim(),
-          yAxis: parseFloat(document.getElementById('editYAxis').value),
-          xAxis: parseFloat(document.getElementById('editXAxis').value),
-          '3dTiles': document.getElementById('editTilesetUrl').value.trim(),
-          thumbNailUrl: document.getElementById('editThumbNailUrl').value.trim()
-        };
-        if (isNaN(payload.yAxis) || isNaN(payload.xAxis) || !payload['3dTiles']) {
+        if (isNaN(parseFloat(document.getElementById('editYAxis').value)) || isNaN(parseFloat(document.getElementById('editXAxis').value)) || !document.getElementById('editTilesetUrl').value.trim()) {
           alert('Please fill in valid latitude, longitude, and 3D Tiles URL.');
           return;
         }
         var btn = this;
         btn.disabled = true;
-        fetch(API_BASE + '/api/map-data', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        })
-          .then(function (r) { return r.json().then(function (j) { return { status: r.status, body: j }; }); })
-          .then(function (x) {
-            if (x.status === 200 && x.body.success) {
-              bootstrap.Modal.getInstance(document.getElementById('editModal')).hide();
-              loadPins();
-              var alertEl = document.getElementById('pinsAlert');
-              alertEl.textContent = 'Pin updated. Changes will appear on the overview map.';
-              alertEl.className = 'alert alert-success';
-              alertEl.classList.remove('d-none');
-              setTimeout(function () { alertEl.classList.add('d-none'); }, 3000);
-            } else {
-              alert(x.body.message || 'Save failed.');
-            }
-          })
-          .catch(function () { alert('Request failed.'); })
-          .finally(function () { btn.disabled = false; });
+        var thumbFile = document.getElementById('editThumbnailFile').files && document.getElementById('editThumbnailFile').files[0];
+        function buildPayload(thumbNailUrl) {
+          return {
+            mapDataID: mapDataID,
+            title: document.getElementById('editTitle').value.trim() || mapDataID,
+            description: document.getElementById('editDescription').value.trim(),
+            yAxis: parseFloat(document.getElementById('editYAxis').value),
+            xAxis: parseFloat(document.getElementById('editXAxis').value),
+            '3dTiles': document.getElementById('editTilesetUrl').value.trim(),
+            thumbNailUrl: (thumbNailUrl || document.getElementById('editThumbNailUrl').value.trim() || '').trim()
+          };
+        }
+        function saveMapData(payload) {
+          return fetch(API_BASE + '/api/map-data', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          }).then(function (r) { return r.json().then(function (j) { return { status: r.status, body: j }; }); });
+        }
+        function onSaved(x) {
+          if (x.status === 200 && x.body.success) {
+            bootstrap.Modal.getInstance(document.getElementById('editModal')).hide();
+            loadPins();
+            var alertEl = document.getElementById('pinsAlert');
+            alertEl.textContent = 'Pin updated. Thumbnail will appear on the overview map and showcase.';
+            alertEl.className = 'alert alert-success';
+            alertEl.classList.remove('d-none');
+            setTimeout(function () { alertEl.classList.add('d-none'); }, 3000);
+          } else {
+            alert(x.body.message || 'Save failed.');
+          }
+        }
+        if (thumbFile) {
+          var fd = new FormData();
+          fd.append('mapDataID', mapDataID);
+          fd.append('thumbnail', thumbFile);
+          fetch(API_BASE + '/api/admin/upload-map-thumbnail', { method: 'POST', body: fd, credentials: 'include' })
+            .then(function (r) {
+              return r.text().then(function (text) {
+                var body;
+                try { body = JSON.parse(text); } catch (e) { body = {}; }
+                return { status: r.status, body: body, text: text };
+              });
+            })
+            .then(function (up) {
+              if (up.status === 200 && up.body.success && up.body.url) {
+                var fullUrl = (up.body.url.indexOf('http') === 0) ? up.body.url : (API_BASE + (up.body.url.indexOf('/') === 0 ? '' : '') + up.body.url);
+                return saveMapData(buildPayload(fullUrl)).then(onSaved);
+              }
+              var msg = up.body && up.body.message ? up.body.message : ('Upload failed (HTTP ' + up.status + '). ' + (up.text && up.text.length < 200 ? up.text : ''));
+              alert(msg || 'Thumbnail upload failed.');
+            })
+            .catch(function (err) {
+              var hint = (err.message || '').toLowerCase();
+              var msg = 'Thumbnail upload failed. ';
+              if (hint.indexOf('fetch') !== -1 || hint.indexOf('network') !== -1 || hint.indexOf('failed') !== -1) {
+                msg += 'Cannot reach server at ' + API_BASE + '. Open the admin from the same origin (e.g. http://localhost:3000/...) or check the server is running.';
+              } else {
+                msg += (err.message || 'Check browser and server console.');
+              }
+              alert(msg);
+            })
+            .finally(function () { btn.disabled = false; });
+        } else {
+          saveMapData(buildPayload()).then(onSaved).catch(function () { alert('Request failed.'); }).finally(function () { btn.disabled = false; });
+        }
       });
 
       loadPins();

@@ -337,10 +337,26 @@ const mapThumbStorage = multer.diskStorage({
   }
 });
 const uploadMapThumb = multer({ storage: mapThumbStorage, limits: { fileSize: 5 * 1024 * 1024 } }); // 5MB
-app.post('/api/admin/upload-map-thumbnail', uploadMapThumb.single('thumbnail'), (req, res) => {
-  if (!req.file) return res.status(400).json({ success: false, message: 'No thumbnail file uploaded.' });
-  const url = '/uploads/map-thumbnails/' + req.file.filename;
-  res.json({ success: true, url, message: 'Thumbnail uploaded.' });
+app.post('/api/admin/upload-map-thumbnail', (req, res, next) => {
+  uploadMapThumb.single('thumbnail')(req, res, (err) => {
+    if (err) {
+      if (err.code === 'LIMIT_FILE_SIZE') return res.status(400).json({ success: false, message: 'File too large. Maximum size is 5MB.' });
+      if (err.code === 'LIMIT_UNEXPECTED_FILE') return res.status(400).json({ success: false, message: 'Use the thumbnail file field.' });
+      console.error('upload-map-thumbnail multer error:', err.code || err.message, err.stack || '');
+      const msg = err.code === 'ENOENT' ? 'Upload folder missing.' : err.code === 'EACCES' ? 'Permission denied writing thumbnail.' : (err.message || 'Thumbnail upload failed.');
+      return res.status(400).json({ success: false, message: msg });
+    }
+    next();
+  });
+}, (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ success: false, message: 'No thumbnail file uploaded.' });
+    const url = '/uploads/map-thumbnails/' + req.file.filename;
+    res.json({ success: true, url, message: 'Thumbnail uploaded.' });
+  } catch (e) {
+    console.error('upload-map-thumbnail handler error:', e);
+    res.status(500).json({ success: false, message: e.message || 'Thumbnail upload failed.' });
+  }
 });
 
 // ---- Admin: create 3D model (add to MapData for overview map / showcases) ----
@@ -634,6 +650,12 @@ app.post('/api/upload-geospatial-data', upload.single('dataFile'), async (req, r
     const captureDate = (req.body.captureDate || '').trim() || null;
     const organizationName = (req.body.organizationName || '').trim() || null;
     const createdByEmail = (req.user && req.user.email) ? req.user.email : null;
+    const projectDescription = (req.body.projectDescription || req.body.project_description || '').trim() || null;
+    const category = (req.body.category || '').trim() || null;
+    const latitude = req.body.latitude != null && req.body.latitude !== '' ? parseFloat(req.body.latitude) : null;
+    const longitude = req.body.longitude != null && req.body.longitude !== '' ? parseFloat(req.body.longitude) : null;
+    const areaCoverage = (req.body.areaCoverage || req.body.area_coverage || '').trim() || null;
+    const imageMetadata = (req.body.imageMetadata || req.body.image_metadata || '').trim() || null;
     let fileCount = 0;
     const filePaths = [];
     if (req._uploadSubDir) {
@@ -651,9 +673,9 @@ app.post('/api/upload-geospatial-data', upload.single('dataFile'), async (req, r
     }
     if (process.env.PG_DATABASE) {
       await pgQuery(
-        `INSERT INTO public."ClientUploads" (project_id, project_title, upload_type, file_count, file_paths, camera_models, capture_date, organization_name, created_by_email)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
-        [projectId, projectTitle, uploadType, fileCount, filePaths.length ? filePaths : null, cameraModels, captureDate || null, organizationName, createdByEmail]
+        `INSERT INTO public."ClientUploads" (project_id, project_title, upload_type, file_count, file_paths, camera_models, capture_date, organization_name, created_by_email, project_description, category, latitude, longitude, area_coverage, image_metadata)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING id`,
+        [projectId, projectTitle, uploadType, fileCount, filePaths.length ? filePaths : null, cameraModels, captureDate || null, organizationName, createdByEmail, projectDescription, category, isNaN(latitude) ? null : latitude, isNaN(longitude) ? null : longitude, areaCoverage, imageMetadata]
       );
     }
     res.json({ success: true, message: 'Upload saved.', projectId, fileCount });
@@ -669,7 +691,7 @@ app.get('/api/admin/client-uploads', async (req, res) => {
     return res.json([]);
   }
   try {
-    const q = await pgQuery('SELECT id, project_id, project_title, upload_type, file_count, file_paths, camera_models, capture_date, organization_name, created_at, created_by_email, request_status, rejected_reason, decided_at, decided_by FROM public."ClientUploads" ORDER BY created_at DESC');
+    const q = await pgQuery('SELECT id, project_id, project_title, upload_type, file_count, file_paths, camera_models, capture_date, organization_name, created_at, created_by_email, request_status, rejected_reason, decided_at, decided_by, project_description, category, latitude, longitude, area_coverage, image_metadata FROM public."ClientUploads" ORDER BY created_at DESC');
     res.json((q && q.rows) ? q.rows : []);
   } catch (e) {
     console.error('GET /api/admin/client-uploads', e);
