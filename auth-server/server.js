@@ -1,6 +1,6 @@
 /**
  * TemaDataPortal Auth server
- * - Google & Facebook OAuth (redirect flow)
+ * - Google OAuth (redirect flow)
  * - Email/password register and login (stored in data/users.json)
  * - MapData API (PostgreSQL or SQLite or JSON)
  * - Admin: create 3D models (overview map); custom image-to-3D processing (deliver to client, paid service)
@@ -15,7 +15,6 @@ const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const multer = require('multer');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
-const FacebookStrategy = require('passport-facebook').Strategy;
 const { query: pgQuery } = require('./db/pg');
 
 const USERS_FILE = path.join(__dirname, 'data', 'users.json');
@@ -218,71 +217,71 @@ if (GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET) {
   app.get('/api/auth/google', (req, res) => res.status(503).send('Google OAuth not configured. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in .env'));
 }
 
-// ---- Facebook ----
-if (process.env.FACEBOOK_APP_ID && process.env.FACEBOOK_APP_SECRET) {
-  passport.use(new FacebookStrategy({
-    clientID: process.env.FACEBOOK_APP_ID,
-    clientSecret: process.env.FACEBOOK_APP_SECRET,
-    callbackURL: `/api/auth/facebook/callback`,
-    profileFields: ['id', 'displayName', 'emails']
-  }, (accessToken, refreshToken, profile, done) => {
-    const user = {
-      provider: 'facebook',
-      id: profile.id,
-      email: profile.emails && profile.emails[0] && profile.emails[0].value,
-      name: profile.displayName
-    };
-    return done(null, user);
-  }));
-
-  app.get('/api/auth/facebook', passport.authenticate('facebook', { scope: ['email', 'public_profile'] }));
-  app.get('/api/auth/facebook/callback',
-    passport.authenticate('facebook', { session: true }),
-    (req, res) => {
-      const url = new URL(FRONT_END_URL);
-      url.searchParams.set('logged_in', '1');
-      if (req.user && req.user.email) url.searchParams.set('email', req.user.email);
-      res.redirect(url.toString());
-    }
-  );
-} else {
-  app.get('/api/auth/facebook', (req, res) => res.status(503).send('Facebook OAuth not configured. Set FACEBOOK_APP_ID and FACEBOOK_APP_SECRET in .env'));
-}
-
 // ---- Email/password register and login ----
 app.post('/api/auth/register', (req, res) => {
-  const email = (req.body.email || '').trim().toLowerCase();
+  const rawName = (req.body.name || '').trim();
+  const rawContact = (req.body.contactNumber || '').trim();
+  const rawUsername = (req.body.username || '').trim();
+  const rawEmail = (req.body.email || '').trim();
+  const email = rawEmail.toLowerCase();
   const password = req.body.password;
-  const name = (req.body.name || '').trim() || email.split('@')[0];
-  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+
+  if (!rawName) {
+    return res.status(400).json({ success: false, message: 'Please enter your name.' });
+  }
+  if (!rawContact || !/^[0-9+\-\s()]{7,20}$/.test(rawContact)) {
+    return res.status(400).json({ success: false, message: 'Please enter a valid contact number.' });
+  }
+  if (!rawUsername || !/^[a-zA-Z0-9_.-]{3,30}$/.test(rawUsername)) {
+    return res.status(400).json({ success: false, message: 'Username must be 3–30 characters (letters, numbers, ._-).' });
+  }
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(rawEmail)) {
     return res.status(400).json({ success: false, message: 'Please enter a valid email address.' });
   }
-  if (!password || typeof password !== 'string' || password.length < 6) {
-    return res.status(400).json({ success: false, message: 'Password must be at least 6 characters.' });
+  if (!password || typeof password !== 'string' || password.length < 8) {
+    return res.status(400).json({ success: false, message: 'Password must be at least 8 characters.' });
   }
+
   const users = readUsers();
   if (users.some(u => (u.email || '').toLowerCase() === email)) {
     return res.status(400).json({ success: false, message: 'An account with this email already exists. Log in or use a different email.' });
   }
+  if (users.some(u => (u.username || '').toLowerCase() === rawUsername.toLowerCase())) {
+    return res.status(400).json({ success: false, message: 'That username is already taken. Choose another one.' });
+  }
+
   const passwordHash = bcrypt.hashSync(password, 10);
-  users.push({ email, passwordHash, name, provider: 'local' });
+  users.push({
+    email,
+    username: rawUsername,
+    name: rawName,
+    contactNumber: rawContact,
+    passwordHash,
+    provider: 'local'
+  });
   writeUsers(users);
   res.json({ success: true, message: 'Account created. You can now log in.' });
 });
 
 app.post('/api/auth/login', (req, res) => {
-  const email = (req.body.email || '').trim().toLowerCase();
+  const identifierRaw = (req.body.email || '').trim();
   const password = req.body.password;
-  if (!email || !password) {
-    return res.status(400).json({ success: false, message: 'Email and password are required.' });
+  if (!identifierRaw || !password) {
+    return res.status(400).json({ success: false, message: 'Email or username and password are required.' });
   }
   const users = readUsers();
-  const user = users.find(u => (u.email || '').toLowerCase() === email);
+  const lower = identifierRaw.toLowerCase();
+  let user;
+  if (identifierRaw.includes('@')) {
+    user = users.find(u => (u.email || '').toLowerCase() === lower);
+  } else {
+    user = users.find(u => (u.username || '').toLowerCase() === lower);
+  }
   if (!user || user.provider !== 'local') {
-    return res.status(401).json({ success: false, message: 'Invalid email or password.' });
+    return res.status(401).json({ success: false, message: 'Invalid email/username or password.' });
   }
   if (!bcrypt.compareSync(password, user.passwordHash)) {
-    return res.status(401).json({ success: false, message: 'Invalid email or password.' });
+    return res.status(401).json({ success: false, message: 'Invalid email/username or password.' });
   }
   const sessionUser = { provider: 'local', email: user.email, name: user.name };
   req.logIn(sessionUser, (err) => {
@@ -629,19 +628,26 @@ app.delete('/api/showcase/:id', async (req, res) => {
 
 // ---- Client upload: store uploaded images and metadata (linked to upload-data page) ----
 fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-const storage = multer.diskStorage({
+const geospatialStorage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const subdir = `project_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-    const dir = path.join(UPLOAD_DIR, subdir);
-    fs.mkdirSync(dir, { recursive: true });
-    req._uploadSubDir = (process.env.UPLOAD_DIR || 'uploads') + '/' + subdir;
+    if (!req._uploadSubDir) {
+      const subdir = `project_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      const dir = path.join(UPLOAD_DIR, subdir);
+      fs.mkdirSync(dir, { recursive: true });
+      req._uploadSubDir = (process.env.UPLOAD_DIR || 'uploads') + '/' + subdir;
+    }
+    const dir = path.join(UPLOAD_DIR, path.basename(req._uploadSubDir));
     cb(null, dir);
   },
   filename: (req, file, cb) => cb(null, (file.originalname || 'file').replace(/[^a-zA-Z0-9._-]/g, '_'))
 });
-const upload = multer({ storage, limits: { fileSize: 200 * 1024 * 1024 } }); // 200MB per file
+const uploadGeospatial = multer({ storage: geospatialStorage, limits: { fileSize: 200 * 1024 * 1024 } }); // 200MB per file
+const uploadGeospatialFields = uploadGeospatial.fields([
+  { name: 'dataFile', maxCount: 100 },
+  { name: 'posFile', maxCount: 1 }
+]);
 
-app.post('/api/upload-geospatial-data', upload.single('dataFile'), async (req, res) => {
+app.post('/api/upload-geospatial-data', uploadGeospatialFields, async (req, res) => {
   try {
     const projectId = (req.body.projectID || req.body.projectId || '').trim() || `upload_${Date.now()}`;
     const projectTitle = (req.body.projectTitle || req.body.project_title || '').trim() || projectId;
@@ -656,26 +662,19 @@ app.post('/api/upload-geospatial-data', upload.single('dataFile'), async (req, r
     const longitude = req.body.longitude != null && req.body.longitude !== '' ? parseFloat(req.body.longitude) : null;
     const areaCoverage = (req.body.areaCoverage || req.body.area_coverage || '').trim() || null;
     const imageMetadata = (req.body.imageMetadata || req.body.image_metadata || '').trim() || null;
-    let fileCount = 0;
-    const filePaths = [];
-    if (req._uploadSubDir) {
-      const dir = path.join(PROJECT_ROOT, req._uploadSubDir);
-      if (fs.existsSync(dir)) {
-        const files = fs.readdirSync(dir);
-        fileCount = files.length;
-        files.forEach(f => filePaths.push(req._uploadSubDir + '/' + f));
-      }
-    }
-    if (req.file) {
-      fileCount = Math.max(fileCount, 1);
-      const rel = (req._uploadSubDir + '/' + path.basename(req.file.filename || req.file.originalname || 'file')).replace(/\\/g, '/');
-      if (!filePaths.includes(rel)) filePaths.push(rel);
+    const dataFiles = (req.files && req.files.dataFile) || [];
+    const posFiles = (req.files && req.files.posFile) || [];
+    const filePaths = dataFiles.map(f => (req._uploadSubDir + '/' + (f.filename || path.basename(f.originalname || 'file'))).replace(/\\/g, '/'));
+    const fileCount = filePaths.length;
+    let dronePosFilePath = null;
+    if (posFiles.length > 0 && posFiles[0]) {
+      dronePosFilePath = (req._uploadSubDir + '/' + (posFiles[0].filename || path.basename(posFiles[0].originalname || 'pos'))).replace(/\\/g, '/');
     }
     if (process.env.PG_DATABASE) {
       await pgQuery(
-        `INSERT INTO public."ClientUploads" (project_id, project_title, upload_type, file_count, file_paths, camera_models, capture_date, organization_name, created_by_email, project_description, category, latitude, longitude, area_coverage, image_metadata)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING id`,
-        [projectId, projectTitle, uploadType, fileCount, filePaths.length ? filePaths : null, cameraModels, captureDate || null, organizationName, createdByEmail, projectDescription, category, isNaN(latitude) ? null : latitude, isNaN(longitude) ? null : longitude, areaCoverage, imageMetadata]
+        `INSERT INTO public."ClientUploads" (project_id, project_title, upload_type, file_count, file_paths, camera_models, capture_date, organization_name, created_by_email, project_description, category, latitude, longitude, area_coverage, image_metadata, drone_pos_file_path)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) RETURNING id`,
+        [projectId, projectTitle, uploadType, fileCount, filePaths.length ? filePaths : null, cameraModels, captureDate || null, organizationName, createdByEmail, projectDescription, category, isNaN(latitude) ? null : latitude, isNaN(longitude) ? null : longitude, areaCoverage, imageMetadata, dronePosFilePath]
       );
     }
     res.json({ success: true, message: 'Upload saved.', projectId, fileCount });
@@ -691,7 +690,7 @@ app.get('/api/admin/client-uploads', async (req, res) => {
     return res.json([]);
   }
   try {
-    const q = await pgQuery('SELECT id, project_id, project_title, upload_type, file_count, file_paths, camera_models, capture_date, organization_name, created_at, created_by_email, request_status, rejected_reason, decided_at, decided_by, project_description, category, latitude, longitude, area_coverage, image_metadata FROM public."ClientUploads" ORDER BY created_at DESC');
+    const q = await pgQuery('SELECT id, project_id, project_title, upload_type, file_count, file_paths, camera_models, capture_date, organization_name, created_at, created_by_email, request_status, rejected_reason, decided_at, decided_by, project_description, category, latitude, longitude, area_coverage, image_metadata, drone_pos_file_path FROM public."ClientUploads" ORDER BY created_at DESC');
     res.json((q && q.rows) ? q.rows : []);
   } catch (e) {
     console.error('GET /api/admin/client-uploads', e);
@@ -814,9 +813,7 @@ function startServer() {
       console.warn('  >>> WARNING: Secret starts with GOCSPX-- (double hyphen). In Google Cloud, secrets usually have ONE hyphen (GOCSPX-). If sign-in fails, re-copy the Client secret from Credentials.');
     }
   }
-  console.log('  Facebook: GET http://localhost:' + PORT + '/api/auth/facebook');
   if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) console.log('  (Google not configured – set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in .env)');
-  if (!process.env.FACEBOOK_APP_ID || !process.env.FACEBOOK_APP_SECRET) console.log('  (Facebook not configured – set FACEBOOK_APP_ID and FACEBOOK_APP_SECRET in .env)');
   });
   server.on('error', (err) => {
     if (err.code === 'EADDRINUSE') {

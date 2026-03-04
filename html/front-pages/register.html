@@ -17,8 +17,6 @@
   <style>
     .btn-google { background-color: #fff; color: #3c4043; border: 1px solid #dadce0; }
     .btn-google:hover { background-color: #f8f9fa; border-color: #dadce0; color: #3c4043; }
-    .btn-facebook { background-color: #1877f2; color: #fff; border: none; }
-    .btn-facebook:hover { background-color: #166fe5; color: #fff; }
     .btn-social { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.625rem 1.25rem; font-weight: 500; }
   </style>
 </head>
@@ -47,7 +45,7 @@
           <div class="card-body p-4 p-sm-5">
             <div class="text-center mb-5">
               <h4 class="mb-2">Create your account</h4>
-              <p class="text-body small mb-0">Use Google/Facebook or sign up with email and a password.</p>
+              <p class="text-body small mb-0">Use Google or sign up with email and a password.</p>
             </div>
 
             <div class="d-grid gap-3">
@@ -55,23 +53,37 @@
                 <i class="bx bxl-google icon-base" style="font-size: 1.25rem;"></i>
                 Sign up with Google
               </a>
-              <a href="#" id="btnFacebook" class="btn btn-facebook btn-social">
-                <i class="bx bxl-facebook icon-base" style="font-size: 1.25rem;"></i>
-                Sign up with Facebook
-              </a>
             </div>
 
             <p class="small text-body text-center mt-4 mb-2">— or sign up with email —</p>
             <form id="registerForm" novalidate>
               <div class="mb-3">
-                <label class="form-label" for="regEmail">Email <span class="text-danger">*</span></label>
-                <input type="email" class="form-control" id="regEmail" name="email" placeholder="your@email.com" autocomplete="email">
-                <div class="invalid-feedback">Please enter a valid email.</div>
+                <label class="form-label" for="regName">Name <span class="text-danger">*</span></label>
+                <input type="text" class="form-control" id="regName" name="name" placeholder="Your full name">
+                <div class="invalid-feedback">Please enter your name.</div>
+              </div>
+              <div class="mb-3">
+                <label class="form-label" for="regContact">Contact number <span class="text-danger">*</span></label>
+                <input type="tel" class="form-control" id="regContact" name="contactNumber" placeholder="e.g. +60 12-345 6789">
+                <div class="invalid-feedback">Please enter a valid contact number.</div>
+              </div>
+              <div class="mb-3">
+                <label class="form-label" for="regUsername">Username / Email <span class="text-danger">*</span></label>
+                <div class="row g-2">
+                  <div class="col-sm-6">
+                    <input type="text" class="form-control" id="regUsername" name="username" placeholder="Choose a username" autocomplete="username">
+                    <div class="invalid-feedback">Username must be 3–30 characters (letters, numbers, ._-).</div>
+                  </div>
+                  <div class="col-sm-6">
+                    <input type="email" class="form-control" id="regEmail" name="email" placeholder="your@email.com" autocomplete="email">
+                    <div class="invalid-feedback">Please enter a valid email.</div>
+                  </div>
+                </div>
               </div>
               <div class="mb-3">
                 <label class="form-label" for="regPassword">Password <span class="text-danger">*</span></label>
-                <input type="password" class="form-control" id="regPassword" name="password" placeholder="At least 6 characters" autocomplete="new-password">
-                <div class="invalid-feedback">Password must be at least 6 characters.</div>
+                <input type="password" class="form-control" id="regPassword" name="password" placeholder="At least 8 characters" autocomplete="new-password">
+                <div class="invalid-feedback">Password must be at least 8 characters.</div>
               </div>
               <div class="mb-3">
                 <label class="form-label" for="regConfirm">Confirm password <span class="text-danger">*</span></label>
@@ -104,7 +116,6 @@
   <script src="../../assets/vendor/js/bootstrap.js"></script>
   <script>
     var AUTH_GOOGLE_URL = 'http://localhost:3000/api/auth/google';
-    var AUTH_FACEBOOK_URL = 'http://localhost:3000/api/auth/facebook';
     var AUTH_API = 'http://localhost:3000';
 
     document.getElementById('btnGoogle').addEventListener('click', function (e) {
@@ -112,14 +123,12 @@
       e.preventDefault();
       alert('Google sign-up: Set AUTH_GOOGLE_URL and run the auth-server.');
     });
-    document.getElementById('btnFacebook').addEventListener('click', function (e) {
-      if (AUTH_FACEBOOK_URL) { this.href = AUTH_FACEBOOK_URL; return; }
-      e.preventDefault();
-      alert('Facebook sign-up: Set AUTH_FACEBOOK_URL and run the auth-server.');
-    });
 
     document.getElementById('registerForm').addEventListener('submit', function (e) {
       e.preventDefault();
+      var nameEl = document.getElementById('regName');
+      var contactEl = document.getElementById('regContact');
+      var usernameEl = document.getElementById('regUsername');
       var email = document.getElementById('regEmail');
       var password = document.getElementById('regPassword');
       var confirm = document.getElementById('regConfirm');
@@ -127,10 +136,30 @@
       msg.textContent = '';
       msg.className = 'small mt-2 mb-0 text-center';
       var ok = true;
-      email.classList.toggle('is-invalid', !email.value.trim());
-      if (!email.value.trim()) ok = false;
-      password.classList.toggle('is-invalid', password.value.length < 6);
-      if (password.value.length < 6) ok = false;
+
+      function markInvalid(el, condition) {
+        el.classList.toggle('is-invalid', !!condition);
+        if (condition) ok = false;
+      }
+
+      var nameVal = nameEl.value.trim();
+      var contactVal = contactEl.value.trim();
+      var usernameVal = usernameEl.value.trim();
+      var emailVal = email.value.trim();
+
+      markInvalid(nameEl, !nameVal);
+
+      // Basic contact number validation: digits, spaces, +, -, (), length 7–20
+      markInvalid(contactEl, !/^[0-9+\-\s()]{7,20}$/.test(contactVal));
+
+      // Username: 3–30 chars, letters, numbers, ., _, -
+      markInvalid(usernameEl, !/^[a-zA-Z0-9_.-]{3,30}$/.test(usernameVal));
+
+      // Email: non-empty and basic pattern
+      markInvalid(email, !emailVal || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailVal));
+
+      password.classList.toggle('is-invalid', password.value.length < 8);
+      if (password.value.length < 8) ok = false;
       confirm.classList.toggle('is-invalid', password.value !== confirm.value);
       if (password.value !== confirm.value) ok = false;
       if (!ok) return;
@@ -139,7 +168,13 @@
       fetch(AUTH_API + '/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.value.trim(), password: password.value }),
+        body: JSON.stringify({
+          name: nameVal,
+          contactNumber: contactVal,
+          username: usernameVal,
+          email: emailVal.toLowerCase(),
+          password: password.value
+        }),
         credentials: 'include'
       })
         .then(function (r) { return r.json().then(function (j) { return { status: r.status, body: j }; }); })

@@ -53,6 +53,6 @@ Keep that terminal open while you use the portal’s login or register.
 
 **Why so many files?** Your app uses 8 packages (express, passport, bcryptjs, etc.). Each of those packages depends on other packages, and those depend on more. For example, `express` alone pulls in dozens of small libraries (for parsing URLs, handling cookies, etc.). So `npm install` creates a **dependency tree**: your 8 packages plus everything they need. That’s why you see hundreds of files. This is normal for any Node.js project.
 
-**There are no “unused” files to clean up.** npm only installs what some package declared it needs. Removing files by hand would break that package (or another that depends on it). The only way to have fewer packages is to remove a **whole dependency** from `package.json` (e.g. remove Facebook login if you don’t need it), then run `npm install` again. That reduces features; it doesn’t just “clean” unused code.
+**There are no “unused” files to clean up.** npm only installs what some package declared it needs. Removing files by hand would break that package (or another that depends on it). The only way to have fewer packages is to remove a **whole dependency** from `package.json`, then run `npm install` again. That reduces features; it doesn’t just “clean” unused code.
 
 **Best practice:** Ignore the contents of `node_modules`. Don’t edit or delete anything inside it. If you need a fresh install, delete the whole `node_modules` folder and run `npm install` again—npm will recreate it from `package.json`.

@@ -19,7 +19,8 @@ CREATE TABLE IF NOT EXISTS public."ClientUploads" (
   request_status    VARCHAR(32)  NOT NULL DEFAULT 'pending',  -- 'pending' | 'accepted' | 'rejected'
   rejected_reason   TEXT,        -- reason given by admin when rejecting
   decided_at        TIMESTAMP WITH TIME ZONE,
-  decided_by        VARCHAR(255)
+  decided_by        VARCHAR(255),
+  drone_pos_file_path TEXT  -- optional path to uploaded Drone POS file (.txt/.csv) from upload page
 );
 
 COMMENT ON TABLE public."ClientUploads" IS 'Client requests for custom image-to-3D processing: clients upload their own drone images; processed 3D model is delivered back to them (paid service), not added to overview map';

@@ -121,6 +121,7 @@
                       <div class="col-12 mb-2"><span class="text-muted">Upload type:</span> <span id="detailUploadType">–</span></div>
                       <div class="col-12 mb-2"><span class="text-muted">File count:</span> <span id="detailFileCount">–</span></div>
                       <div class="col-12 mb-2"><span class="text-muted">File paths:</span> <span id="detailFilePaths">–</span></div>
+                      <div class="col-12 mb-2"><span class="text-muted">Drone POS file:</span> <span id="detailDronePosFilePath">–</span></div>
                       <div class="col-12 mb-2"><span class="text-muted">Submitted:</span> <span id="detailCreatedAt">–</span></div>
                       <div class="col-12 mb-2"><span class="text-muted">Submitted by:</span> <span id="detailCreatedBy">–</span></div>
                       <div class="col-12 mb-2"><span class="text-muted">Status:</span> <span id="detailStatus">–</span></div>
@@ -237,6 +238,7 @@
         document.getElementById('detailUploadType').textContent = text(row.upload_type);
         document.getElementById('detailFileCount').textContent = text(row.file_count);
         document.getElementById('detailFilePaths').textContent = pathsStr.length > 200 ? pathsStr.slice(0, 200) + '…' : pathsStr;
+        document.getElementById('detailDronePosFilePath').textContent = text(row.drone_pos_file_path);
         document.getElementById('detailCreatedAt').textContent = row.created_at ? new Date(row.created_at).toLocaleString() : '–';
         document.getElementById('detailCreatedBy').textContent = text(row.created_by_email);
         document.getElementById('detailStatus').innerHTML = statusBadge(row.request_status);

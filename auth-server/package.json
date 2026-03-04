@@ -1,7 +1,7 @@
 {
   "name": "temadataportal-auth-server",
   "version": "1.0.0",
-  "description": "OAuth server for Google and Facebook sign-up (TemaDataPortal)",
+  "description": "OAuth server for Google sign-up (TemaDataPortal)",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -17,7 +17,6 @@
     "express-session": "^1.17.3",
     "multer": "^1.4.5-lts.1",
     "passport": "^0.7.0",
-    "passport-facebook": "^3.0.0",
     "passport-google-oauth20": "^2.0.0",
     "pg": "^8.11.3",
     "sql.js": "^1.11.0"

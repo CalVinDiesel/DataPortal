@@ -48,9 +48,6 @@ The auth server needs your Google credentials and the URL of your front end.
    GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
    GOOGLE_CLIENT_SECRET=your-client-secret
 
-   # Leave these empty for now (Facebook later)
-   FACEBOOK_APP_ID=
-   FACEBOOK_APP_SECRET=
    ```
 
    Replace `your-client-id` and `your-client-secret` with the values from Google Cloud (Credentials → your OAuth client).  
@@ -101,8 +98,6 @@ If you see **redirect_uri_mismatch** from Google, double-check Step 1: the redir
 ## Step 5: What’s next (optional)
 
 - **Sessions / database:** The auth server currently only redirects to `FRONT_END_URL` and keeps the user in a session on the server. To persist users (e.g. save to a database, use JWT, or protect other pages), you’ll extend the callback in `auth-server/server.js` and optionally add APIs for the front end.
-- **Facebook:** When you’re ready, add Facebook App ID and Secret to `.env`, set the Facebook redirect URI in Meta to `http://localhost:3000/api/auth/facebook/callback`, and the existing "Sign up with Facebook" on the register page will work.
-
 ---
 
 ## Quick checklist
