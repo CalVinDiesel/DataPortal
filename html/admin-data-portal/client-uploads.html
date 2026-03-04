@@ -96,6 +96,42 @@
                 </div>
               </div>
             </div>
+            <!-- Upload details modal (Data Settings + core fields from client) -->
+            <div class="modal fade" id="detailsModal" tabindex="-1" aria-labelledby="detailsModalLabel" aria-hidden="true">
+              <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                  <div class="modal-header">
+                    <h5 class="modal-title" id="detailsModalLabel">Upload details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                  </div>
+                  <div class="modal-body">
+                    <div class="row small">
+                      <div class="col-12 mb-2"><strong>Project</strong></div>
+                      <div class="col-md-6 mb-2"><span class="text-muted">ID:</span> <span id="detailProjectId">–</span></div>
+                      <div class="col-md-6 mb-2"><span class="text-muted">Title:</span> <span id="detailProjectTitle">–</span></div>
+                      <div class="col-12 mb-2"><span class="text-muted">Description:</span> <span id="detailProjectDescription">–</span></div>
+                      <div class="col-12 mb-2"><span class="text-muted">Category:</span> <span id="detailCategory">–</span></div>
+                      <div class="col-md-6 mb-2"><span class="text-muted">Latitude:</span> <span id="detailLatitude">–</span></div>
+                      <div class="col-md-6 mb-2"><span class="text-muted">Longitude:</span> <span id="detailLongitude">–</span></div>
+                      <div class="col-12 mb-2"><span class="text-muted">Area coverage:</span> <span id="detailAreaCoverage">–</span></div>
+                      <div class="col-12 mb-2"><span class="text-muted">Sensor / image metadata:</span> <span id="detailImageMetadata">–</span></div>
+                      <div class="col-12 mb-2"><span class="text-muted">Organization:</span> <span id="detailOrganization">–</span></div>
+                      <div class="col-md-6 mb-2"><span class="text-muted">Camera models:</span> <span id="detailCameraModels">–</span></div>
+                      <div class="col-md-6 mb-2"><span class="text-muted">Capture date:</span> <span id="detailCaptureDate">–</span></div>
+                      <div class="col-12 mb-2"><span class="text-muted">Upload type:</span> <span id="detailUploadType">–</span></div>
+                      <div class="col-12 mb-2"><span class="text-muted">File count:</span> <span id="detailFileCount">–</span></div>
+                      <div class="col-12 mb-2"><span class="text-muted">File paths:</span> <span id="detailFilePaths">–</span></div>
+                      <div class="col-12 mb-2"><span class="text-muted">Submitted:</span> <span id="detailCreatedAt">–</span></div>
+                      <div class="col-12 mb-2"><span class="text-muted">Submitted by:</span> <span id="detailCreatedBy">–</span></div>
+                      <div class="col-12 mb-2"><span class="text-muted">Status:</span> <span id="detailStatus">–</span></div>
+                    </div>
+                  </div>
+                  <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+                  </div>
+                </div>
+              </div>
+            </div>
             <div class="card">
               <div class="card-body">
                 <div class="table-responsive">
@@ -166,17 +202,49 @@
         return '<span class="badge bg-label-' + label + '">' + escapeHtml(s) + '</span>';
       }
 
+      var uploadsRowsById = {};
+
       function actionCells(r) {
         var status = (r.request_status || 'pending').toLowerCase();
+        var detailsBtn = '<button type="button" class="btn btn-sm btn-outline-secondary me-1 details-btn" data-upload-id="' + r.id + '">Details</button>';
         if (status === 'pending') {
-          return '<button type="button" class="btn btn-sm btn-success me-1 accept-btn" data-upload-id="' + r.id + '">Accept</button>' +
+          return detailsBtn + '<button type="button" class="btn btn-sm btn-success me-1 accept-btn" data-upload-id="' + r.id + '">Accept</button>' +
             '<button type="button" class="btn btn-sm btn-outline-danger reject-btn" data-upload-id="' + r.id + '">Reject</button>';
         }
         if (status === 'rejected') {
           var reason = r.rejected_reason ? '<br><small class="text-muted">' + escapeHtml(r.rejected_reason) + '</small>' : '';
-          return '<span class="text-muted">Rejected</span>' + reason;
+          return detailsBtn + '<span class="text-muted">Rejected</span>' + reason;
         }
-        return '<button type="button" class="btn btn-sm btn-primary request-process-btn" data-upload-id="' + r.id + '">Process & deliver to client</button>';
+        return detailsBtn + '<button type="button" class="btn btn-sm btn-primary request-process-btn" data-upload-id="' + r.id + '">Process & deliver to client</button>';
+      }
+
+      function showDetailsModal(row) {
+        function text(v) { return (v != null && v !== '') ? escapeHtml(String(v)) : '–'; }
+        function num(v) { return (v != null && v !== '' && !isNaN(Number(v))) ? String(v) : '–'; }
+        var paths = row.file_paths;
+        var pathsStr = Array.isArray(paths) ? paths.join(', ') : (paths || '–');
+        document.getElementById('detailProjectId').textContent = text(row.project_id);
+        document.getElementById('detailProjectTitle').textContent = text(row.project_title);
+        document.getElementById('detailProjectDescription').textContent = text(row.project_description);
+        document.getElementById('detailCategory').textContent = text(row.category);
+        document.getElementById('detailLatitude').textContent = num(row.latitude);
+        document.getElementById('detailLongitude').textContent = num(row.longitude);
+        document.getElementById('detailAreaCoverage').textContent = text(row.area_coverage);
+        document.getElementById('detailImageMetadata').textContent = text(row.image_metadata);
+        document.getElementById('detailOrganization').textContent = text(row.organization_name);
+        document.getElementById('detailCameraModels').textContent = text(row.camera_models);
+        document.getElementById('detailCaptureDate').textContent = text(row.capture_date);
+        document.getElementById('detailUploadType').textContent = text(row.upload_type);
+        document.getElementById('detailFileCount').textContent = text(row.file_count);
+        document.getElementById('detailFilePaths').textContent = pathsStr.length > 200 ? pathsStr.slice(0, 200) + '…' : pathsStr;
+        document.getElementById('detailCreatedAt').textContent = row.created_at ? new Date(row.created_at).toLocaleString() : '–';
+        document.getElementById('detailCreatedBy').textContent = text(row.created_by_email);
+        document.getElementById('detailStatus').innerHTML = statusBadge(row.request_status);
+        var modalEl = document.getElementById('detailsModal');
+        if (modalEl && typeof bootstrap !== 'undefined') {
+          var m = bootstrap.Modal.getOrCreateInstance(modalEl);
+          m.show();
+        }
       }
 
       function loadUploads() {
@@ -188,13 +256,21 @@
               tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No client requests yet. Requests appear here when clients submit their images for custom 3D processing via the upload page (PostgreSQL must be configured).</td></tr>';
               return;
             }
+            uploadsRowsById = {};
             tbody.innerHTML = rows.map(function (r) {
+              uploadsRowsById[r.id] = r;
               var created = r.created_at ? new Date(r.created_at).toLocaleString() : '–';
               var status = statusBadge(r.request_status);
               var actions = actionCells(r);
               return '<tr><td>' + r.id + '</td><td>' + (r.project_title || r.project_id || '–') + '</td><td>' + (r.upload_type || '–') + '</td><td>' + (r.file_count || 0) + '</td><td>' + created + '</td><td>' + status + '</td><td>' + actions + '</td></tr>';
             }).join('');
 
+            tbody.querySelectorAll('.details-btn').forEach(function (btn) {
+              btn.addEventListener('click', function () {
+                var id = parseInt(this.getAttribute('data-upload-id'), 10);
+                if (uploadsRowsById[id]) showDetailsModal(uploadsRowsById[id]);
+              });
+            });
             tbody.querySelectorAll('.accept-btn').forEach(function (btn) {
               btn.addEventListener('click', function () { submitDecision(this.getAttribute('data-upload-id'), 'accept', ''); });
             });
