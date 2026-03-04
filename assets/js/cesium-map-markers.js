@@ -9,6 +9,11 @@
  * Clustering concept: The number on each pin is not fixed—it is how many locations are grouped in that cluster.
  * Zoom IN = clusters split into smaller groups (pin number decreases), down to single pins (1). Zoom OUT = nearby
  * locations merge (pin number increases). Only the location choice bar is shown on hover; it must show exactly that many cards.
+ *
+ * HOVER RULE (keep when adding more locations): When the cursor is inside multiple clusters' hit boxes (e.g. after
+ * zoom, stale + current clusters), pick the cluster whose CENTER is closest to the cursor (smallest distSq). Do NOT
+ * use cluster size (e.g. prefer largest/smallest count)—that causes the bar to show the wrong count (e.g. 5 instead
+ * of 3 when hovering the zoomed-in "3" pin). This way the choice bar always matches the number on the pin at that zoom.
  */
 (function () {
   var API_BASE = (typeof window !== 'undefined' && window.TemaDataPortal_API_BASE) || 'http://localhost:3000';
@@ -120,11 +125,11 @@
     return str.substring(0, maxLen).trim() + '…';
   }
 
-  /** Resolve thumbnail URL for map/hover: prefer THUMBNAIL_BY_ID (known-good paths) so map always uses location images. */
+  /** Resolve thumbnail URL for map/hover: prefer API/database thumbnail so admin updates (Edit map pin) show on overview map; use THUMBNAIL_BY_ID only as fallback when API has none. */
   function getThumbnailUrl(loc) {
-    var url = (THUMBNAIL_BY_ID[loc.id] !== undefined && THUMBNAIL_BY_ID[loc.id] !== null)
-      ? (THUMBNAIL_BY_ID[loc.id] || '')
-      : (loc.thumbnailUrl && loc.thumbnailUrl.trim()) || '';
+    var fromApi = (loc.thumbnailUrl && loc.thumbnailUrl.trim()) || '';
+    var fallback = (THUMBNAIL_BY_ID[loc.id] !== undefined && THUMBNAIL_BY_ID[loc.id] !== null) ? (THUMBNAIL_BY_ID[loc.id] || '') : '';
+    var url = fromApi || fallback;
     if (loc.id === 'KK_OSPREY' && !url) return BLANK_THUMBNAIL_DATAURL;
     return url;
   }
@@ -164,6 +169,8 @@
 
   var HOVER_RADIUS_PX = 120; // when hovering cluster (e.g. "6"), include all locations in that group
   var PIN_SIZE_SCALE = 2; // 1 = original size; 2 = 2x larger pins (used for billboard, label, cluster label, choice bar offset)
+  var PIN_IMAGE_HALF = true; // overview map thumbnails at half size (was 96x96, now 48x48) with white border
+  var PIN_BORDER_PX = 2; // white border around each map pin thumbnail
 
   function addMarkersWithClustering(viewer, locations) {
     if (!viewer || !locations.length) return;
@@ -304,40 +311,40 @@
 
     viewer.dataSources.add(dataSource);
 
-    locations.forEach(function (loc) {
-      // Overview map is 2D: use only x/y (longitude, latitude). Height = 0; z is for 3D model view only.
-      var position = C.Cartesian3.fromDegrees(loc.longitude, loc.latitude, 0);
-      var labelText = loc.name + (loc.description ? '\n' + shortDesc(loc.description, labelMaxDesc) : '');
-      var thumbUrl = getThumbnailUrl(loc);
+    var pinImageSize = (PIN_IMAGE_HALF ? 24 : 48) * PIN_SIZE_SCALE;
+    var borderPx = (PIN_IMAGE_HALF && PIN_BORDER_PX > 0) ? PIN_BORDER_PX : 0;
+    var totalPinH = pinImageSize + 2 * borderPx;
 
+    function addPinEntity(loc, position, labelText, billboardW, billboardH, imageOrDataUrl) {
       var entityOpt = {
         position: position,
         name: loc.name,
         description: '<a href="loading-3d.html?id=' + encodeURIComponent(loc.id) + '" target="_blank" rel="noopener">View 3D model (opens in new page)</a>',
         id: loc.id
       };
-
-      var pinW = 48 * PIN_SIZE_SCALE;
-      var pinH = 48 * PIN_SIZE_SCALE;
-      if (thumbUrl) {
-        try {
-          var imgUrl = thumbUrl.indexOf('data:') === 0 ? thumbUrl : (resolveLocationImageUrl(thumbUrl) || new URL(thumbUrl.trim(), window.location.href).href);
-          entityOpt.billboard = {
-            image: imgUrl,
-            width: pinW,
-            height: pinH,
-            verticalOrigin: C.VerticalOrigin.BOTTOM,
-            disableDepthTestDistance: Number.POSITIVE_INFINITY
-          };
-        } catch (e) {
-          entityOpt.point = {
-            pixelSize: 12 * PIN_SIZE_SCALE,
-            color: C.Color.CORNFLOWERBLUE,
-            outlineColor: C.Color.WHITE,
-            outlineWidth: 2,
-            heightReference: C.HeightReference.NONE
-          };
-        }
+      if (imageOrDataUrl && billboardW > 0 && billboardH > 0) {
+        entityOpt.billboard = {
+          image: imageOrDataUrl,
+          width: billboardW,
+          height: billboardH,
+          verticalOrigin: C.VerticalOrigin.BOTTOM,
+          disableDepthTestDistance: Number.POSITIVE_INFINITY
+        };
+        entityOpt.label = {
+          text: labelText,
+          font: (14 * PIN_SIZE_SCALE) + 'px sans-serif',
+          fillColor: C.Color.WHITE,
+          outlineColor: C.Color.BLACK,
+          outlineWidth: 2,
+          style: C.LabelStyle.FILL_AND_OUTLINE,
+          verticalOrigin: C.VerticalOrigin.BOTTOM,
+          pixelOffset: new C.Cartesian2(0, -billboardH - (8 * PIN_SIZE_SCALE)),
+          showBackground: true,
+          backgroundColor: new C.Color(0.15, 0.15, 0.2, 0.9),
+          backgroundPadding: new C.Cartesian2(10 * PIN_SIZE_SCALE, 6 * PIN_SIZE_SCALE),
+          disableDepthTestDistance: Number.POSITIVE_INFINITY,
+          show: false
+        };
       } else {
         entityOpt.point = {
           pixelSize: 12 * PIN_SIZE_SCALE,
@@ -346,28 +353,65 @@
           outlineWidth: 2,
           heightReference: C.HeightReference.NONE
         };
+        entityOpt.label = {
+          text: labelText,
+          font: (14 * PIN_SIZE_SCALE) + 'px sans-serif',
+          fillColor: C.Color.WHITE,
+          outlineColor: C.Color.BLACK,
+          outlineWidth: 2,
+          style: C.LabelStyle.FILL_AND_OUTLINE,
+          verticalOrigin: C.VerticalOrigin.BOTTOM,
+          pixelOffset: new C.Cartesian2(0, -18 * PIN_SIZE_SCALE),
+          showBackground: true,
+          backgroundColor: new C.Color(0.15, 0.15, 0.2, 0.9),
+          backgroundPadding: new C.Cartesian2(10 * PIN_SIZE_SCALE, 6 * PIN_SIZE_SCALE),
+          disableDepthTestDistance: Number.POSITIVE_INFINITY,
+          show: false
+        };
       }
-
-      entityOpt.label = {
-        text: labelText,
-        font: (14 * PIN_SIZE_SCALE) + 'px sans-serif',
-        fillColor: C.Color.WHITE,
-        outlineColor: C.Color.BLACK,
-        outlineWidth: 2,
-        style: C.LabelStyle.FILL_AND_OUTLINE,
-        verticalOrigin: C.VerticalOrigin.BOTTOM,
-        pixelOffset: new C.Cartesian2(0, entityOpt.billboard ? -pinH - (8 * PIN_SIZE_SCALE) : -18 * PIN_SIZE_SCALE),
-        showBackground: true,
-        backgroundColor: new C.Color(0.15, 0.15, 0.2, 0.9),
-        backgroundPadding: new C.Cartesian2(10 * PIN_SIZE_SCALE, 6 * PIN_SIZE_SCALE),
-        disableDepthTestDistance: Number.POSITIVE_INFINITY,
-        show: false
-      };
-
       try {
         dataSource.entities.add(entityOpt);
       } catch (err) {
         console.warn('Map marker add failed for', loc.id, err);
+      }
+    }
+
+    locations.forEach(function (loc) {
+      var position = C.Cartesian3.fromDegrees(loc.longitude, loc.latitude, 0);
+      var labelText = loc.name + (loc.description ? '\n' + shortDesc(loc.description, labelMaxDesc) : '');
+      var thumbUrl = getThumbnailUrl(loc);
+
+      if (thumbUrl && borderPx > 0) {
+        try {
+          var imgUrl = thumbUrl.indexOf('data:') === 0 ? thumbUrl : (resolveLocationImageUrl(thumbUrl) || new URL(thumbUrl.trim(), window.location.href).href);
+          var img = new Image();
+          img.crossOrigin = 'anonymous';
+          img.onload = function () {
+            var c = document.createElement('canvas');
+            c.width = totalPinH;
+            c.height = totalPinH;
+            var ctx = c.getContext('2d');
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, c.width, c.height);
+            ctx.drawImage(img, borderPx, borderPx, pinImageSize, pinImageSize);
+            addPinEntity(loc, position, labelText, totalPinH, totalPinH, c.toDataURL('image/png'));
+          };
+          img.onerror = function () {
+            addPinEntity(loc, position, labelText, pinImageSize, pinImageSize, imgUrl);
+          };
+          img.src = imgUrl;
+        } catch (e) {
+          addPinEntity(loc, position, labelText, 0, 0, null);
+        }
+      } else if (thumbUrl) {
+        try {
+          var imgUrl = thumbUrl.indexOf('data:') === 0 ? thumbUrl : (resolveLocationImageUrl(thumbUrl) || new URL(thumbUrl.trim(), window.location.href).href);
+          addPinEntity(loc, position, labelText, pinImageSize, pinImageSize, imgUrl);
+        } catch (e) {
+          addPinEntity(loc, position, labelText, 0, 0, null);
+        }
+      } else {
+        addPinEntity(loc, position, labelText, 0, 0, null);
       }
     });
 
@@ -671,9 +715,13 @@
         var eid = typeof picked.id.id === 'string' ? picked.id.id : (picked.id.id && picked.id.id.id);
         if (eid && locationById[eid]) return [locationById[eid]];
       }
+      // Fallback: cursor in hit box of multiple clusters (e.g. after zoom, map has stale + current clusters).
+      // RULE: Pick the cluster whose center is CLOSEST to the cursor (smallest distSq). When distances are nearly
+      // equal (stale vs current cluster), prefer the cluster with MORE locations so hovering "5" always shows 5.
+      var DIST_SQ_TIE_THRESHOLD = 200; // px²: within this, treat as tie and prefer larger cluster
       var bestCluster = null;
-      var bestCount = Infinity;
       var bestDistSq = Infinity;
+      var bestCount = 0;
       clusterMap.forEach(function (ids, entity) {
         if (!ids || ids.length < 2) return;
         var pos = getClusterScreenPositionFromIds(ids);
@@ -681,11 +729,13 @@
         var dx = Math.abs(screenX - pos.x), dy = Math.abs(screenY - pos.y);
         if (dx <= PIN_BOX_HALF_W && dy <= PIN_BOX_HALF_H) {
           var distSq = (screenX - pos.x) * (screenX - pos.x) + (screenY - pos.y) * (screenY - pos.y);
-          if (ids.length < bestCount || (ids.length === bestCount && distSq < bestDistSq)) {
-            bestCount = ids.length;
+          var list = ids.map(function (id) { return locationById[id]; }).filter(Boolean);
+          if (list.length < 2) return;
+          var take = distSq < bestDistSq || (distSq <= bestDistSq + DIST_SQ_TIE_THRESHOLD && ids.length > bestCount);
+          if (take) {
             bestDistSq = distSq;
-            var list = ids.map(function (id) { return locationById[id]; }).filter(Boolean);
-            if (list.length >= 2) bestCluster = ensureExactlyNLocs(list, ids.length);
+            bestCount = ids.length;
+            bestCluster = ensureExactlyNLocs(list, ids.length);
           }
         }
       });
@@ -715,7 +765,7 @@
       var centerX = rect.left + (sumX / count);
       var centerY = rect.top + (sumY / count);
       if (count === 1) {
-        centerY -= 24 * PIN_SIZE_SCALE;
+        centerY -= (PIN_IMAGE_HALF ? 12 : 24) * PIN_SIZE_SCALE;
       }
       return { clientX: centerX, clientY: centerY };
     }
@@ -791,7 +841,7 @@
 
     function placeFloatingBox(clientX, clientY, singlePin) {
       var pad = 14;
-      var pinImageWidth = 48 * PIN_SIZE_SCALE;
+      var pinImageWidth = (PIN_IMAGE_HALF ? 24 : 48) * PIN_SIZE_SCALE;
       var maxW = window.innerWidth;
       var maxH = window.innerHeight;
       var barW = bar.offsetWidth || 400;
