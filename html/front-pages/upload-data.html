@@ -501,18 +501,12 @@
 
           <div class="mb-3">
             <label class="form-label" for="imageMetadata">Sensor Metadata <span class="text-danger">*</span></label>
-            <select class="form-select form-select-sm" id="imageMetadata" name="imageMetadata" required
-              onchange="toggleOtherInput('imageMetadata', 'imageMetadataOtherDiv', 'imageMetadataOther', 'other')">
+            <select class="form-select form-select-sm" id="imageMetadata" name="imageMetadata" required>
               <option value="">-- Select format --</option>
               <option value="EXIF (embedded)">EXIF (embedded)</option>
               <option value="POS file">POS file</option>
               <option value="EXIF &amp; POS">EXIF &amp; POS</option>
-              <option value="other">Other</option>
             </select>
-          </div>
-          <div class="mb-3 d-none" id="imageMetadataOtherDiv">
-            <input type="text" class="form-control form-control-sm" id="imageMetadataOther" name="imageMetadataOther"
-              placeholder="Enter metadata format">
           </div>
 
           <div class="mb-3">
@@ -1361,8 +1355,7 @@
       formData.append('longitude', lngInput.value);
       formData.append('areaCoverage', document.getElementById('areaCoverage').value.trim() || 'Unknown');
 
-      const metaVal = document.getElementById('imageMetadata').value;
-      formData.append('imageMetadata', metaVal === 'other' ? document.getElementById('imageMetadataOther').value.trim() : metaVal);
+      formData.append('imageMetadata', document.getElementById('imageMetadata').value);
 
       formData.append('cameraConfiguration', document.querySelector('input[name="cameraConfiguration"]:checked').value);
 
