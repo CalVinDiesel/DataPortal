@@ -68,6 +68,7 @@
             <button class="admin-menu-toggle btn btn-icon d-xl-none me-2 border-0 bg-transparent p-0" type="button" aria-label="Toggle menu"><i class="bx bx-menu icon-lg"></i></button>
           </div>
           <div class="navbar-nav-right d-flex align-items-center ms-auto">
+          <div class="navbar-nav-right d-flex align-items-center">
             <a href="index.html" class="btn btn-sm btn-outline-primary">Back to Dashboard</a>
           </div>
         </nav>
@@ -114,6 +115,8 @@
                         <label class="form-label small text-muted">Or paste a thumbnail URL</label>
                         <input type="url" class="form-control" id="thumbNailUrl" name="thumbNailUrl" placeholder="Optional: image URL if not uploading" />
                       </div>
+                      <label class="form-label" for="thumbNailUrl">Thumbnail image URL</label>
+                      <input type="url" class="form-control" id="thumbNailUrl" name="thumbNailUrl" placeholder="Optional image URL for map pin" />
                     </div>
                     <div class="col-12">
                       <button type="submit" class="btn btn-primary" id="submitBtn">Save 3D Model</button>
@@ -154,6 +157,16 @@
         var thumbnailFile = document.getElementById('thumbnailFile');
         var file = thumbnailFile && thumbnailFile.files && thumbnailFile.files[0];
         if (isNaN(parseFloat(document.getElementById('yAxis').value)) || isNaN(parseFloat(document.getElementById('xAxis').value))) {
+        var payload = {
+          mapDataID: mapDataID,
+          title: document.getElementById('title').value.trim() || mapDataID,
+          description: document.getElementById('description').value.trim(),
+          yAxis: parseFloat(document.getElementById('yAxis').value),
+          xAxis: parseFloat(document.getElementById('xAxis').value),
+          '3dTiles': document.getElementById('tilesetUrl').value.trim(),
+          thumbNailUrl: document.getElementById('thumbNailUrl').value.trim()
+        };
+        if (isNaN(payload.yAxis) || isNaN(payload.xAxis)) {
           formMessage.textContent = 'Valid latitude and longitude are required.';
           formMessage.classList.add('text-danger');
           return;
@@ -215,5 +228,29 @@
     })();
   </script>
   <script src="../../assets/js/admin-responsive.js"></script>
+        fetch(API_BASE + '/api/map-data', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        })
+          .then(function (r) { return r.json().then(function (j) { return { status: r.status, body: j }; }); })
+          .then(function (x) {
+            if (x.status === 200 && x.body.success) {
+              formMessage.textContent = 'Saved. The model will appear on the overview map.';
+              formMessage.classList.add('text-success');
+              form.reset();
+            } else {
+              formMessage.textContent = x.body.message || 'Save failed.';
+              formMessage.classList.add('text-danger');
+            }
+          })
+          .catch(function (err) {
+            formMessage.textContent = 'Request failed: ' + (err.message || 'check server');
+            formMessage.classList.add('text-danger');
+          })
+          .finally(function () { submitBtn.disabled = false; });
+      });
+    })();
+  </script>
 </body>
 </html>
