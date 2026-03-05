@@ -9,6 +9,8 @@
     "seed-mapdata": "node auth-server/scripts/seed-mapdata-from-locations.js"
   },
   "dependencies": {
-    "cesium": "^1.138.0"
+    "cesium": "^1.138.0",
+    "form-data": "^4.0.5",
+    "multer": "^2.1.1"
   }
 }

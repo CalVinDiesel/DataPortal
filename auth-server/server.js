@@ -627,60 +627,198 @@ app.delete('/api/showcase/:id', async (req, res) => {
 });
 
 // ---- Client upload: store uploaded images and metadata (linked to upload-data page) ----
-fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-const geospatialStorage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    if (!req._uploadSubDir) {
-      const subdir = `project_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-      const dir = path.join(UPLOAD_DIR, subdir);
-      fs.mkdirSync(dir, { recursive: true });
-      req._uploadSubDir = (process.env.UPLOAD_DIR || 'uploads') + '/' + subdir;
-    }
-    const dir = path.join(UPLOAD_DIR, path.basename(req._uploadSubDir));
-    cb(null, dir);
-  },
-  filename: (req, file, cb) => cb(null, (file.originalname || 'file').replace(/[^a-zA-Z0-9._-]/g, '_'))
-});
-const uploadGeospatial = multer({ storage: geospatialStorage, limits: { fileSize: 200 * 1024 * 1024 } }); // 200MB per file
-const uploadGeospatialFields = uploadGeospatial.fields([
-  { name: 'dataFile', maxCount: 100 },
-  { name: 'posFile', maxCount: 1 }
-]);
+const fsPromises = fs.promises;
+const crypto = require('crypto');
 
-app.post('/api/upload-geospatial-data', uploadGeospatialFields, async (req, res) => {
+app.post('/api/upload/init', express.json(), async (req, res) => {
   try {
-    const projectId = (req.body.projectID || req.body.projectId || '').trim() || `upload_${Date.now()}`;
-    const projectTitle = (req.body.projectTitle || req.body.project_title || '').trim() || projectId;
-    const uploadType = (req.body.uploadType || req.body.cameraConfiguration || 'single').toLowerCase().includes('multiple') ? 'multiple' : 'single';
-    const cameraModels = (req.body.cameraModels || '').trim() || null;
-    const captureDate = (req.body.captureDate || '').trim() || null;
-    const organizationName = (req.body.organizationName || '').trim() || null;
-    const createdByEmail = (req.user && req.user.email) ? req.user.email : null;
-    const projectDescription = (req.body.projectDescription || req.body.project_description || '').trim() || null;
-    const category = (req.body.category || '').trim() || null;
-    const latitude = req.body.latitude != null && req.body.latitude !== '' ? parseFloat(req.body.latitude) : null;
-    const longitude = req.body.longitude != null && req.body.longitude !== '' ? parseFloat(req.body.longitude) : null;
-    const areaCoverage = (req.body.areaCoverage || req.body.area_coverage || '').trim() || null;
-    const imageMetadata = (req.body.imageMetadata || req.body.image_metadata || '').trim() || null;
-    const dataFiles = (req.files && req.files.dataFile) || [];
-    const posFiles = (req.files && req.files.posFile) || [];
-    const filePaths = dataFiles.map(f => (req._uploadSubDir + '/' + (f.filename || path.basename(f.originalname || 'file'))).replace(/\\/g, '/'));
-    const fileCount = filePaths.length;
-    let dronePosFilePath = null;
-    if (posFiles.length > 0 && posFiles[0]) {
-      dronePosFilePath = (req._uploadSubDir + '/' + (posFiles[0].filename || path.basename(posFiles[0].originalname || 'pos'))).replace(/\\/g, '/');
+    const uploadId = crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15);
+    const tempDir = path.join(UPLOAD_DIR, `temp_${uploadId}`);
+    await fsPromises.mkdir(tempDir, { recursive: true });
+
+    // Store metadata for later finalization
+    const metadataPath = path.join(tempDir, 'metadata.json');
+    const metadata = {
+      projectID: (req.body.projectID || '').trim() || `upload_${Date.now()}`,
+      projectTitle: (req.body.projectTitle || '').trim(),
+      projectDescription: (req.body.projectDescription || '').trim(),
+      uploadType: (req.body.uploadType || req.body.cameraConfiguration || 'single').toLowerCase().includes('multiple') ? 'multiple' : 'single',
+      cameraModels: (req.body.cameraModels || '').trim(),
+      captureDate: (req.body.captureDate || '').trim(),
+      organizationName: (req.body.organizationName || '').trim(),
+      createdByEmail: (req.user && req.user.email) ? req.user.email : null,
+      category: (req.body.category || '').trim(),
+      latitude: req.body.latitude != null && req.body.latitude !== '' ? parseFloat(req.body.latitude) : null,
+      longitude: req.body.longitude != null && req.body.longitude !== '' ? parseFloat(req.body.longitude) : null,
+      areaCoverage: (req.body.areaCoverage || '').trim(),
+      imageMetadata: (req.body.imageMetadata || '').trim(),
+      totalFiles: req.body.totalFiles || 0,
+      createdAt: new Date().toISOString()
+    };
+
+    await fsPromises.writeFile(metadataPath, JSON.stringify(metadata, null, 2));
+
+    res.json({ success: true, uploadId, message: 'Upload initialized' });
+  } catch (e) {
+    console.error('POST /api/upload/init', e);
+    res.status(500).json({ success: false, message: 'Failed to initialize upload.' });
+  }
+});
+
+// We need multer to handle the chunk file upload since it's multipart/form-data
+const chunkStorage = multer.diskStorage({
+  destination: async (req, file, cb) => {
+    const uploadId = req.body.uploadId;
+    if (!uploadId) return cb(new Error('Missing uploadId'));
+    const tempDir = path.join(UPLOAD_DIR, `temp_${uploadId}`);
+    try {
+      await fsPromises.mkdir(tempDir, { recursive: true });
+      cb(null, tempDir);
+    } catch (e) {
+      cb(e);
     }
+  },
+  filename: (req, file, cb) => {
+    // Generate a temporary name for this specific chunk
+    const filename = req.body.filename || 'unknown';
+    const chunkIndex = req.body.chunkIndex || 0;
+    // Keep it safe
+    const safeFilename = filename.replace(/[^a-zA-Z0-9._-]/g, '_');
+    cb(null, `${safeFilename}.part${chunkIndex}`);
+  }
+});
+const uploadChunkMulter = multer({ storage: chunkStorage, limits: { fileSize: 50 * 1024 * 1024 } }); // 50MB limits for 10MB chunks (extra padding for metadata)
+
+app.post('/api/upload/chunk', (req, res) => {
+  uploadChunkMulter.single('chunk')(req, res, function (err) {
+    if (err instanceof multer.MulterError) {
+      console.error('Multer Error in chunk upload:', err);
+      return res.status(500).json({ success: false, message: 'Multer parsing error: ' + err.message });
+    } else if (err) {
+      console.error('Unknown Error in chunk upload:', err);
+      return res.status(500).json({ success: false, message: 'Unknown parsing error: ' + err.message });
+    }
+
+    // Everything went fine with parsing
+    try {
+      const uploadId = req.body.uploadId;
+      const filename = req.body.filename;
+      const chunkIndex = parseInt(req.body.chunkIndex, 10);
+      const totalChunks = parseInt(req.body.totalChunks, 10);
+
+      if (!uploadId || !filename || isNaN(chunkIndex) || isNaN(totalChunks) || !req.file) {
+        return res.status(400).json({ success: false, message: 'Missing required chunk parameters.' });
+      }
+
+      res.json({ success: true, message: `Chunk ${chunkIndex} received.` });
+    } catch (e) {
+      console.error('POST /api/upload/chunk saving error:', e);
+      res.status(500).json({ success: false, message: 'Failed to save chunk.' });
+    }
+  });
+});
+
+app.post('/api/upload/finalize', express.json(), async (req, res) => {
+  try {
+    const uploadId = req.body.uploadId;
+    if (!uploadId) return res.status(400).json({ success: false, message: 'Missing uploadId' });
+
+    const tempDir = path.join(UPLOAD_DIR, `temp_${uploadId}`);
+    const filesMapping = req.body.files; // Array of { filename, totalChunks }
+
+    if (!filesMapping || !Array.isArray(filesMapping)) {
+      return res.status(400).json({ success: false, message: 'Missing files mapping array' });
+    }
+
+    const finalSubdir = `project_${Date.now()}_${uploadId.substring(0, 6)}`;
+    const finalDir = path.join(UPLOAD_DIR, finalSubdir);
+    await fsPromises.mkdir(finalDir, { recursive: true });
+
+    const finalFilePaths = [];
+    let dronePosFilePath = null;
+    let actualFileCount = 0;
+
+    // Assemble each file
+    for (const fileDef of filesMapping) {
+      const safeFilename = fileDef.filename.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const finalFilePath = path.join(finalDir, safeFilename);
+
+      // Create a write stream for the final file
+      const writeStream = fs.createWriteStream(finalFilePath);
+
+      let assemblyFailed = false;
+      for (let i = 0; i < fileDef.totalChunks; i++) {
+        const chunkPath = path.join(tempDir, `${safeFilename}.part${i}`);
+        try {
+          await new Promise((resolve, reject) => {
+            const readStream = fs.createReadStream(chunkPath);
+            readStream.on('error', reject);
+            readStream.on('end', resolve);
+            readStream.pipe(writeStream, { end: false });
+          });
+        } catch (e) {
+          console.error(`Missing chunk ${i} for file ${safeFilename} in upload ${uploadId}`, e);
+          assemblyFailed = true;
+          break;
+        }
+      }
+
+      writeStream.end();
+
+      if (assemblyFailed) {
+        return res.status(400).json({ success: false, message: `Failed to assemble file ${fileDef.filename}. Missing chunks.` });
+      }
+
+      // File assembled successfully
+      const relativePath = `${process.env.UPLOAD_DIR || 'uploads'}/${finalSubdir}/${safeFilename}`;
+
+      if (safeFilename.toLowerCase().endsWith('.txt') || safeFilename.toLowerCase().endsWith('.csv')) {
+        dronePosFilePath = relativePath.replace(/\\/g, '/');
+      } else {
+        finalFilePaths.push(relativePath.replace(/\\/g, '/'));
+        actualFileCount++;
+      }
+    }
+
+    // Read metadata
+    const metadataPath = path.join(tempDir, 'metadata.json');
+    let metadata = {};
+    try {
+      const metaStr = await fsPromises.readFile(metadataPath, 'utf8');
+      metadata = JSON.parse(metaStr);
+    } catch (e) {
+      console.warn("Could not read metadata for", uploadId);
+    }
+
+    if (!metadata.projectTitle) metadata.projectTitle = metadata.projectID;
+
+    // Save to DB
     if (process.env.PG_DATABASE) {
       await pgQuery(
         `INSERT INTO public."ClientUploads" (project_id, project_title, upload_type, file_count, file_paths, camera_models, capture_date, organization_name, created_by_email, project_description, category, latitude, longitude, area_coverage, image_metadata, drone_pos_file_path)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) RETURNING id`,
-        [projectId, projectTitle, uploadType, fileCount, filePaths.length ? filePaths : null, cameraModels, captureDate || null, organizationName, createdByEmail, projectDescription, category, isNaN(latitude) ? null : latitude, isNaN(longitude) ? null : longitude, areaCoverage, imageMetadata, dronePosFilePath]
+        [
+          metadata.projectID, metadata.projectTitle, metadata.uploadType, actualFileCount,
+          finalFilePaths.length ? finalFilePaths : null, metadata.cameraModels, metadata.captureDate || null,
+          metadata.organizationName, metadata.createdByEmail, metadata.projectDescription, metadata.category,
+          isNaN(metadata.latitude) ? null : metadata.latitude, isNaN(metadata.longitude) ? null : metadata.longitude,
+          metadata.areaCoverage, metadata.imageMetadata, dronePosFilePath
+        ]
       );
     }
-    res.json({ success: true, message: 'Upload saved.', projectId, fileCount });
+
+    // Cleanup temporary directory
+    try {
+      await fsPromises.rm(tempDir, { recursive: true, force: true });
+    } catch (e) {
+      console.warn("Failed to cleanup temp dir", tempDir, e);
+    }
+
+    res.json({ success: true, message: 'Upload successfully assembled and saved.', projectId: metadata.projectID, fileCount: actualFileCount });
+
   } catch (e) {
-    console.error('POST /api/upload-geospatial-data', e);
-    res.status(500).json({ success: false, message: e.message || 'Upload failed.' });
+    console.error('POST /api/upload/finalize', e);
+    res.status(500).json({ success: false, message: e.message || 'Failed to finalize upload.' });
   }
 });
 
@@ -805,15 +943,15 @@ function startServer() {
     if (process.env.PG_DATABASE) console.log('  MapData & admin: using PostgreSQL database ' + process.env.PG_DATABASE);
     else if (mapDataDb) console.log('  MapData: using SQLite (table MapData)');
     else console.log('  MapData: using data/map-data.json (run npm run create-db to create SQLite DB)');
-  console.log('  Google:  GET http://localhost:' + PORT + '/api/auth/google');
-  if (GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET) {
-    console.log('  Google callback URL (must match Google Cloud exactly):', GOOGLE_CALLBACK_URL);
-    console.log('  Google credentials: Client ID length', GOOGLE_CLIENT_ID.length, '| Secret length', GOOGLE_CLIENT_SECRET.length);
-    if (GOOGLE_CLIENT_SECRET.startsWith('GOCSPX--')) {
-      console.warn('  >>> WARNING: Secret starts with GOCSPX-- (double hyphen). In Google Cloud, secrets usually have ONE hyphen (GOCSPX-). If sign-in fails, re-copy the Client secret from Credentials.');
+    console.log('  Google:  GET http://localhost:' + PORT + '/api/auth/google');
+    if (GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET) {
+      console.log('  Google callback URL (must match Google Cloud exactly):', GOOGLE_CALLBACK_URL);
+      console.log('  Google credentials: Client ID length', GOOGLE_CLIENT_ID.length, '| Secret length', GOOGLE_CLIENT_SECRET.length);
+      if (GOOGLE_CLIENT_SECRET.startsWith('GOCSPX--')) {
+        console.warn('  >>> WARNING: Secret starts with GOCSPX-- (double hyphen). In Google Cloud, secrets usually have ONE hyphen (GOCSPX-). If sign-in fails, re-copy the Client secret from Credentials.');
+      }
     }
-  }
-  if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) console.log('  (Google not configured – set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in .env)');
+    if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) console.log('  (Google not configured – set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in .env)');
   });
   server.on('error', (err) => {
     if (err.code === 'EADDRINUSE') {
