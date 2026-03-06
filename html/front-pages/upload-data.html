@@ -533,7 +533,19 @@
           </div>
 
           <input type="hidden" id="organizationName" name="organizationName" value="Self">
-          <p id="submitMessage" class="small mt-2 mb-0 text-center"></p>
+
+          <!-- Upload Progress UI (Hidden by default) -->
+          <div id="uploadProgressContainer" class="mt-4" style="display: none;">
+            <div class="d-flex justify-content-between mb-1">
+              <span class="text-secondary fw-medium" id="uploadStatusText">Initializing...</span>
+              <span class="text-primary fw-bold" id="uploadPercentageText">0%</span>
+            </div>
+            <div class="progress" style="height: 10px; border-radius: 5px;">
+              <div id="uploadProgressBar" class="progress-bar progress-bar-striped progress-bar-animated bg-primary"
+                role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+            </div>
+            <p id="submitMessage" class="small mt-2 mb-0 text-center text-muted"></p>
+          </div>
 
         </form>
       </div>
@@ -542,8 +554,7 @@
       <div class="left-footer">
         <a href="landing-page.html" class="btn btn-secondary text-white fw-medium border-0 px-4"
           style="background:#8b9eb0;">Cancel</a>
-        <button type="submit" form="uploadForm" class="btn btn-primary fw-medium px-4"
-          style="background:#93c5fd; border:none; color:white;">Upload</button>
+        <button type="submit" form="uploadForm" class="btn btn-primary fw-medium px-4">Upload</button>
       </div>
     </div>
 
@@ -816,6 +827,19 @@
       }
     }
 
+    // -------- PROJECT NAME SYNC --------
+    const topProjectInput = document.getElementById('projectTitle');
+    const bottomProjectInput = document.getElementById('projectID');
+
+    topProjectInput.addEventListener('input', function () {
+      if (bottomProjectInput) bottomProjectInput.value = this.value;
+    });
+
+    bottomProjectInput.addEventListener('input', function () {
+      if (topProjectInput) topProjectInput.value = this.value;
+    });
+    // -----------------------------------
+
     // -------- MAP PICKER LOGIC --------
     var defaultLat = 5.9804;
     var defaultLng = 116.0735;
@@ -867,7 +891,9 @@
     let pendingUploadFiles = []; // Track actual files to allow deletion
     var parsedFilesCount = 0;
     var locatedFilesCount = 0;
+    var locatedFilesCount = 0;
     var folderStats = {};
+    var rootFolderStats = {};
 
     function convertDMSToDD(degrees, minutes, seconds, direction) {
       let dd = degrees + minutes / 60 + seconds / (60 * 60);
@@ -887,6 +913,7 @@
 
         flightPath = [];
         folderStats = {};
+        rootFolderStats = {};
         parsedFilesCount = 0;
         locatedFilesCount = 0;
 
@@ -914,10 +941,16 @@
 
           for (const file of pendingUploadFiles) {
             const pathParts = file.webkitRelativePath ? file.webkitRelativePath.split('/') : [file.name];
-            const folderName = pathParts.length > 1 ? pathParts[0] : 'Root';
+            const folderName = pathParts.length > 1 ? pathParts[pathParts.length - 2] : 'Root';
+            const rootFolderName = pathParts.length > 1 ? pathParts[0] : 'Root';
+
             if (!folderStats[folderName]) folderStats[folderName] = { photos: 0, located: 0, sizeBytes: 0 };
             folderStats[folderName].photos++;
             folderStats[folderName].sizeBytes += file.size || 0;
+
+            if (!rootFolderStats[rootFolderName]) rootFolderStats[rootFolderName] = { photos: 0, located: 0, sizeBytes: 0 };
+            rootFolderStats[rootFolderName].photos++;
+            rootFolderStats[rootFolderName].sizeBytes += file.size || 0;
           }
 
           // Very basic heuristic parser for common POS/CSV formats: find numbers that look like Lat/Lng
@@ -947,6 +980,9 @@
             const firstPoint = flightPath[0];
             for (const folder in folderStats) {
               folderStats[folder].located = folderStats[folder].photos;
+            }
+            for (const rootFolder in rootFolderStats) {
+              rootFolderStats[rootFolder].located = rootFolderStats[rootFolder].photos;
             }
             updateModalProgress(totalFiles, totalFiles);
           } else {
@@ -986,7 +1022,8 @@
 
         await Promise.all(batchFiles.map(async (file, batchIndex) => {
           const pathParts = file.webkitRelativePath ? file.webkitRelativePath.split('/') : [file.name];
-          const folderName = pathParts.length > 1 ? pathParts[0] : 'Root';
+          const folderName = pathParts.length > 1 ? pathParts[pathParts.length - 2] : 'Root';
+          const rootFolderName = pathParts.length > 1 ? pathParts[0] : 'Root';
 
           // JS is single-threaded, so this synchronous check & increment is safe
           if (!folderStats[folderName]) {
@@ -994,6 +1031,12 @@
           }
           folderStats[folderName].photos++;
           folderStats[folderName].sizeBytes += file.size || 0;
+
+          if (!rootFolderStats[rootFolderName]) {
+            rootFolderStats[rootFolderName] = { photos: 0, located: 0, sizeBytes: 0 };
+          }
+          rootFolderStats[rootFolderName].photos++;
+          rootFolderStats[rootFolderName].sizeBytes += file.size || 0;
 
           // CRITICAL OPTIMIZATION: Only load the first 128KB of the image into memory
           let partialBlob = file;
@@ -1011,22 +1054,24 @@
               const lng = EXIF.getTag(this, "GPSLongitude");
               const lngRef = EXIF.getTag(this, "GPSLongitudeRef");
 
+              const globalIndex = batchStart + batchIndex;
+
               if (lat && lng && latRef && lngRef) {
                 // Real EXIF found
                 const latFinal = convertDMSToDD(lat[0].valueOf(), lat[1].valueOf(), lat[2].valueOf(), latRef);
                 const lngFinal = convertDMSToDD(lng[0].valueOf(), lng[1].valueOf(), lng[2].valueOf(), lngRef);
-                flightPath.push([latFinal, lngFinal]);
+                flightPath[globalIndex] = [latFinal, lngFinal];
                 folderStats[folderName].located++;
+                rootFolderStats[rootFolderName].located++;
                 locatedFilesCount++;
               } else {
                 // FALLBACK: Simulate GPS data if missing
-                // Calculate mock offset based on the overall file index to avoid race conditions
-                const globalIndex = batchStart + batchIndex;
                 const mockLat = currentMockLat - Math.floor(globalIndex / 10) * 0.0015 + (globalIndex % 10) * 0.00015;
                 const mockLng = currentMockLng + Math.floor(globalIndex / 10) * 0.00015;
 
-                flightPath.push([mockLat, mockLng]);
+                flightPath[globalIndex] = [mockLat, mockLng];
                 folderStats[folderName].located++;
+                rootFolderStats[rootFolderName].located++;
                 locatedFilesCount++;
               }
 
@@ -1042,6 +1087,9 @@
           });
         }));
       }
+
+      // Filter out any undefined empty slots in case a promise failed or a file was skipped
+      flightPath = flightPath.filter(point => point !== undefined);
 
       // Processing finished
       finishDataLoadingModal(() => {
@@ -1208,7 +1256,7 @@
     function renderFolderListUI() {
       const folderListWrapper = document.getElementById('folderListWrapper');
 
-      if (Object.keys(folderStats).length === 0) {
+      if (Object.keys(rootFolderStats).length === 0) {
         folderListWrapper.style.display = 'none';
 
         // Reset the actual file input element so the browser UI clears the "XX files" text
@@ -1243,7 +1291,7 @@
 
       let cardsHtml = '';
 
-      for (const [folder, stats] of Object.entries(folderStats)) {
+      for (const [folder, stats] of Object.entries(rootFolderStats)) {
         totalPhotos += stats.photos;
         totalLocated += stats.located;
         totalBytes += stats.sizeBytes;
@@ -1314,7 +1362,7 @@
     }
 
     // Form Submission Logic
-    document.getElementById('uploadForm').addEventListener('submit', function (e) {
+    document.getElementById('uploadForm').addEventListener('submit', async function (e) {
       e.preventDefault();
 
       // Ensure a camera option is selected
@@ -1337,71 +1385,180 @@
 
       const submitBtn = document.querySelector('.left-footer button[type="submit"]');
       const msgDiv = document.getElementById('submitMessage');
+      const progressContainer = document.getElementById('uploadProgressContainer');
+      const progressBar = document.getElementById('uploadProgressBar');
+      const statusText = document.getElementById('uploadStatusText');
+      const percentText = document.getElementById('uploadPercentageText');
 
       submitBtn.disabled = true;
-      msgDiv.textContent = 'Uploading data... Please wait.';
-      msgDiv.className = 'small mt-3 mb-0 text-center text-info mb-2 left-content';
+      progressContainer.style.display = 'block';
+      progressBar.style.width = '0%';
+      percentText.textContent = '0%';
+      statusText.textContent = 'Preparing upload session...';
+      msgDiv.textContent = 'Please wait, allocating workspace on server.';
+      msgDiv.className = 'small mt-2 mb-0 text-center text-secondary';
 
-      // Assemble FormData (preserving previous API contract)
-      const formData = new FormData();
-      formData.append('projectID', document.getElementById('projectID').value || 'proj-' + Date.now());
-      formData.append('projectTitle', document.getElementById('projectTitle').value.trim());
-      formData.append('projectDescription', document.getElementById('projectDescription').value.trim() || 'No description');
-
+      // 1. Prepare Metadata for Initialization
       const catVal = document.getElementById('category').value;
-      formData.append('category', catVal === 'Other' ? document.getElementById('categoryOther').value.trim() : catVal);
+      const initMetadata = {
+        projectID: document.getElementById('projectID').value || 'proj-' + Date.now(),
+        projectTitle: document.getElementById('projectTitle').value.trim(),
+        projectDescription: document.getElementById('projectDescription').value.trim() || 'No description',
+        category: catVal === 'Other' ? document.getElementById('categoryOther').value.trim() : catVal,
+        latitude: latInput.value,
+        longitude: lngInput.value,
+        areaCoverage: document.getElementById('areaCoverage').value.trim() || 'Unknown',
+        imageMetadata: document.getElementById('imageMetadata').value,
+        cameraConfiguration: document.querySelector('input[name="cameraConfiguration"]:checked').value,
+        cameraModels: document.getElementById('multipleCamera').checked ? (document.getElementById('cameraModels').value || '') : '',
+        captureDate: document.getElementById('captureDate').value || new Date().toISOString().split('T')[0],
+        organizationName: document.getElementById('organizationName').value,
+        totalFiles: pendingUploadFiles.length
+      };
 
-      formData.append('latitude', latInput.value);
-      formData.append('longitude', lngInput.value);
-      formData.append('areaCoverage', document.getElementById('areaCoverage').value.trim() || 'Unknown');
-
-      formData.append('imageMetadata', document.getElementById('imageMetadata').value);
-
-      formData.append('cameraConfiguration', document.querySelector('input[name="cameraConfiguration"]:checked').value);
-
-      if (document.getElementById('multipleCamera').checked) {
-        formData.append('cameraModels', document.getElementById('cameraModels').value || '');
-      }
-
-      formData.append('captureDate', document.getElementById('captureDate').value || new Date().toISOString().split('T')[0]);
-      formData.append('organizationName', document.getElementById('organizationName').value);
-
-      // Only append files that remain in pendingUploadFiles (not the raw input files)
-      pendingUploadFiles.forEach(file => {
-        formData.append('dataFile', file);
-      });
-
-      // Also append POS file if provided
-      const posFile = document.getElementById('posFile');
-      if (posFile && posFile.files.length > 0) {
-        formData.append('posFile', posFile.files[0]);
-      }
-
-      // Simulate Upload or call API
-      fetch(UPLOAD_API + '/api/upload-geospatial-data', {
-        method: 'POST',
-        body: formData,
-        credentials: 'include'
-      })
-        .then(r => r.json().then(j => ({ status: r.status, body: j })))
-        .then(x => {
-          if (x.status === 200 && x.body.success) {
-            msgDiv.className = 'small mt-2 mb-0 text-center text-success pb-3 fw-bold';
-            msgDiv.textContent = '✓ Upload successful!';
-            setTimeout(() => window.location.href = 'landing-page.html', 1500);
-          } else {
-            msgDiv.className = 'small mt-2 mb-0 text-center text-danger pb-3';
-            msgDiv.textContent = '✗ ' + (x.body.message || 'Upload failed.');
-            submitBtn.disabled = false;
-          }
-        })
-        .catch(err => {
-          // Mock success for purely frontend testing if server off
-          console.warn('API down, mocking success');
-          msgDiv.className = 'small mt-2 mb-0 text-center text-success pb-3 fw-bold';
-          msgDiv.textContent = '✓ Upload successfully mocked (API offline)';
-          setTimeout(() => window.location.href = 'landing-page.html', 2000);
+      try {
+        // 2. Initialize Upload Session
+        const initRes = await fetch(UPLOAD_API + '/api/upload/init', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(initMetadata),
+          credentials: 'include'
         });
+        const initData = await initRes.json();
+
+        if (!initRes.ok || !initData.success) {
+          throw new Error(initData.message || 'Failed to initialize upload');
+        }
+
+        const uploadId = initData.uploadId;
+        const CHUNK_SIZE = 10 * 1024 * 1024; // 10MB chunks
+
+        // Combine pending data files and pos file if any
+        let allFilesToUpload = [...pendingUploadFiles];
+        const posFile = document.getElementById('posFile');
+        if (posFile && posFile.files.length > 0) {
+          allFilesToUpload.push(posFile.files[0]);
+        }
+
+        const filesMapping = [];
+        let totalChunksToUpload = 0;
+        let chunksUploaded = 0;
+
+        // Calculate total chunks for progress
+        for (const file of allFilesToUpload) {
+          totalChunksToUpload += Math.ceil(file.size / CHUNK_SIZE) || 1;
+        }
+
+        statusText.textContent = 'Uploading files...';
+        msgDiv.textContent = `0 of ${allFilesToUpload.length} files processed`;
+
+        // 3. Upload Chunks Sequentially
+        for (let fIndex = 0; fIndex < allFilesToUpload.length; fIndex++) {
+          const file = allFilesToUpload[fIndex];
+          // Use the relative path if available, otherwise just use filename
+          let relativePath = file.webkitRelativePath || file.name;
+
+          let safeFilename = relativePath.replace(/[^a-zA-Z0-9._-]/g, '_');
+          // If it's just the top-level path or missing extension due to sanitization, ensure uniqueness safely
+          if (!safeFilename.includes('.')) safeFilename = `file_${fIndex}_${file.name}`;
+
+          let totalChunksFile = Math.ceil(file.size / CHUNK_SIZE);
+          if (totalChunksFile === 0) totalChunksFile = 1; // handle empty files
+
+          filesMapping.push({ filename: safeFilename, totalChunks: totalChunksFile });
+
+          for (let chunkIndex = 0; chunkIndex < totalChunksFile; chunkIndex++) {
+            const startByte = chunkIndex * CHUNK_SIZE;
+            const endByte = Math.min(startByte + CHUNK_SIZE, file.size);
+            const chunkBlob = file.slice(startByte, endByte);
+
+            const chunkFormData = new FormData();
+            chunkFormData.append('uploadId', uploadId);
+            chunkFormData.append('filename', safeFilename);
+            chunkFormData.append('chunkIndex', chunkIndex);
+            chunkFormData.append('totalChunks', totalChunksFile);
+            chunkFormData.append('chunk', chunkBlob);
+
+            // Retry logic for individual chunk failures
+            let chunkSuccess = false;
+            let retries = 15;
+
+            while (!chunkSuccess && retries > 0) {
+              try {
+                const chunkRes = await fetch(UPLOAD_API + '/api/upload/chunk', {
+                  method: 'POST',
+                  body: chunkFormData,
+                  credentials: 'include' // Important for sessions if backend needs it
+                });
+
+                if (chunkRes.ok) {
+                  chunkSuccess = true;
+                  chunksUploaded++;
+                  const percent = Math.round((chunksUploaded / totalChunksToUpload) * 100);
+
+                  // Update Visual Progress Bar
+                  progressBar.style.width = `${percent}%`;
+                  percentText.textContent = `${percent}%`;
+                  msgDiv.textContent = `Processing file ${fIndex + 1} of ${allFilesToUpload.length}`;
+
+                  // Ensure visual change registers
+                  progressBar.classList.remove('bg-danger');
+                  progressBar.classList.add('bg-primary');
+                } else {
+                  retries--;
+                  if (retries === 0) throw new Error(`Failed to upload chunk ${chunkIndex} of ${safeFilename}`);
+                  statusText.textContent = 'Network offline. Waiting to resume...';
+                  msgDiv.textContent = `Upload paused. Retrying... (${retries} attempts left)`;
+                  progressBar.classList.remove('bg-primary');
+                  progressBar.classList.add('bg-danger');
+                  await new Promise(r => setTimeout(r, 5000)); // wait before retry
+                }
+              } catch (chunkErr) {
+                retries--;
+                if (retries === 0) throw chunkErr;
+                statusText.textContent = 'Network offline. Waiting to resume...';
+                msgDiv.textContent = `Upload paused. Retrying... (${retries} attempts left)`;
+                progressBar.classList.remove('bg-primary');
+                progressBar.classList.add('bg-danger');
+                await new Promise(r => setTimeout(r, 5000));
+              }
+            }
+          }
+        }
+
+        statusText.textContent = 'Finalizing upload...';
+        msgDiv.textContent = 'Assembling chunks and saving metadata. Please do not close the window.';
+        progressBar.classList.remove('progress-bar-animated');
+        progressBar.classList.add('bg-success');
+
+        // 4. Finalize Upload
+        const finalizeRes = await fetch(UPLOAD_API + '/api/upload/finalize', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ uploadId, files: filesMapping }),
+          credentials: 'include'
+        });
+
+        const finalizeData = await finalizeRes.json();
+        if (!finalizeRes.ok || !finalizeData.success) {
+          throw new Error(finalizeData.message || 'Finalization failed');
+        }
+
+        msgDiv.className = 'small mt-2 mb-0 text-center text-success pb-3 fw-bold';
+        msgDiv.textContent = '✓ Upload successful!';
+        setTimeout(() => window.location.href = 'landing-page.html', 1500);
+
+      } catch (err) {
+        console.error('Upload Process Error:', err);
+        if (document.getElementById('uploadStatusText')) {
+          document.getElementById('uploadStatusText').textContent = 'Upload Failed';
+          document.getElementById('uploadProgressBar').classList.remove('bg-primary');
+          document.getElementById('uploadProgressBar').classList.add('bg-danger');
+        }
+        msgDiv.className = 'small mt-2 mb-0 text-center text-danger pb-3';
+        msgDiv.textContent = '✗ ' + (err.message || 'Upload failed due to a network error.');
+        submitBtn.disabled = false;
+      }
     });
   </script>
 </body>
