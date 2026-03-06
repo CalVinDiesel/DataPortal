@@ -9,6 +9,8 @@
     "seed-mapdata": "node auth-server/scripts/seed-mapdata-from-locations.js"
   },
   "dependencies": {
+    "better-auth": "^1.5.4",
+    "better-sqlite3": "^12.6.2",
     "cesium": "^1.138.0"
   },
   "overrides": {

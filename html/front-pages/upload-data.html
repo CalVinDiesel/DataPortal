@@ -36,51 +36,45 @@
     }
 
     .split-layout {
-      display: flex;
+      display: block;
+      /* No longer flex, map is background */
       height: 100vh;
       width: 100vw;
-      background-color: #f8f9fa;
-    }
-
-    .left-panel {
-      width: 580px;
-      flex-shrink: 0;
-      display: flex;
-      flex-direction: column;
-      background: white;
-      z-index: 10;
-      box-shadow: 4px 0 15px rgba(0, 0, 0, 0.05);
-      border-right: 1px solid #d9dee3;
-    }
-
-    .right-panel {
-      flex-grow: 1;
       position: relative;
     }
 
-    .left-header {
-      min-height: 64px;
-      border-bottom: 1px solid #d9dee3;
+    /* RIGHT PANEL BECOMES FULL SCREEN BACKGROUND */
+    .right-panel {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 1;
+    }
+
+    /* LEFT PANEL BECOMES FLOATING GLASS WIDGET */
+    .left-panel {
+      position: absolute;
+      top: 24px;
+      left: 24px;
+      width: 580px;
+      height: calc(100vh - 48px);
       display: flex;
-      align-items: center;
-      padding: 0 1rem;
-      background: #fff;
-    }
-
-    .left-header input.project-name-input {
-      border: 1px solid transparent;
-      box-shadow: none;
-      font-size: 1.1rem;
-      font-weight: 500;
-      padding: 0.25rem 0.5rem;
-      border-radius: 6px;
-      transition: 0.2s ease;
-    }
-
-    .left-header input.project-name-input:focus,
-    .left-header input.project-name-input:hover {
-      border-color: #696cff;
-      background: #f8f9fa;
+      flex-direction: column;
+      background: rgba(255, 255, 255, 0.90);
+      /* Translucent white */
+      backdrop-filter: blur(12px);
+      /* Glassmorphism blur */
+      -webkit-backdrop-filter: blur(12px);
+      z-index: 10;
+      border-radius: 16px;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15), 0 1px 3px rgba(0, 0, 0, 0.05);
+      /* Premium shadow */
+      border: 1px solid rgba(255, 255, 255, 0.5);
+      /* Soft light edge reflection */
+      overflow: hidden;
+      /* For rounded corners */
     }
 
     .left-content {
@@ -91,34 +85,44 @@
 
     .left-footer {
       min-height: 70px;
-      border-top: 1px solid #d9dee3;
+      border-top: 1px solid rgba(0, 0, 0, 0.08);
+      /* Match glass effect */
       display: flex;
       align-items: center;
       justify-content: space-between;
       padding: 0 1.5rem;
-      background: #fff;
+      background: rgba(255, 255, 255, 0.5);
+      /* Match glass effect */
     }
 
-    /* Target screenshot mimicry styles */
+    /* Modernized solid upload cards */
     .upload-card {
-      border: 1px dashed #d9dee3;
-      border-radius: 8px;
+      border: 1px solid rgba(0, 0, 0, 0.05);
+      border-radius: 12px;
+      /* Smoother corner */
       padding: 1.25rem;
       text-align: center;
       cursor: pointer;
-      background: #fff;
-      transition: all 0.2s ease;
+      background: rgba(255, 255, 255, 0.8);
+      /* Slightly translucent */
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
       position: relative;
     }
 
     .upload-card:hover {
-      border-color: #696cff;
-      background: #fbfbff;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 12px rgba(105, 108, 255, 0.15);
+      /* #696cff tinted shadow */
+      border-color: rgba(105, 108, 255, 0.3);
+      background: #fff;
     }
 
     .upload-card.active {
-      border: 2px solid #5a5ce6;
-      background: #f4f5ff;
+      border: 2px solid #696cff;
+      background: rgba(105, 108, 255, 0.05);
+      /* very faint #696cff */
+      box-shadow: 0 4px 10px rgba(105, 108, 255, 0.2);
     }
 
     .upload-card-icon {
@@ -384,16 +388,6 @@
 
     <!-- Left Sidebar: Form -->
     <div class="left-panel">
-      <!-- Top header with back button and project title -->
-      <div class="left-header">
-        <a href="landing-page.html" class="text-body d-flex align-items-center me-3 p-2 rounded-circle hover-bg-light">
-          <i class="bx bx-chevron-left fs-4"></i>
-        </a>
-        <input type="text" class="form-control project-name-input w-100" id="projectTitle" name="projectTitle"
-          placeholder="ProjectName_27022026" required form="uploadForm">
-        <a href="#" class="text-body ms-2 p-2"><i class="bx bx-x fs-5 text-muted"></i></a>
-      </div>
-
       <!-- Main scrolling form content -->
       <div class="left-content">
         <form id="uploadForm" novalidate enctype="multipart/form-data">
@@ -486,11 +480,11 @@
             <select class="form-select form-select-sm" id="category" name="category" required
               onchange="toggleOtherInput('category', 'categoryOtherDiv', 'categoryOther')">
               <option value="">-- Select a category --</option>
-              <option value="Urban">Urban Development</option>
-              <option value="Coastal">Coastal Area</option>
-              <option value="Infrastructure">Infrastructure</option>
-              <option value="Environmental">Environmental</option>
               <option value="Agricultural">Agricultural</option>
+              <option value="Coastal">Coastal Area</option>
+              <option value="Environmental">Environmental</option>
+              <option value="Infrastructure">Infrastructure</option>
+              <option value="Urban">Urban Development</option>
               <option value="Other">Other</option>
             </select>
           </div>
@@ -574,7 +568,7 @@
           <p class="mb-0 fs-tiny" style="color: #64748b;"><span class="text-primary fw-medium">GPS</span> coordinates
             are read from <span class="text-primary fw-medium">photo EXIF</span> by default.</p>
         </div>
-        <button type="button" class="btn-close" onclick="closeSetPositionModal()"></button>
+        <button type="button" class="btn-close" onclick="cancelSetPositionModal()"></button>
       </div>
       <div class="modal-body-custom">
         <table class="stats-table" id="exifStatsTable">
@@ -598,7 +592,8 @@
         </div>
       </div>
       <div class="modal-footer-custom">
-        <button type="button" class="btn btn-secondary px-4 fw-medium" onclick="closeSetPositionModal()">Cancel</button>
+        <button type="button" class="btn btn-secondary px-4 fw-medium"
+          onclick="cancelSetPositionModal()">Cancel</button>
         <button type="button" class="btn btn-primary px-4 fw-medium" style="background:#0d6efd;"
           onclick="importPositionData()">Import</button>
       </div>
@@ -683,7 +678,7 @@
               <span class="spinner-border text-primary" role="status"></span>
               <i class="bx bx-check"></i>
             </div>
-            <span>Scanning images</span>
+            <span>Analyzing image files</span>
           </div>
           <div class="loading-step" id="loadStep2">
             <div class="step-icon">
@@ -697,7 +692,7 @@
               <span class="spinner-border text-primary" role="status"></span>
               <i class="bx bx-check"></i>
             </div>
-            <span>Organizing local storage</span>
+            <span>Preparing for upload transfer</span>
           </div>
         </div>
       </div>
@@ -706,13 +701,6 @@
 
   <script>
     var UPLOAD_API = 'http://localhost:3000';
-
-    // Auto-generate project ID from title
-    const pTitle = document.getElementById('projectTitle');
-    const pID = document.getElementById('projectID');
-    pTitle.addEventListener('input', function () {
-      pID.value = this.value.toLowerCase().replace(/[^a-z0-9]/g, '-');
-    });
 
     // Upload Card Selection & Drag-and-Drop Logic
     async function handleDrop(e, type) {
@@ -826,19 +814,6 @@
         inputElement.value = '';
       }
     }
-
-    // -------- PROJECT NAME SYNC --------
-    const topProjectInput = document.getElementById('projectTitle');
-    const bottomProjectInput = document.getElementById('projectID');
-
-    topProjectInput.addEventListener('input', function () {
-      if (bottomProjectInput) bottomProjectInput.value = this.value;
-    });
-
-    bottomProjectInput.addEventListener('input', function () {
-      if (topProjectInput) topProjectInput.value = this.value;
-    });
-    // -----------------------------------
 
     // -------- MAP PICKER LOGIC --------
     var defaultLat = 5.9804;
@@ -1206,6 +1181,22 @@
       document.getElementById('setPositionModal').classList.remove('show');
     }
 
+    function cancelSetPositionModal() {
+      // Hide the modal
+      closeSetPositionModal();
+
+      // If the user intentionally clicks Cancel instead of Import, we must abort the 
+      // file addition process and wipe the temporary state so it doesn't leak into submission.
+      flightPath = [];
+      folderStats = {};
+      rootFolderStats = {};
+      pendingUploadFiles = [];
+      document.getElementById('dataFile').value = '';
+
+      // Force UI refresh in case it expects to hide the folder list wrapper
+      renderFolderListUI();
+    }
+
     function formatBytes(bytes, decimals = 1) {
       if (!+bytes) return '0 Bytes';
       const k = 1024;
@@ -1241,7 +1232,26 @@
       lngInput.value = centerLng.toFixed(6);
 
       placeMarker([centerLat, centerLng]);
-      map.setView([centerLat, centerLng], 16);
+
+      if (flightPath.length > 1) {
+        // Use fitBounds with padding so the flight path isn't hidden under the floating left panel
+        const polyline = L.polyline(flightPath);
+        map.fitBounds(polyline.getBounds(), {
+          paddingTopLeft: [620, 20], // Offset by the 580px panel + margins
+          paddingBottomRight: [20, 20],
+          maxZoom: 16
+        });
+
+        // Ensure the light blue bounding box is drawn on the main map too (optional visual enhancement)
+        L.rectangle(polyline.getBounds(), {
+          color: 'transparent',
+          fillColor: '#3b82f6',
+          fillOpacity: 0.15
+        }).addTo(map);
+
+      } else {
+        map.setView([centerLat, centerLng], 16);
+      }
 
       // Permanently show "Picked" on the Auto pick button since coordinates were just successfully assigned from the dataset
       const autoModeBtn = document.getElementById('autoModeBtn');
@@ -1268,19 +1278,16 @@
         autoModeBtn.classList.remove('border-success');
 
         // Reset the UI styling of the cards back to default unselected states
-        document.getElementById('singleBox').classList.remove('border-primary', 'bg-label-primary');
-        document.getElementById('singleBox').querySelector('.bx-camera').classList.replace('text-primary', 'text-secondary');
-        document.getElementById('singleText').classList.remove('text-primary');
-        document.getElementById('multipleBox').classList.remove('border-primary', 'bg-label-primary');
-        document.getElementById('multipleBox').querySelector('.bx-video').classList.replace('text-primary', 'text-secondary');
-        document.getElementById('multipleText').classList.remove('text-primary');
+        document.getElementById('cardSingle').classList.remove('active');
+        document.getElementById('cardMulti').classList.remove('active');
 
         // Uncheck the hidden radio buttons
         document.getElementById('singleCamera').checked = false;
         document.getElementById('multipleCamera').checked = false;
 
         // Hide the camera selection extra options
-        document.getElementById('cameraSelectionWrapper').classList.add('d-none');
+        document.getElementById('cameraDetailsSection').classList.add('d-none');
+        document.getElementById('cameraError').style.setProperty('display', 'none', 'important');
 
         return;
       }
@@ -1356,9 +1363,28 @@
 
       // Remove from stats
       delete folderStats[folderName];
+      delete rootFolderStats[folderName];
+
+      // If we've removed the last/only root folder, ensure our subfolder stats and map paths are perfectly wiped
+      if (Object.keys(rootFolderStats).length === 0) {
+        folderStats = {};
+        flightPath = [];
+      }
 
       // Re-render UI
       renderFolderListUI();
+
+      // Clear the underlying file input if we removed all folders
+      // This is necessary because if the user tries to upload the exact same folder again,
+      // the browser's "change" event won't fire since the input path hasn't technically changed.
+      if (pendingUploadFiles.length === 0) {
+        document.getElementById('dataFile').value = '';
+
+        // As a visual fallback, reset the auto mode button if they clear everything out
+        const autoModeBtn = document.getElementById('autoModeBtn');
+        autoModeBtn.innerHTML = `<i class="bx bx-map-pin me-1"></i> Auto pick`;
+        autoModeBtn.classList.remove('border-success');
+      }
     }
 
     // Form Submission Logic
