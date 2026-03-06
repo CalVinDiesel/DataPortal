@@ -1,6 +1,6 @@
 /**
  * Ensures MapData seed exists in data/map-data.json (Temadigital_Data_Portal / MapData).
- * Run: npm run init-mapdata  (or node scripts/init-mapdata-db.js)
+ * Run: npm run init-mapdata  (or node scripts/init-mapdata-db.cjs)
  */
 const path = require('path');
 const fs = require('fs');

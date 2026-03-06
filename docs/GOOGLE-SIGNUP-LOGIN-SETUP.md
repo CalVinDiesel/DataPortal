@@ -13,8 +13,9 @@ Google must know where to send users after they sign in. That URL is your **auth
 3. Click your **OAuth 2.0 Client ID** (Web application).
 4. Under **Authorized redirect URIs**, add exactly:
    ```
-   http://localhost:3000/api/auth/google/callback
+   http://localhost:3000/api/auth/callback/google
    ```
+   (This is the Better Auth callback path; for production use `https://your-domain.com/api/auth/callback/google`.)
    - Use `http` (not `https`) for local testing.
    - Port `3000` must match the port your auth server uses (see Step 3).
    - No trailing slash.
@@ -91,18 +92,18 @@ The auth server needs your Google credentials and the URL of your front end.
    - Click **Log in with Google**.
    - Same flow: Google sign-in → redirect back to your portal.
 
-If you see **redirect_uri_mismatch** from Google, double-check Step 1: the redirect URI in Google Cloud must be exactly `http://localhost:3000/api/auth/google/callback` (same port and path).
+If you see **redirect_uri_mismatch** from Google, double-check Step 1: the redirect URI in Google Cloud must be exactly `http://localhost:3000/api/auth/callback/google` (same port and path).
 
 ---
 
 ## Step 5: What’s next (optional)
 
-- **Sessions / database:** The auth server currently only redirects to `FRONT_END_URL` and keeps the user in a session on the server. To persist users (e.g. save to a database, use JWT, or protect other pages), you’ll extend the callback in `auth-server/server.js` and optionally add APIs for the front end.
+- **Sessions / database:** Google sign-in uses **Better Auth** and stores users/sessions in PostgreSQL when `PG_DATABASE` is set. Run `npm run auth:migrate` in `auth-server` once to create Better Auth tables. Email/password users remain in `data/users.json`.
 ---
 
 ## Quick checklist
 
-- [ ] Google Cloud: Redirect URI = `http://localhost:3000/api/auth/google/callback`, origins include `http://localhost:5501` and `http://localhost:3000`
+- [ ] Google Cloud: Redirect URI = `http://localhost:3000/api/auth/callback/google`, origins include `http://localhost:5501` and `http://localhost:3000`
 - [ ] `auth-server/.env`: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `FRONT_END_URL` set
 - [ ] `npm install` and `npm start` in `auth-server` — server running on port 3000
 - [ ] Portal opened (e.g. Live Server on 5501), Register and Login pages tested with Google

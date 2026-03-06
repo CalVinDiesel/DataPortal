@@ -10,5 +10,8 @@
   },
   "dependencies": {
     "cesium": "^1.138.0"
+  },
+  "overrides": {
+    "dompurify": ">=3.1.3"
   }
 }

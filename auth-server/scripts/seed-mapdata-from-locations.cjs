@@ -1,12 +1,12 @@
 /**
  * Seed MapData table from data/locations.json (overview map + showcases).
- * Run from auth-server: node scripts/seed-mapdata-from-locations.js
+ * Run from auth-server: node scripts/seed-mapdata-from-locations.cjs
  * Requires PG_DATABASE in .env and existing MapData table.
  */
 const path = require('path');
 const fs = require('fs');
 require('dotenv').config({ path: path.join(__dirname, '..', '.env'), override: true });
-const { query: pgQuery } = require('../db/pg');
+const { query: pgQuery } = require('../db/pg.cjs');
 
 const LOCATIONS_JSON = path.join(__dirname, '..', '..', 'data', 'locations.json');
 

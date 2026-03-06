@@ -18,6 +18,17 @@
     .btn-google { background-color: #fff; color: #3c4043; border: 1px solid #dadce0; }
     .btn-google:hover { background-color: #f8f9fa; border-color: #dadce0; color: #3c4043; }
     .btn-social { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.625rem 1.25rem; font-weight: 500; }
+    .btn-microsoft:hover { background-color: #f8f9fa !important; }
+
+    /* Step indicators */
+    .step-indicator { display: flex; align-items: center; justify-content: center; gap: 0.5rem; margin-bottom: 1.5rem; }
+    .step-dot { width: 10px; height: 10px; border-radius: 50%; background-color: #dee2e6; transition: background-color 0.3s; }
+    .step-dot.active { background-color: #696cff; }
+    .step-dot.done { background-color: #71dd37; }
+
+    /* Verified badge shown above form */
+    .verified-badge { display: flex; align-items: center; gap: 0.5rem; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 0.5rem 0.75rem; margin-bottom: 1rem; font-size: 0.85rem; color: #166534; }
+    .verified-badge img { width: 16px; height: 16px; }
   </style>
 </head>
 <body class="min-vh-100 d-flex flex-column">
@@ -38,77 +49,118 @@
   </nav>
 
   <div class="flex-grow-1 d-flex align-items-center">
-  <div class="container py-5">
-    <div class="row justify-content-center">
-      <div class="col-md-6 col-lg-5">
-        <div class="card shadow">
-          <div class="card-body p-4 p-sm-5">
-            <div class="text-center mb-5">
-              <h4 class="mb-2">Create your account</h4>
-              <p class="text-body small mb-0">Use Google or sign up with email and a password.</p>
-            </div>
+    <div class="container py-5">
+      <div class="row justify-content-center">
+        <div class="col-md-6 col-lg-5">
+          <div class="card shadow">
+            <div class="card-body p-4 p-sm-5">
 
-            <div class="d-grid gap-3">
-              <a href="#" id="btnGoogle" class="btn btn-google btn-social">
-                <i class="bx bxl-google icon-base" style="font-size: 1.25rem;"></i>
-                Sign up with Google
-              </a>
-            </div>
+              <!-- Step indicator -->
+              <div class="step-indicator">
+                <div class="step-dot active" id="dot1"></div>
+                <div class="step-dot" id="dot2"></div>
+              </div>
 
-            <p class="small text-body text-center mt-4 mb-2">— or sign up with email —</p>
-            <form id="registerForm" novalidate>
-              <div class="mb-3">
-                <label class="form-label" for="regName">Name <span class="text-danger">*</span></label>
-                <input type="text" class="form-control" id="regName" name="name" placeholder="Your full name">
-                <div class="invalid-feedback">Please enter your name.</div>
+              <!-- ─── STEP 1: Choose auth provider ─────────────────────────── -->
+              <div id="step1">
+                <div class="text-center mb-4">
+                  <h4 class="mb-1">Create your account</h4>
+                  <p class="text-body small mb-0">Start by verifying your identity with Google or Microsoft.</p>
+                </div>
+
+                <div class="d-grid gap-3 mb-3">
+                  <a href="#" id="btnGoogle" class="btn btn-google btn-social">
+                    <i class="bx bxl-google icon-base" style="font-size: 1.25rem;"></i>
+                    Continue with Google
+                  </a>
+                  <a href="#" id="btnMicrosoft" class="btn btn-social btn-microsoft" style="background-color:#fff; color:#3c4043; border:1px solid #dadce0;">
+                    <img src="https://learn.microsoft.com/en-us/entra/identity-platform/media/howto-add-branding-in-apps/ms-symbollockup_mssymbol_19.png" alt="Microsoft" width="18" height="18">
+                    Continue with Microsoft
+                  </a>
+                </div>
+
+                <p id="step1Message" class="small mt-2 mb-0 text-center"></p>
+
+                <p class="small text-body text-center mt-3 mb-0">
+                  Step 1 of 2 — We'll pre-fill your name and email after verification.
+                </p>
               </div>
-              <div class="mb-3">
-                <label class="form-label" for="regContact">Contact number <span class="text-danger">*</span></label>
-                <input type="tel" class="form-control" id="regContact" name="contactNumber" placeholder="e.g. +60 12-345 6789">
-                <div class="invalid-feedback">Please enter a valid contact number.</div>
-              </div>
-              <div class="mb-3">
-                <label class="form-label" for="regUsername">Username / Email <span class="text-danger">*</span></label>
-                <div class="row g-2">
-                  <div class="col-sm-6">
+
+              <!-- ─── STEP 2: Complete registration form ────────────────────── -->
+              <div id="step2" style="display:none;">
+                <div class="text-center mb-4">
+                  <h4 class="mb-1">Complete your profile</h4>
+                  <p class="text-body small mb-0">Step 2 of 2 — Fill in the remaining details.</p>
+                </div>
+
+                <!-- Verified badge showing which provider they used -->
+                <div class="verified-badge" id="verifiedBadge">
+                  <span id="verifiedIcon">✓</span>
+                  <span id="verifiedText">Verified via Google</span>
+                </div>
+
+                <form id="registerForm" novalidate>
+                  <!-- Hidden fields from OAuth -->
+                  <input type="hidden" id="oauthEmail" name="oauthEmail">
+                  <input type="hidden" id="oauthProvider" name="oauthProvider">
+
+                  <div class="mb-3">
+                    <label class="form-label" for="regName">Name <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" id="regName" name="name" placeholder="Your full name">
+                    <div class="invalid-feedback">Please enter your name.</div>
+                  </div>
+
+                  <div class="mb-3">
+                    <label class="form-label" for="regEmail">Email <span class="text-danger">*</span></label>
+                    <input type="email" class="form-control" id="regEmail" name="email" placeholder="your@email.com" readonly style="background:#f8f9fa;">
+                    <div class="form-text">Pre-filled from your account. <a href="#" id="switchProvider">Use a different account?</a></div>
+                  </div>
+
+                  <div class="mb-3">
+                    <label class="form-label" for="regContact">Contact number <span class="text-danger">*</span></label>
+                    <input type="tel" class="form-control" id="regContact" name="contactNumber" placeholder="e.g. +60 12-345 6789">
+                    <div class="invalid-feedback">Please enter a valid contact number.</div>
+                  </div>
+
+                  <div class="mb-3">
+                    <label class="form-label" for="regUsername">Username <span class="text-danger">*</span></label>
                     <input type="text" class="form-control" id="regUsername" name="username" placeholder="Choose a username" autocomplete="username">
                     <div class="invalid-feedback">Username must be 3–30 characters (letters, numbers, ._-).</div>
                   </div>
-                  <div class="col-sm-6">
-                    <input type="email" class="form-control" id="regEmail" name="email" placeholder="your@email.com" autocomplete="email">
-                    <div class="invalid-feedback">Please enter a valid email.</div>
+
+                  <div class="mb-3">
+                    <label class="form-label" for="regPassword">Password <span class="text-danger">*</span></label>
+                    <input type="password" class="form-control" id="regPassword" name="password" placeholder="At least 8 characters" autocomplete="new-password">
+                    <div class="invalid-feedback">Password must be at least 8 characters.</div>
                   </div>
-                </div>
-              </div>
-              <div class="mb-3">
-                <label class="form-label" for="regPassword">Password <span class="text-danger">*</span></label>
-                <input type="password" class="form-control" id="regPassword" name="password" placeholder="At least 8 characters" autocomplete="new-password">
-                <div class="invalid-feedback">Password must be at least 8 characters.</div>
-              </div>
-              <div class="mb-3">
-                <label class="form-label" for="regConfirm">Confirm password <span class="text-danger">*</span></label>
-                <input type="password" class="form-control" id="regConfirm" name="confirm" placeholder="Repeat password" autocomplete="new-password">
-                <div class="invalid-feedback">Passwords do not match.</div>
-              </div>
-              <div class="d-grid gap-2 mt-3">
-                <button type="submit" class="btn btn-outline-primary">Sign up with email</button>
-              </div>
-              <p id="registerMessage" class="small mt-2 mb-0 text-center"></p>
-            </form>
 
-            <p class="small text-body text-center mt-4 mb-0">
-              By signing up, you agree to our <a href="#" class="text-primary">Terms of Service</a> and <a href="#" class="text-primary">Privacy Policy</a>.
-            </p>
+                  <div class="mb-3">
+                    <label class="form-label" for="regConfirm">Confirm password <span class="text-danger">*</span></label>
+                    <input type="password" class="form-control" id="regConfirm" name="confirm" placeholder="Repeat password" autocomplete="new-password">
+                    <div class="invalid-feedback">Passwords do not match.</div>
+                  </div>
 
-            <hr class="my-4">
-            <div class="text-center small">
-              Already have an account? <a href="login.html" class="fw-medium">Log in</a>
+                  <div class="d-grid gap-2 mt-3">
+                    <button type="submit" class="btn btn-primary">Create account</button>
+                  </div>
+                  <p id="registerMessage" class="small mt-2 mb-0 text-center"></p>
+                </form>
+              </div>
+
+              <p class="small text-body text-center mt-4 mb-0">
+                By signing up, you agree to our <a href="#" class="text-primary">Terms of Service</a> and <a href="#" class="text-primary">Privacy Policy</a>.
+              </p>
+
+              <hr class="my-4">
+              <div class="text-center small">
+                Already have an account? <a href="login.html" class="fw-medium">Log in</a>
+              </div>
+
             </div>
           </div>
         </div>
       </div>
     </div>
-  </div>
   </div>
 
   <script src="../../assets/vendor/libs/jquery/jquery.js"></script>
@@ -116,23 +168,97 @@
   <script src="../../assets/vendor/js/bootstrap.js"></script>
   <script>
     var AUTH_GOOGLE_URL = 'http://localhost:3000/api/auth/google';
+    var AUTH_MICROSOFT_URL = 'http://localhost:3000/auth/microsoft/login';
     var AUTH_API = 'http://localhost:3000';
 
-    document.getElementById('btnGoogle').addEventListener('click', function (e) {
-      if (AUTH_GOOGLE_URL) { this.href = AUTH_GOOGLE_URL; return; }
+    // ── Step indicator helpers ────────────────────────────────────────────────
+    function setStep(n) {
+      document.getElementById('dot1').className = 'step-dot ' + (n === 1 ? 'active' : 'done');
+      document.getElementById('dot2').className = 'step-dot ' + (n === 2 ? 'active' : '');
+      document.getElementById('step1').style.display = n === 1 ? '' : 'none';
+      document.getElementById('step2').style.display = n === 2 ? '' : 'none';
+    }
+
+    // ── Check if returning from OAuth (Google: ?logged_in=1&email=... / Microsoft: same) ─
+    var params = new URLSearchParams(window.location.search);
+    var oauthEmail = params.get('email');
+    var loggedIn   = params.get('logged_in');
+    var authError  = params.get('error') || params.get('auth_error');
+
+    if (authError) {
+      // Cancelled or failed — stay on step 1 with message
+      var s1msg = document.getElementById('step1Message');
+      s1msg.className = 'small mt-2 mb-0 text-center text-warning';
+      s1msg.textContent = 'Sign-in was cancelled. Please try again.';
+    }
+
+    if (loggedIn === '1' && oauthEmail) {
+      // ── Returning from OAuth — check if already registered ───────────────
+      fetch(AUTH_API + '/api/auth/me', { credentials: 'include' })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          if (data.loggedIn) {
+            // Determine provider from session or URL
+            var provider = params.get('provider') || 'google';
+
+            // Pre-fill email and name
+            document.getElementById('oauthEmail').value = oauthEmail;
+            document.getElementById('oauthProvider').value = provider;
+            document.getElementById('regEmail').value = oauthEmail;
+
+            // Pre-fill name if provided
+            var oauthName = params.get('name') || data.name || '';
+            if (oauthName) document.getElementById('regName').value = oauthName;
+
+            // Show verified badge
+            var isMicrosoft = provider === 'microsoft';
+            document.getElementById('verifiedText').textContent =
+              'Verified via ' + (isMicrosoft ? 'Microsoft' : 'Google');
+            if (isMicrosoft) {
+              document.getElementById('verifiedIcon').innerHTML =
+                '<img src="https://learn.microsoft.com/en-us/entra/identity-platform/media/howto-add-branding-in-apps/ms-symbollockup_mssymbol_19.png" width="16" height="16">';
+            } else {
+              document.getElementById('verifiedIcon').textContent = '✓';
+            }
+
+            setStep(2);
+          }
+        })
+        .catch(function() {
+          // Can't verify session — stay on step 1
+        });
+    }
+
+    // ── Step 1: OAuth buttons ─────────────────────────────────────────────────
+    document.getElementById('btnGoogle').addEventListener('click', function(e) {
       e.preventDefault();
-      alert('Google sign-up: Set AUTH_GOOGLE_URL and run the auth-server.');
+      window.location.href = AUTH_GOOGLE_URL + '?flow=register';
     });
 
-    document.getElementById('registerForm').addEventListener('submit', function (e) {
+    document.getElementById('btnMicrosoft').addEventListener('click', function(e) {
       e.preventDefault();
-      var nameEl = document.getElementById('regName');
+      window.location.href = AUTH_MICROSOFT_URL + '?flow=register';
+    });
+
+    // ── Switch provider link — go back to step 1 ─────────────────────────────
+    document.getElementById('switchProvider').addEventListener('click', function(e) {
+      e.preventDefault();
+      // Clear URL params and go back to step 1
+      window.location.href = 'register.html';
+    });
+
+    // ── Step 2: Registration form submit ──────────────────────────────────────
+    document.getElementById('registerForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+
+      var nameEl    = document.getElementById('regName');
       var contactEl = document.getElementById('regContact');
-      var usernameEl = document.getElementById('regUsername');
-      var email = document.getElementById('regEmail');
-      var password = document.getElementById('regPassword');
-      var confirm = document.getElementById('regConfirm');
-      var msg = document.getElementById('registerMessage');
+      var usernameEl= document.getElementById('regUsername');
+      var emailEl   = document.getElementById('regEmail');
+      var password  = document.getElementById('regPassword');
+      var confirm   = document.getElementById('regConfirm');
+      var msg       = document.getElementById('registerMessage');
+
       msg.textContent = '';
       msg.className = 'small mt-2 mb-0 text-center';
       var ok = true;
@@ -142,54 +268,56 @@
         if (condition) ok = false;
       }
 
-      var nameVal = nameEl.value.trim();
+      var nameVal    = nameEl.value.trim();
       var contactVal = contactEl.value.trim();
-      var usernameVal = usernameEl.value.trim();
-      var emailVal = email.value.trim();
+      var usernameVal= usernameEl.value.trim();
+      var emailVal   = emailEl.value.trim();
+      var providerVal= document.getElementById('oauthProvider').value;
 
-      markInvalid(nameEl, !nameVal);
-
-      // Basic contact number validation: digits, spaces, +, -, (), length 7–20
-      markInvalid(contactEl, !/^[0-9+\-\s()]{7,20}$/.test(contactVal));
-
-      // Username: 3–30 chars, letters, numbers, ., _, -
+      markInvalid(nameEl,     !nameVal);
+      markInvalid(contactEl,  !/^[0-9+\-\s()]{7,20}$/.test(contactVal));
       markInvalid(usernameEl, !/^[a-zA-Z0-9_.-]{3,30}$/.test(usernameVal));
-
-      // Email: non-empty and basic pattern
-      markInvalid(email, !emailVal || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailVal));
 
       password.classList.toggle('is-invalid', password.value.length < 8);
       if (password.value.length < 8) ok = false;
       confirm.classList.toggle('is-invalid', password.value !== confirm.value);
       if (password.value !== confirm.value) ok = false;
       if (!ok) return;
+
       var btn = this.querySelector('button[type="submit"]');
       btn.disabled = true;
+      msg.textContent = 'Creating your account…';
+
       fetch(AUTH_API + '/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: nameVal,
+          name:          nameVal,
           contactNumber: contactVal,
-          username: usernameVal,
-          email: emailVal.toLowerCase(),
-          password: password.value
+          username:      usernameVal,
+          email:         emailVal.toLowerCase(),
+          password:      password.value,
+          provider:      providerVal   // 'google' or 'microsoft'
         }),
         credentials: 'include'
       })
-        .then(function (r) { return r.json().then(function (j) { return { status: r.status, body: j }; }); })
-        .then(function (x) {
+        .then(function(r) { return r.json().then(function(j) { return { status: r.status, body: j }; }); })
+        .then(function(x) {
           if (x.body.success) {
             msg.className = 'small mt-2 mb-0 text-center text-success';
-            msg.textContent = 'Account created. Redirecting to login…';
-            setTimeout(function () { window.location.href = 'login.html'; }, 1500);
+            msg.textContent = 'Account created! Redirecting…';
+            sessionStorage.removeItem('registerFlow');
+            setTimeout(function() {
+              // Already logged in via OAuth — go straight to the portal
+              window.location.href = 'landing-page.html?logged_in=1&email=' + encodeURIComponent(emailVal);
+            }, 1200);
           } else {
             msg.className = 'small mt-2 mb-0 text-center text-danger';
             msg.textContent = x.body.message || 'Registration failed.';
             btn.disabled = false;
           }
         })
-        .catch(function () {
+        .catch(function() {
           msg.className = 'small mt-2 mb-0 text-center text-danger';
           msg.textContent = 'Cannot reach server. Is the auth server running (npm start)?';
           btn.disabled = false;

@@ -1,23 +1,31 @@
 /**
  * TemaDataPortal Auth server
- * - Google OAuth (redirect flow)
+ * - Google OAuth via Better Auth (redirect flow)
  * - Email/password register and login (stored in data/users.json)
  * - MapData API (PostgreSQL or SQLite or JSON)
  * - Admin: create 3D models (overview map); custom image-to-3D processing (deliver to client, paid service)
  */
-const path = require('path');
-const fs = require('fs');
-require('dotenv').config({ path: path.join(__dirname, '.env'), override: true });
-const express = require('express');
-const session = require('express-session');
-const passport = require('passport');
-const cors = require('cors');
-const bcrypt = require('bcryptjs');
-const multer = require('multer');
-const GoogleStrategy = require('passport-google-oauth20').Strategy;
-const { query: pgQuery } = require('./db/pg');
+import path from "path";
+import fs from "fs";
+import { fileURLToPath } from "url";
+import { createRequire } from "module";
+import dotenv from "dotenv";
+import express from "express";
+import session from "express-session";
+import cors from "cors";
+import bcrypt from "bcryptjs";
+import multer from "multer";
+import { toNodeHandler, fromNodeHeaders } from "better-auth/node";
+import { auth, baseURL, frontEndUrl, googleClientId, googleClientSecret } from "./auth.config.js";
+import { getMicrosoftAuthUrl, handleMicrosoftCallback } from "./microsoftAuth.js";
 
-const USERS_FILE = path.join(__dirname, 'data', 'users.json');
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.join(__dirname, ".env"), override: true });
+
+const require = createRequire(import.meta.url);
+const { query: pgQuery } = require("./db/pg.cjs");
+
+const USERS_FILE = path.join(__dirname, "data", "users.json");
 const MAPDATA_FILE = path.join(__dirname, 'data', 'map-data.json');
 const MAPDATA_DB_PATH = path.join(__dirname, 'data', 'Temadigital_Data_Portal.sqlite');
 const PROJECT_ROOT = path.join(__dirname, '..');
@@ -135,90 +143,98 @@ async function getMapDataForApi() {
 }
 
 const PORT = process.env.PORT || 3000;
-const FRONT_END_URL = process.env.FRONT_END_URL || 'http://localhost:5501/html/front-pages/landing-page.html';
-
-// Full callback URL so token exchange uses same redirect_uri as Google Cloud (avoids TokenError: Unauthorized)
-const AUTH_SERVER_BASE = process.env.AUTH_SERVER_BASE || `http://localhost:${PORT}`;
-const GOOGLE_CALLBACK_URL = `${AUTH_SERVER_BASE}/api/auth/google/callback`;
-
-// Trim credentials (stray spaces or Windows \\r from copy-paste cause "TokenError: Unauthorized")
-function cleanEnv(s) {
-  if (typeof s !== 'string') return '';
-  return s.replace(/\r$/, '').trim();
-}
-const GOOGLE_CLIENT_ID = cleanEnv(process.env.GOOGLE_CLIENT_ID);
-const GOOGLE_CLIENT_SECRET = cleanEnv(process.env.GOOGLE_CLIENT_SECRET);
+const FRONT_END_URL = process.env.FRONT_END_URL || frontEndUrl || "http://localhost:3000/html/front-pages/landing-page.html";
 
 const app = express();
 
 app.use(cors({ origin: true, credentials: true }));
-app.use(express.json());
 
-// Session (required for Passport and email login; use a proper store in production)
+// Session for email/password login (Better Auth handles Google session via its own cookie)
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'temadataportal-auth-secret-change-in-production',
+  secret: process.env.SESSION_SECRET || "temadataportal-auth-secret-change-in-production",
   resave: false,
   saveUninitialized: false,
-  cookie: { secure: false }
+  cookie: { secure: false },
 }));
-app.use(passport.initialize());
-app.use(passport.session());
 
-passport.serializeUser((user, done) => done(null, user));
-passport.deserializeUser((user, done) => done(null, user));
-
-// ---- Google ---- 
-if (GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET) {
-  passport.use(new GoogleStrategy({
-    clientID: GOOGLE_CLIENT_ID,
-    clientSecret: GOOGLE_CLIENT_SECRET,
-    callbackURL: GOOGLE_CALLBACK_URL,  // full URL so token exchange matches Google Cloud
-    tokenURL: 'https://oauth2.googleapis.com/token',  // recommended endpoint (avoids v4 quirks)
-    scope: ['profile', 'email']
-  }, (accessToken, refreshToken, profile, done) => {
-    const user = {
-      provider: 'google',
-      id: profile.id,
-      email: profile.emails && profile.emails[0] && profile.emails[0].value,
-      name: profile.displayName
-    };
-    return done(null, user);
-  }));
-
-  app.get('/api/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
-  app.get('/api/auth/google/callback',
-    (req, res, next) => {
-      passport.authenticate('google', { session: true }, (err, user) => {
-        if (err) {
-          console.error('Google OAuth error:', err.message || err, '| code:', err.code, '| status:', err.status);
-          if (err.code === 'invalid_client' || (err.message && err.message.includes('Unauthorized'))) {
-            console.error('>>> Fix: In Google Cloud use Credentials → your OAuth 2.0 Client ID (type "Web application"). Copy Client ID and Client secret again, or Reset secret and paste the NEW secret into .env. Ensure both are from the same row.');
-          }
-          const url = new URL(FRONT_END_URL);
-          url.searchParams.set('error', 'google_auth_failed');
-          return res.redirect(url.toString());
-        }
-        req.logIn(user, (loginErr) => {
-          if (loginErr) {
-            console.error('Login error:', loginErr);
-            const url = new URL(FRONT_END_URL);
-            url.searchParams.set('error', 'google_auth_failed');
-            return res.redirect(url.toString());
-          }
-          const url = new URL(FRONT_END_URL);
-          url.searchParams.set('logged_in', '1');
-          if (user && user.email) url.searchParams.set('email', user.email);
-          res.redirect(url.toString());
-        });
-      })(req, res, next);
+// ---- Auth: /api/auth/me (check Better Auth session first, then express-session for email login) ----
+app.get("/api/auth/me", async (req, res) => {
+  try {
+    const betterAuthSession = await auth.api.getSession({
+      headers: fromNodeHeaders(req.headers),
+    });
+    if (betterAuthSession?.user) {
+      return res.json({
+        loggedIn: true,
+        email: betterAuthSession.user.email ?? null,
+        name: betterAuthSession.user.name ?? null,
+      });
     }
-  );
-} else {
-  app.get('/api/auth/google', (req, res) => res.status(503).send('Google OAuth not configured. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in .env'));
-}
+    const localUser = req.session?.user;
+    if (localUser && (localUser.email || localUser.id)) {
+      return res.json({ loggedIn: true, email: localUser.email, name: localUser.name });
+    }
+  } catch (e) {
+    console.error("GET /api/auth/me", e);
+  }
+  res.json({ loggedIn: false });
+});
 
-// ---- Email/password register and login ----
-app.post('/api/auth/register', (req, res) => {
+// ---- Google: start OAuth by calling our Better Auth sign-in endpoint (so cookies are set), then forward redirect to browser ----
+const googleCallbackDoneUrl = `${baseURL}/api/auth/google-callback-done?then=${encodeURIComponent(FRONT_END_URL)}`;
+const googleCallbackRegisterUrl = `${baseURL}/api/auth/google-callback-done?flow=register&then=${encodeURIComponent('http://localhost:3000/html/front-pages/register.html')}`;
+app.get("/api/auth/google", async (req, res) => {
+  if (!googleClientId || !googleClientSecret) {
+    return res.status(503).send("Google OAuth not configured.");
+  }
+  const flow = req.query.flow || 'login';
+  const callbackUrl = flow === 'register' ? googleCallbackRegisterUrl : googleCallbackDoneUrl;
+  res.send(`
+    <html><body><script>
+      fetch('/api/auth/sign-in/social', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider: 'google', callbackURL: '${callbackUrl}' }),
+        credentials: 'include'
+      })
+      .then(r => r.json())
+      .then(data => {
+        if (data.url) window.location.href = data.url;
+        else window.location.href = '${FRONT_END_URL}?error=google_auth_failed';
+      })
+      .catch(() => window.location.href = '${FRONT_END_URL}?error=google_auth_failed');
+    </script></body></html>
+  `);
+});
+
+// After Better Auth Google callback: read session and redirect to frontend with logged_in and email
+app.get("/api/auth/google-callback-done", async (req, res) => {
+  const thenUrl = (req.query.then || FRONT_END_URL).toString();
+  const flow = req.query.flow || 'login';
+  try {
+    const session = await auth.api.getSession({
+      headers: fromNodeHeaders(req.headers),
+    });
+    if (session?.user) {
+      if (flow === 'register') {
+        // Redirect to register page with pre-filled details
+        return res.redirect(
+          `http://localhost:3000/html/front-pages/register.html?logged_in=1&email=${encodeURIComponent(session.user.email || '')}&name=${encodeURIComponent(session.user.name || '')}&provider=google`
+        );
+      }
+      const url = new URL(thenUrl);
+      url.searchParams.set("logged_in", "1");
+      if (session.user.email) url.searchParams.set("email", session.user.email);
+      return res.redirect(302, url.toString());
+    }
+  } catch (e) {
+    console.error("Google callback-done:", e);
+  }
+  res.redirect(302, "http://localhost:3000/html/front-pages/login.html?error=cancelled");
+});
+
+// ---- Email/password register and login (unchanged API contract; store session in express-session) ----
+app.post("/api/auth/register", express.json(), (req, res) => {
   const rawName = (req.body.name || '').trim();
   const rawContact = (req.body.contactNumber || '').trim();
   const rawUsername = (req.body.username || '').trim();
@@ -263,7 +279,7 @@ app.post('/api/auth/register', (req, res) => {
   res.json({ success: true, message: 'Account created. You can now log in.' });
 });
 
-app.post('/api/auth/login', (req, res) => {
+app.post("/api/auth/login", express.json(), (req, res) => {
   const identifierRaw = (req.body.email || '').trim();
   const password = req.body.password;
   if (!identifierRaw || !password) {
@@ -283,20 +299,82 @@ app.post('/api/auth/login', (req, res) => {
   if (!bcrypt.compareSync(password, user.passwordHash)) {
     return res.status(401).json({ success: false, message: 'Invalid email/username or password.' });
   }
-  const sessionUser = { provider: 'local', email: user.email, name: user.name };
-  req.logIn(sessionUser, (err) => {
-    if (err) return res.status(500).json({ success: false, message: 'Login failed.' });
-    res.json({ success: true, redirect: FRONT_END_URL });
-  });
+  req.session.user = { provider: "local", email: user.email, name: user.name };
+  res.json({ success: true, redirect: FRONT_END_URL });
 });
 
-// Current user (for portal pages that need to show logged-in state)
-app.get('/api/auth/me', (req, res) => {
-  if (req.user && (req.user.email || req.user.id)) {
-    return res.json({ loggedIn: true, email: req.user.email, name: req.user.name });
+// ─── Microsoft OAuth ──────────────────────────────────────────────────────────
+app.get("/auth/microsoft/login", async (req, res) => {
+  try {
+    // Store flow intent in session so callback knows where to redirect
+    req.session.msFlow = req.query.flow || 'login';
+    const authUrl = await getMicrosoftAuthUrl();
+    res.redirect(authUrl);
+  } catch (err) {
+    console.error("Microsoft login error:", err);
+    res.status(500).json({ error: "Failed to initiate Microsoft login" });
   }
-  res.json({ loggedIn: false });
 });
+
+// ↓ REPLACED: now uses MicrosoftUsers table instead of Users table
+app.get("/auth/microsoft/callback", async (req, res) => {
+  const { code, error, error_description } = req.query;
+  if (error) {
+    console.error("Microsoft OAuth error:", error, error_description);
+    return res.redirect(FRONT_END_URL + "?auth_error=" + encodeURIComponent(error_description));
+  }
+  if (!code) return res.status(400).json({ error: "No authorization code received" });
+  try {
+    const msUser = await handleMicrosoftCallback(code);
+    const result = await pgQuery(`
+      INSERT INTO public."MicrosoftUsers" (microsoft_id, email, name, "updatedAt")
+      VALUES ($1, $2, $3, NOW())
+      ON CONFLICT (microsoft_id) DO UPDATE
+        SET email      = EXCLUDED.email,
+            name       = EXCLUDED.name,
+            "updatedAt" = NOW()
+      RETURNING *
+    `, [msUser.id, msUser.email, msUser.name]);
+    const dbUser = result.rows[0];
+    req.session.user = {
+      id:       dbUser.id,
+      email:    dbUser.email,
+      name:     dbUser.name,
+      provider: "microsoft",
+    };
+
+    req.session.save((err) => {
+      if (err) {
+        console.error("Session save error:", err);
+        return res.redirect(FRONT_END_URL + "?auth_error=session_failed");
+      }
+      const flow = req.session.msFlow || 'login';
+      req.session.msFlow = null;
+    
+      if (flow === 'register') {
+        // Send back to register page with pre-filled details
+        return res.redirect(
+          `http://localhost:3000/html/front-pages/register.html?logged_in=1&email=${encodeURIComponent(dbUser.email)}&name=${encodeURIComponent(dbUser.name || '')}&provider=microsoft`
+        );
+      }
+      // Normal login flow — go to landing page
+      const url = new URL(FRONT_END_URL);
+      url.searchParams.set("logged_in", "1");
+      url.searchParams.set("email", dbUser.email);
+      res.redirect(url.toString());
+    });
+
+  } catch (err) {
+    console.error("Microsoft callback error:", err);
+    res.redirect(FRONT_END_URL + "?auth_error=microsoft_auth_failed");
+  }
+});
+
+// Mount Better Auth (must be after our custom auth routes)
+app.all("/api/auth/*", toNodeHandler(auth));
+
+// JSON body parsing for all other routes
+app.use(express.json());
 
 // ---- MapData API (for overview map and 3D viewer by id) ----
 app.get('/api/map-data', async (req, res) => {
@@ -805,15 +883,15 @@ function startServer() {
     if (process.env.PG_DATABASE) console.log('  MapData & admin: using PostgreSQL database ' + process.env.PG_DATABASE);
     else if (mapDataDb) console.log('  MapData: using SQLite (table MapData)');
     else console.log('  MapData: using data/map-data.json (run npm run create-db to create SQLite DB)');
-  console.log('  Google:  GET http://localhost:' + PORT + '/api/auth/google');
-  if (GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET) {
-    console.log('  Google callback URL (must match Google Cloud exactly):', GOOGLE_CALLBACK_URL);
-    console.log('  Google credentials: Client ID length', GOOGLE_CLIENT_ID.length, '| Secret length', GOOGLE_CLIENT_SECRET.length);
-    if (GOOGLE_CLIENT_SECRET.startsWith('GOCSPX--')) {
+  console.log('  Google (Better Auth): GET http://localhost:' + PORT + '/api/auth/google');
+  if (googleClientId && googleClientSecret) {
+    console.log('  Google callback URL (set this in Google Cloud Console):', baseURL + '/api/auth/callback/google');
+    console.log('  Google credentials: Client ID length', googleClientId.length, '| Secret length', googleClientSecret.length);
+    if (googleClientSecret.startsWith('GOCSPX--')) {
       console.warn('  >>> WARNING: Secret starts with GOCSPX-- (double hyphen). In Google Cloud, secrets usually have ONE hyphen (GOCSPX-). If sign-in fails, re-copy the Client secret from Credentials.');
     }
   }
-  if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) console.log('  (Google not configured – set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in .env)');
+  if (!googleClientId || !googleClientSecret) console.log('  (Google not configured – set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in .env)');
   });
   server.on('error', (err) => {
     if (err.code === 'EADDRINUSE') {
