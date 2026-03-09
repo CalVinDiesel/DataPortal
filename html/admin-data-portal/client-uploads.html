@@ -55,6 +55,12 @@
             </a>
           </li>
           <li class="menu-item">
+            <a href="manage-users.html" class="menu-link">
+              <i class="menu-icon tf-icons bx bx-user"></i>
+              <div>Manage Users</div>
+            </a>
+          </li>
+          <li class="menu-item">
             <a href="../front-pages/landing-page.html" class="menu-link" target="_blank">
               <i class="menu-icon tf-icons bx bx-map"></i>
               <div>View Portal</div>
@@ -128,6 +134,7 @@
                     </div>
                   </div>
                   <div class="modal-footer">
+                    <a href="#" id="detailsModalDownloadLink" class="btn btn-outline-primary me-2">Download all images (ZIP)</a>
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
                   </div>
                 </div>
@@ -208,18 +215,27 @@
       function actionCells(r) {
         var status = (r.request_status || 'pending').toLowerCase();
         var detailsBtn = '<button type="button" class="btn btn-sm btn-outline-secondary me-1 details-btn" data-upload-id="' + r.id + '">Details</button>';
+        var downloadBtn = '<a href="' + API_BASE + '/api/admin/client-uploads/' + r.id + '/download" class="btn btn-sm btn-outline-primary me-1" target="_blank" rel="noopener">Download images</a>';
         if (status === 'pending') {
-          return detailsBtn + '<button type="button" class="btn btn-sm btn-success me-1 accept-btn" data-upload-id="' + r.id + '">Accept</button>' +
+          return detailsBtn + downloadBtn + '<button type="button" class="btn btn-sm btn-success me-1 accept-btn" data-upload-id="' + r.id + '">Accept</button>' +
             '<button type="button" class="btn btn-sm btn-outline-danger reject-btn" data-upload-id="' + r.id + '">Reject</button>';
         }
         if (status === 'rejected') {
           var reason = r.rejected_reason ? '<br><small class="text-muted">' + escapeHtml(r.rejected_reason) + '</small>' : '';
-          return detailsBtn + '<span class="text-muted">Rejected</span>' + reason;
+          return detailsBtn + downloadBtn + '<span class="text-muted">Rejected</span>' + reason;
         }
-        return detailsBtn + '<button type="button" class="btn btn-sm btn-primary request-process-btn" data-upload-id="' + r.id + '">Process & deliver to client</button>';
+        return detailsBtn + downloadBtn + '<button type="button" class="btn btn-sm btn-primary request-process-btn" data-upload-id="' + r.id + '">Process & deliver to client</button>';
       }
 
+      var detailsModalUploadId = null;
       function showDetailsModal(row) {
+        detailsModalUploadId = row.id;
+        var downloadLink = document.getElementById('detailsModalDownloadLink');
+        if (downloadLink) {
+          downloadLink.href = API_BASE + '/api/admin/client-uploads/' + row.id + '/download';
+          downloadLink.target = '_blank';
+          downloadLink.rel = 'noopener';
+        }
         function text(v) { return (v != null && v !== '') ? escapeHtml(String(v)) : '–'; }
         function num(v) { return (v != null && v !== '' && !isNaN(Number(v))) ? String(v) : '–'; }
         var paths = row.file_paths;

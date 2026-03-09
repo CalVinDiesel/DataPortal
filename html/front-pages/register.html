@@ -42,7 +42,7 @@
           <span class="app-brand-text demo menu-text fw-bold ms-2 ps-1">Temadigital</span>
         </a>
         <div class="ms-auto">
-          <a href="landing-page.html" class="btn btn-outline-primary btn-sm">Back to Home</a>
+          <a href="landing-page.html" id="navBackToHome" class="btn btn-outline-primary btn-sm">Back to Home</a>
         </div>
       </div>
     </div>
@@ -86,11 +86,34 @@
                 </p>
               </div>
 
+              <!-- ─── Already have account (email already registered) ─────────── -->
+              <div id="step2Existing" style="display:none;">
+                <div class="text-center mb-4">
+                  <h4 class="mb-1">Account already exists</h4>
+                  <p class="text-body mb-0" id="existingAccountMessage">You have already created an account using this email.</p>
+                </div>
+                <div class="alert alert-info mb-4" role="alert">
+                  <span id="existingAccountEmail" class="fw-medium"></span> is already registered in the Data Portal. Please log in with this account or use a different email to create a new account.
+                </div>
+                <div class="d-grid gap-2">
+                  <a href="login.html" id="btnLoginWithExisting" class="btn btn-primary">Log in with this account</a>
+                  <button type="button" id="btnUseDifferentAccount" class="btn btn-outline-secondary">Use a different account</button>
+                </div>
+                <p class="small text-center text-body mt-4 mb-0">
+                  <a href="#" id="existingBackToHome" class="text-body">Back to home</a>
+                </p>
+              </div>
+
               <!-- ─── STEP 2: Complete registration form ────────────────────── -->
               <div id="step2" style="display:none;">
                 <div class="text-center mb-4">
                   <h4 class="mb-1">Complete your profile</h4>
                   <p class="text-body small mb-0">Step 2 of 2 — Fill in the remaining details.</p>
+                  <p class="mt-2 mb-0">
+                    <a href="#" id="backToHomeLink" class="text-body small"><i class="bx bx-arrow-back me-1"></i>Back to home</a>
+                    <span class="text-muted small mx-2">|</span>
+                    <a href="#" id="cancelRegistrationLink" class="text-body small">Cancel and use a different account</a>
+                  </p>
                 </div>
 
                 <!-- Verified badge showing which provider they used -->
@@ -130,14 +153,43 @@
 
                   <div class="mb-3">
                     <label class="form-label" for="regPassword">Password <span class="text-danger">*</span></label>
-                    <input type="password" class="form-control" id="regPassword" name="password" placeholder="At least 8 characters" autocomplete="new-password">
+                    <div class="position-relative">
+                      <input type="password" class="form-control pe-5" id="regPassword" name="password" placeholder="At least 8 characters" autocomplete="new-password">
+                      <button type="button" class="btn btn-link position-absolute end-0 top-50 translate-middle-y text-body p-0 pe-2 password-toggle-btn" data-target="regPassword" aria-label="Show password" title="Show password">
+                        <i class="bx bx-show-alt icon-lg"></i>
+                      </button>
+                    </div>
                     <div class="invalid-feedback">Password must be at least 8 characters.</div>
                   </div>
 
                   <div class="mb-3">
                     <label class="form-label" for="regConfirm">Confirm password <span class="text-danger">*</span></label>
-                    <input type="password" class="form-control" id="regConfirm" name="confirm" placeholder="Repeat password" autocomplete="new-password">
+                    <div class="position-relative">
+                      <input type="password" class="form-control pe-5" id="regConfirm" name="confirm" placeholder="Repeat password" autocomplete="new-password">
+                      <button type="button" class="btn btn-link position-absolute end-0 top-50 translate-middle-y text-body p-0 pe-2 password-toggle-btn" data-target="regConfirm" aria-label="Show password" title="Show password">
+                        <i class="bx bx-show-alt icon-lg"></i>
+                      </button>
+                    </div>
                     <div class="invalid-feedback">Passwords do not match.</div>
+                  </div>
+
+                  <div class="mb-3">
+                    <label class="form-label" for="regRole">Sign up as <span class="text-danger">*</span></label>
+                    <select class="form-select" id="regRole" name="role" aria-label="Client or Admin">
+                      <option value="client" selected>Client</option>
+                      <option value="admin">Admin (requires approval code)</option>
+                    </select>
+                  </div>
+                  <div class="mb-3" id="adminCodeWrap" style="display:none;">
+                    <label class="form-label" for="regAdminCode">Admin approval code <span class="text-danger">*</span></label>
+                    <div class="position-relative">
+                      <input type="password" class="form-control pe-5" id="regAdminCode" name="adminCode" placeholder="Enter the code provided by an administrator" autocomplete="off">
+                      <button type="button" class="btn btn-link position-absolute end-0 top-50 translate-middle-y text-body p-0 pe-2 password-toggle-btn" data-target="regAdminCode" aria-label="Show password" title="Show password">
+                        <i class="bx bx-show-alt icon-lg"></i>
+                      </button>
+                    </div>
+                    <div class="form-text">Only users with a valid approval code can register as admin.</div>
+                    <div class="invalid-feedback">Invalid admin approval code.</div>
                   </div>
 
                   <div class="d-grid gap-2 mt-3">
@@ -170,6 +222,24 @@
     var AUTH_GOOGLE_URL = 'http://localhost:3000/api/auth/google';
     var AUTH_MICROSOFT_URL = 'http://localhost:3000/auth/microsoft/login';
     var AUTH_API = 'http://localhost:3000';
+    var LANDING_URL = (window.location.origin || 'http://localhost:3000') + '/html/front-pages/landing-page.html';
+
+    // ── Leave without completing registration (clear session and go to home) ───
+    function leaveRegistration(e) {
+      if (e) e.preventDefault();
+      var link = document.getElementById('backToHomeLink') || document.getElementById('cancelRegistrationLink');
+      if (link) {
+        link.textContent = 'Taking you home…';
+        link.style.pointerEvents = 'none';
+      }
+      fetch(AUTH_API + '/api/auth/logout', { method: 'POST', credentials: 'include' })
+        .then(function() {
+          window.location.href = AUTH_API + '/api/auth/sign-out?callbackURL=' + encodeURIComponent(LANDING_URL);
+        })
+        .catch(function() {
+          window.location.href = LANDING_URL;
+        });
+    }
 
     // ── Step indicator helpers ────────────────────────────────────────────────
     function setStep(n) {
@@ -186,47 +256,52 @@
     var authError  = params.get('error') || params.get('auth_error');
 
     if (authError) {
-      // Cancelled or failed — stay on step 1 with message
       var s1msg = document.getElementById('step1Message');
       s1msg.className = 'small mt-2 mb-0 text-center text-warning';
       s1msg.textContent = 'Sign-in was cancelled. Please try again.';
     }
 
     if (loggedIn === '1' && oauthEmail) {
-      // ── Returning from OAuth — check if already registered ───────────────
-      fetch(AUTH_API + '/api/auth/me', { credentials: 'include' })
-        .then(function(r) { return r.json(); })
-        .then(function(data) {
-          if (data.loggedIn) {
-            // Determine provider from session or URL
-            var provider = params.get('provider') || 'google';
+      // ── Returning from OAuth — check if this email is already registered ───
+      Promise.all([
+        fetch(AUTH_API + '/api/auth/me', { credentials: 'include' }).then(function(r) { return r.json(); }),
+        fetch(AUTH_API + '/api/auth/check-registered', { credentials: 'include' }).then(function(r) { return r.json(); })
+      ]).then(function(results) {
+        var data = results[0];
+        var regData = results[1];
+        if (!data.loggedIn) return;
+        var provider = params.get('provider') || 'google';
+        var providerLabel = provider === 'microsoft' ? 'Microsoft account' : 'Google account';
 
-            // Pre-fill email and name
-            document.getElementById('oauthEmail').value = oauthEmail;
-            document.getElementById('oauthProvider').value = provider;
-            document.getElementById('regEmail').value = oauthEmail;
+        if (regData.registered) {
+          // One email = one account: already registered (e.g. with Google or Microsoft) — block duplicate
+          document.getElementById('step1').style.display = 'none';
+          document.getElementById('step2').style.display = 'none';
+          document.getElementById('step2Existing').style.display = 'block';
+          document.getElementById('existingAccountMessage').textContent =
+            'An account with this email already exists. You cannot create a second account with the same email using a different sign-in method (e.g. Google vs Microsoft).';
+          document.getElementById('existingAccountEmail').textContent = oauthEmail;
+          document.getElementById('btnLoginWithExisting').href = 'login.html';
+          document.getElementById('btnUseDifferentAccount').onclick = leaveRegistration;
+          document.getElementById('existingBackToHome').onclick = function(e) { e.preventDefault(); leaveRegistration(); };
+          return;
+        }
 
-            // Pre-fill name if provided
-            var oauthName = params.get('name') || data.name || '';
-            if (oauthName) document.getElementById('regName').value = oauthName;
-
-            // Show verified badge
-            var isMicrosoft = provider === 'microsoft';
-            document.getElementById('verifiedText').textContent =
-              'Verified via ' + (isMicrosoft ? 'Microsoft' : 'Google');
-            if (isMicrosoft) {
-              document.getElementById('verifiedIcon').innerHTML =
-                '<img src="https://learn.microsoft.com/en-us/entra/identity-platform/media/howto-add-branding-in-apps/ms-symbollockup_mssymbol_19.png" width="16" height="16">';
-            } else {
-              document.getElementById('verifiedIcon').textContent = '✓';
-            }
-
-            setStep(2);
-          }
-        })
-        .catch(function() {
-          // Can't verify session — stay on step 1
-        });
+        // Not registered — show Step 2 (complete your profile)
+        document.getElementById('oauthEmail').value = oauthEmail;
+        document.getElementById('oauthProvider').value = provider;
+        document.getElementById('regEmail').value = oauthEmail;
+        var oauthName = params.get('name') || (data.name || '');
+        if (oauthName) document.getElementById('regName').value = oauthName;
+        document.getElementById('verifiedText').textContent = 'Verified via ' + (provider === 'microsoft' ? 'Microsoft' : 'Google');
+        if (provider === 'microsoft') {
+          document.getElementById('verifiedIcon').innerHTML =
+            '<img src="https://learn.microsoft.com/en-us/entra/identity-platform/media/howto-add-branding-in-apps/ms-symbollockup_mssymbol_19.png" width="16" height="16">';
+        } else {
+          document.getElementById('verifiedIcon').textContent = '✓';
+        }
+        setStep(2);
+      }).catch(function() {});
     }
 
     // ── Step 1: OAuth buttons ─────────────────────────────────────────────────
@@ -243,8 +318,42 @@
     // ── Switch provider link — go back to step 1 ─────────────────────────────
     document.getElementById('switchProvider').addEventListener('click', function(e) {
       e.preventDefault();
-      // Clear URL params and go back to step 1
       window.location.href = 'register.html';
+    });
+
+    // ── Back to home / Cancel registration (leave without completing form) ───
+    document.getElementById('backToHomeLink').addEventListener('click', leaveRegistration);
+    document.getElementById('cancelRegistrationLink').addEventListener('click', leaveRegistration);
+
+    // When in OAuth complete-profile flow, navbar "Back to Home" should also leave (logout) so user isn't sent back to register
+    if (loggedIn === '1' && oauthEmail) {
+      document.getElementById('navBackToHome').addEventListener('click', function(e) {
+        e.preventDefault();
+        leaveRegistration();
+      });
+    }
+
+    // ── Password show/hide toggles (register form) ─────────────────────────────
+    document.querySelectorAll('.password-toggle-btn').forEach(function(btn) {
+      var id = btn.getAttribute('data-target');
+      var input = id ? document.getElementById(id) : null;
+      var icon = btn.querySelector('i');
+      if (!input || !icon) return;
+      btn.addEventListener('click', function() {
+        var isPass = input.type === 'password';
+        input.type = isPass ? 'text' : 'password';
+        icon.className = isPass ? 'bx bx-hide icon-lg' : 'bx bx-show-alt icon-lg';
+        btn.setAttribute('aria-label', isPass ? 'Hide password' : 'Show password');
+        btn.setAttribute('title', isPass ? 'Hide password' : 'Show password');
+      });
+    });
+
+    // ── Show/hide admin approval code when role is Admin ──────────────────────
+    document.getElementById('regRole').addEventListener('change', function() {
+      var wrap = document.getElementById('adminCodeWrap');
+      wrap.style.display = this.value === 'admin' ? 'block' : 'none';
+      document.getElementById('regAdminCode').value = '';
+      document.getElementById('regAdminCode').classList.remove('is-invalid');
     });
 
     // ── Step 2: Registration form submit ──────────────────────────────────────
@@ -257,6 +366,8 @@
       var emailEl   = document.getElementById('regEmail');
       var password  = document.getElementById('regPassword');
       var confirm   = document.getElementById('regConfirm');
+      var roleEl    = document.getElementById('regRole');
+      var adminCodeEl = document.getElementById('regAdminCode');
       var msg       = document.getElementById('registerMessage');
 
       msg.textContent = '';
@@ -282,23 +393,34 @@
       if (password.value.length < 8) ok = false;
       confirm.classList.toggle('is-invalid', password.value !== confirm.value);
       if (password.value !== confirm.value) ok = false;
+
+      var roleVal = roleEl.value || 'client';
+      if (roleVal === 'admin') {
+        var codeVal = (adminCodeEl.value || '').trim();
+        adminCodeEl.classList.toggle('is-invalid', !codeVal);
+        if (!codeVal) ok = false;
+      }
       if (!ok) return;
 
       var btn = this.querySelector('button[type="submit"]');
       btn.disabled = true;
       msg.textContent = 'Creating your account…';
 
+      var payload = {
+        name:          nameVal,
+        contactNumber: contactVal,
+        username:      usernameVal,
+        email:         emailVal.toLowerCase(),
+        password:      password.value,
+        provider:      providerVal,
+        role:          roleVal,
+        adminCode:     roleVal === 'admin' ? (document.getElementById('regAdminCode').value || '').trim() : ''
+      };
+
       fetch(AUTH_API + '/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name:          nameVal,
-          contactNumber: contactVal,
-          username:      usernameVal,
-          email:         emailVal.toLowerCase(),
-          password:      password.value,
-          provider:      providerVal   // 'google' or 'microsoft'
-        }),
+        body: JSON.stringify(payload),
         credentials: 'include'
       })
         .then(function(r) { return r.json().then(function(j) { return { status: r.status, body: j }; }); })

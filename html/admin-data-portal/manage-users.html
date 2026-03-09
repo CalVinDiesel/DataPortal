@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr" data-assets-path="../../assets/" data-template="admin-data-portal" data-bs-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Manage Users - Admin | TemaDataPortal</title>
+  <link rel="icon" type="image/x-icon" href="../../assets/img/favicon/favicon.ico" />
+  <link rel="stylesheet" href="../../assets/vendor/fonts/iconify-icons.css" />
+  <link rel="stylesheet" href="../../assets/vendor/css/core.css" />
+  <link rel="stylesheet" href="../../assets/css/demo.css" />
+  <link rel="stylesheet" href="../../assets/css/admin-responsive.css" />
+  <script src="../../assets/vendor/js/helpers.js"></script>
+  <script src="../../assets/vendor/libs/jquery/jquery.js"></script>
+  <script src="../../assets/vendor/js/bootstrap.js"></script>
+</head>
+<body>
+  <div class="layout-wrapper layout-content-navbar">
+    <div class="layout-container">
+      <aside id="layout-menu" class="layout-menu menu-vertical menu bg-menu-theme">
+        <div class="app-brand demo py-4">
+          <a href="index.html" class="app-brand-link">
+            <span class="app-brand-text demo menu-text fw-bold ms-2">Data Portal Admin</span>
+          </a>
+        </div>
+        <div class="menu-inner-shadow"></div>
+        <ul class="menu-inner py-1">
+          <li class="menu-item">
+            <a href="index.html" class="menu-link">
+              <i class="menu-icon tf-icons bx bx-home-circle"></i>
+              <div>Dashboard</div>
+            </a>
+          </li>
+          <li class="menu-item">
+            <a href="add-3d-model.html" class="menu-link">
+              <i class="menu-icon tf-icons bx bx-cube"></i>
+              <div>Add 3D Model</div>
+            </a>
+          </li>
+          <li class="menu-item">
+            <a href="manage-map-pins.html" class="menu-link">
+              <i class="menu-icon tf-icons bx bx-map-pin"></i>
+              <div>Manage Map Pins</div>
+            </a>
+          </li>
+          <li class="menu-item">
+            <a href="manage-showcase.html" class="menu-link">
+              <i class="menu-icon tf-icons bx bx-grid-alt"></i>
+              <div>Manage Showcase</div>
+            </a>
+          </li>
+          <li class="menu-item">
+            <a href="client-uploads.html" class="menu-link">
+              <i class="menu-icon tf-icons bx bx-cloud-upload"></i>
+              <div>Client Uploads</div>
+            </a>
+          </li>
+          <li class="menu-item active">
+            <a href="manage-users.html" class="menu-link">
+              <i class="menu-icon tf-icons bx bx-user"></i>
+              <div>Manage Users</div>
+            </a>
+          </li>
+          <li class="menu-item">
+            <a href="../front-pages/landing-page.html" class="menu-link" target="_blank">
+              <i class="menu-icon tf-icons bx bx-map"></i>
+              <div>View Portal</div>
+            </a>
+          </li>
+        </ul>
+      </aside>
+      <div class="layout-page">
+        <nav class="layout-navbar container-xxl navbar navbar-expand-xl navbar-detached align-items-center bg-navbar-theme">
+          <div class="navbar-brand demo d-flex align-items-center py-0 me-3">
+            <button class="admin-menu-toggle btn btn-icon d-xl-none me-2 border-0 bg-transparent p-0" type="button" aria-label="Toggle menu"><i class="bx bx-menu icon-lg"></i></button>
+          </div>
+          <div class="navbar-nav-right d-flex align-items-center ms-auto">
+            <a href="index.html" class="btn btn-sm btn-outline-primary">Back to Dashboard</a>
+          </div>
+        </nav>
+        <div class="content-wrapper">
+          <div class="container-xxl flex-grow-1 container-p-y">
+            <h4 class="fw-bold mb-4">Manage Users</h4>
+            <p class="text-muted mb-4">Users who signed up with email/password (or completed the register form with Google/Microsoft) are listed below. The <strong>Role</strong> column shows <span class="badge bg-label-secondary">Client</span> or <span class="badge bg-label-success">Admin</span>. Only users with role <strong>Client</strong> get a <strong>Promote to admin</strong> button so they can access the admin portal.</p>
+            <div id="usersNoClientsNote" class="alert alert-info d-none mb-4">All users listed are admins. To see &quot;Client&quot; and &quot;Promote to admin&quot;, you need at least one user with role <strong>Client</strong> (e.g. register a new account and choose &quot;Sign up as: Client&quot;).</div>
+            <div id="usersAlert" class="alert d-none mb-4"></div>
+            <div class="card">
+              <div class="table-responsive">
+                <table class="table table-hover">
+                  <thead>
+                    <tr>
+                      <th>Email</th>
+                      <th>Name</th>
+                      <th>Username</th>
+                      <th>Role</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody id="usersTableBody">
+                    <tr><td colspan="5" class="text-muted text-center py-4">Loading…</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+    (function() {
+      var API = (window.TemaDataPortal_API_BASE || window.location.origin || 'http://localhost:3000');
+      var tbody = document.getElementById('usersTableBody');
+      var alertEl = document.getElementById('usersAlert');
+      function showAlert(msg, isSuccess) {
+        alertEl.textContent = msg;
+        alertEl.className = 'alert ' + (isSuccess ? 'alert-success' : 'alert-danger') + ' mb-4';
+        alertEl.classList.remove('d-none');
+      }
+      function loadUsers() {
+        fetch(API + '/api/admin/users', { credentials: 'include' })
+          .then(function(r) {
+            if (!r.ok) throw new Error('Failed to load users');
+            return r.json();
+          })
+          .then(function(users) {
+            if (!users || users.length === 0) {
+              tbody.innerHTML = '<tr><td colspan="5" class="text-muted text-center py-4">No users in the system yet.</td></tr>';
+              return;
+            }
+            var hasAnyClient = users.some(function(u) { return (u.role || 'client') !== 'admin'; });
+            document.getElementById('usersNoClientsNote').classList.toggle('d-none', hasAnyClient);
+            tbody.innerHTML = users.map(function(u) {
+              var role = (u.role || 'client');
+              var isAdmin = role === 'admin';
+              var roleBadge = isAdmin ? '<span class="badge bg-label-success">Admin</span>' : '<span class="badge bg-label-secondary">Client</span>';
+              var action = isAdmin
+                ? '<span class="text-muted small">—</span>'
+                : '<button type="button" class="btn btn-sm btn-outline-primary promote-btn" data-email="' + (u.email || '').replace(/"/g, '&quot;') + '">Promote to admin</button>';
+              return '<tr><td>' + (u.email || '') + '</td><td>' + (u.name || '') + '</td><td>' + (u.username || '') + '</td><td>' + roleBadge + '</td><td>' + action + '</td></tr>';
+            }).join('');
+            tbody.querySelectorAll('.promote-btn').forEach(function(btn) {
+              btn.addEventListener('click', function() {
+                var email = this.getAttribute('data-email');
+                if (!email || !confirm('Promote "' + email + '" to admin? They will be able to access the admin portal.')) return;
+                this.disabled = true;
+                fetch(API + '/api/admin/users/promote', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  credentials: 'include',
+                  body: JSON.stringify({ email: email })
+                })
+                  .then(function(r) { return r.json(); })
+                  .then(function(data) {
+                    if (data.success) {
+                      showAlert(data.message || 'User promoted to admin.', true);
+                      loadUsers();
+                    } else {
+                      showAlert(data.message || 'Failed to promote.', false);
+                      btn.disabled = false;
+                    }
+                  })
+                  .catch(function() {
+                    showAlert('Network error. Could not promote user.', false);
+                    btn.disabled = false;
+                  });
+              });
+            });
+          })
+          .catch(function() {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-danger text-center py-4">Failed to load users. Make sure you are logged in as admin.</td></tr>';
+          });
+      }
+      loadUsers();
+    })();
+  </script>
+</body>
+</html>

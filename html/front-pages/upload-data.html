@@ -28,6 +28,22 @@
 
   <script src="../../assets/vendor/js/helpers.js"></script>
   <script src="../../assets/js/front-config.js"></script>
+  <script>
+    (function() {
+      var AUTH_API = (window.TemaDataPortal_API_BASE || window.location.origin || 'http://localhost:3000');
+      var LANDING_URL = (window.location.origin || 'http://localhost:3000') + '/html/front-pages/landing-page.html';
+      fetch(AUTH_API + '/api/auth/me', { credentials: 'include' }).then(function(r) { return r.json(); }).then(function(d) {
+        if (!d.loggedIn) window.location.href = '/html/front-pages/login.html?redirect=' + encodeURIComponent(window.location.pathname);
+      }).catch(function() {});
+      document.getElementById('uploadPageLogoutBtn').addEventListener('click', function() {
+        if (!confirm('Are you sure you want to log out? You will need to sign in again to use Upload.')) return;
+        this.disabled = true;
+        fetch(AUTH_API + '/api/auth/logout', { method: 'POST', credentials: 'include' })
+          .then(function() { window.location.href = AUTH_API + '/api/auth/sign-out?callbackURL=' + encodeURIComponent(LANDING_URL); })
+          .catch(function() { window.location.href = LANDING_URL; });
+      });
+    })();
+  </script>
   <style>
     body {
       margin: 0;
@@ -609,6 +625,7 @@
       <div class="left-footer">
         <a href="landing-page.html" class="btn btn-secondary text-white fw-medium border-0 px-4"
           style="background:#8b9eb0;">Cancel</a>
+        <button type="button" id="uploadPageLogoutBtn" class="btn btn-outline-secondary fw-medium px-3 ms-auto me-2" title="Log out and return to public landing page"><i class="bx bx-log-out me-1"></i>Log out</button>
         <button type="submit" form="uploadForm" class="btn btn-primary fw-medium px-4">Upload</button>
       </div>
     </div>
@@ -711,7 +728,8 @@
   </style>
 
   <script>
-    var UPLOAD_API = 'http://localhost:3000';
+    // Use same API base as auth so client uploads always go to the server that Admin → Client Uploads uses
+    var UPLOAD_API = (window.TemaDataPortal_API_BASE || window.location.origin || 'http://localhost:3000');
 
     // Upload Card Selection & Drag-and-Drop Logic
     async function handleDrop(e, type) {

@@ -23,7 +23,7 @@ function cleanEnv(s) {
 const googleClientId = cleanEnv(process.env.GOOGLE_CLIENT_ID);
 const googleClientSecret = cleanEnv(process.env.GOOGLE_CLIENT_SECRET);
 
-/** Pool for Better Auth (user, session, account tables). Uses same DB as MapData when PG_* set. */
+/** Pool for Better Auth (GoogleUsers, session, account tables). Uses same DB as MapData when PG_* set. */
 function getAuthPool() {
   const db = process.env.PG_DATABASE;
   if (!db) return null;
@@ -44,6 +44,9 @@ export const auth = betterAuth({
   baseURL,
   secret: process.env.BETTER_AUTH_SECRET || process.env.SESSION_SECRET || "temadataportal-auth-secret-change-in-production",
   database: pool || new Database(path.join(__dirname, "data", "better-auth.sqlite")),
+  user: {
+    modelName: "GoogleUsers",
+  },
   onAPIError: {
     errorURL: "http://localhost:3000/html/front-pages/login.html?error=cancelled",
   },

@@ -47,6 +47,167 @@ function writeUsers(users) {
   fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2), 'utf8');
 }
 
+/** Whether to use PostgreSQL DataPortalUsers table for user directory (when PG_DATABASE is set). */
+function usePgUsers() {
+  return !!process.env.PG_DATABASE && typeof pgQuery === 'function';
+}
+
+/** Get role for an email. Uses DataPortalUsers when PG is set (with users.json fallback), else users.json only. Returns "admin" or "client".
+ *  When multiple rows exist (same email, different case), prefer the one with role='admin'. */
+async function getRoleForEmailAsync(email) {
+  if (!email) return 'client';
+  const emailNorm = String(email).trim().toLowerCase();
+
+  if (usePgUsers()) {
+    try {
+      const r = await pgQuery(
+        `SELECT role FROM public."DataPortalUsers" WHERE LOWER(email) = $1
+         ORDER BY (role = 'admin') DESC NULLS LAST, id LIMIT 1`,
+        [emailNorm]
+      );
+      const role = r?.rows?.[0]?.role;
+      if (role !== undefined && role !== null) return (role === 'admin') ? 'admin' : 'client';
+    } catch (e) {
+      console.error('getRoleForEmail PG', e);
+    }
+    // Fallback: PG had no row or error — check users.json so admin in JSON still works
+  }
+
+  try {
+    const users = readUsers();
+    const u = users.find(x => (x.email || '').toLowerCase() === emailNorm);
+    return (u && (u.role === 'admin')) ? 'admin' : 'client';
+  } catch (e) {
+    console.error('getRoleForEmailAsync fallback readUsers', e);
+    return 'client';
+  }
+}
+
+/** Get role for an email (sync fallback for callers that cannot await). Prefer getRoleForEmailAsync. */
+function getRoleForEmail(email) {
+  if (!email) return 'client';
+  const users = readUsers();
+  const u = users.find(x => (x.email || '').toLowerCase() === String(email).toLowerCase());
+  return (u && (u.role === 'admin')) ? 'admin' : 'client';
+}
+
+/** Get all users for admin list / register check / login. From DataPortalUsers when PG, else users.json. */
+async function getUsersAsync() {
+  if (usePgUsers()) {
+    try {
+      const r = await pgQuery(
+        'SELECT id, email, name, username, contact_number, role, provider, password_hash FROM public."DataPortalUsers" ORDER BY created_at ASC'
+      );
+      return (r?.rows || []).map(row => ({
+        email: row.email || '',
+        name: row.name || '',
+        username: row.username || '',
+        contactNumber: row.contact_number || '',
+        role: row.role === 'admin' ? 'admin' : 'client',
+        provider: row.provider || 'local',
+        passwordHash: row.password_hash,
+      }));
+    } catch (e) {
+      console.error('getUsersAsync PG', e);
+      return [];
+    }
+  }
+  return readUsers();
+}
+
+/** Insert a new user (register). Used when usePgUsers(). */
+async function insertUserPG(user) {
+  await pgQuery(
+    `INSERT INTO public."DataPortalUsers" (email, name, username, contact_number, role, provider, password_hash)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+    [
+      (user.email || '').toLowerCase().trim(),
+      (user.name || '').trim() || null,
+      (user.username || '').trim() || null,
+      (user.contactNumber || '').trim() || null,
+      user.role === 'admin' ? 'admin' : 'client',
+      user.provider || 'local',
+      user.passwordHash || null,
+    ]
+  );
+}
+
+/** Update role for a user by email (promote). Used when usePgUsers(). */
+async function updateUserRolePG(email, role) {
+  const r = await pgQuery(
+    `UPDATE public."DataPortalUsers" SET role = $1, updated_at = NOW() WHERE LOWER(email) = LOWER($2) RETURNING email`,
+    [role, String(email).trim()]
+  );
+  return r?.rows?.length > 0;
+}
+
+/** Upsert user into DataPortalUsers (for OAuth: Microsoft/Google first sign-in). Uses case-insensitive email
+ *  lookup so we never create a second row for the same email (e.g. Admin@gmail.com vs admin@gmail.com).
+ *  Never overwrites an existing row's role — so if they're already admin, they stay admin when signing in with Microsoft. */
+async function upsertUserPG(user) {
+  const emailLower = (user.email || '').toLowerCase().trim();
+  if (!emailLower) return;
+  const existing = await pgQuery(
+    'SELECT id, role FROM public."DataPortalUsers" WHERE LOWER(email) = $1 LIMIT 1',
+    [emailLower]
+  );
+  const row = existing?.rows?.[0];
+  if (row) {
+    await pgQuery(
+      `UPDATE public."DataPortalUsers" SET name = COALESCE($1, name), updated_at = NOW() WHERE id = $2`,
+      [(user.name || '').trim() || null, row.id]
+    );
+    return;
+  }
+  await pgQuery(
+    `INSERT INTO public."DataPortalUsers" (email, name, username, contact_number, role, provider, password_hash)
+     VALUES ($1, $2, $3, $4, $5, $6, NULL)`,
+    [
+      emailLower,
+      (user.name || '').trim() || null,
+      (user.username || '').trim() || null,
+      (user.contactNumber || '').trim() || null,
+      user.role === 'admin' ? 'admin' : 'client',
+      user.provider || 'local',
+    ]
+  );
+}
+
+/** Middleware: set req.user from Better Auth or express-session; 401 if not logged in. */
+async function requireAuth(req, res, next) {
+  try {
+    const betterAuthSession = await auth.api.getSession({ headers: fromNodeHeaders(req.headers) });
+    if (betterAuthSession?.user) {
+      const role = await getRoleForEmailAsync(betterAuthSession.user.email);
+      req.user = {
+        email: betterAuthSession.user.email ?? null,
+        name: betterAuthSession.user.name ?? null,
+        role,
+      };
+      return next();
+    }
+    const local = req.session?.user;
+    if (local && (local.email || local.id)) {
+      const role = local.role || await getRoleForEmailAsync(local.email);
+      req.user = {
+        email: local.email,
+        name: local.name,
+        role,
+      };
+      return next();
+    }
+  } catch (e) {
+    console.error('requireAuth', e);
+  }
+  res.status(401).json({ success: false, message: 'You must be logged in.' });
+}
+
+/** Middleware: require req.user.role === 'admin'. Use after requireAuth. */
+function requireAdmin(req, res, next) {
+  if (req.user && req.user.role === 'admin') return next();
+  res.status(403).json({ success: false, message: 'Admin access only.' });
+}
+
 // ---- MapData (Temadigital_Data_Portal.MapData – from SQLite table or map-data.json) ----
 // These ids were used as temporary demo locations and should never appear on the live overview map.
 const REMOVED_MAPDATA_IDS = new Set([
@@ -144,6 +305,7 @@ async function getMapDataForApi() {
 
 const PORT = process.env.PORT || 3000;
 const FRONT_END_URL = process.env.FRONT_END_URL || frontEndUrl || "http://localhost:3000/html/front-pages/landing-page.html";
+const LOGIN_PAGE_URL = FRONT_END_URL.replace(/\/[^/]*$/, '/login.html');
 
 const app = express();
 
@@ -157,22 +319,26 @@ app.use(session({
   cookie: { secure: false },
 }));
 
-// ---- Auth: /api/auth/me (check Better Auth session first, then express-session for email login) ----
+// ---- Auth: /api/auth/me (check Better Auth session first, then express-session for email/Microsoft login) ----
 app.get("/api/auth/me", async (req, res) => {
   try {
     const betterAuthSession = await auth.api.getSession({
       headers: fromNodeHeaders(req.headers),
     });
     if (betterAuthSession?.user) {
+      const email = betterAuthSession.user.email ?? null;
+      const role = await getRoleForEmailAsync(email);
       return res.json({
         loggedIn: true,
-        email: betterAuthSession.user.email ?? null,
+        email,
         name: betterAuthSession.user.name ?? null,
+        role,
       });
     }
     const localUser = req.session?.user;
     if (localUser && (localUser.email || localUser.id)) {
-      return res.json({ loggedIn: true, email: localUser.email, name: localUser.name });
+      const role = localUser.role || await getRoleForEmailAsync(localUser.email);
+      return res.json({ loggedIn: true, email: localUser.email, name: localUser.name, role });
     }
   } catch (e) {
     console.error("GET /api/auth/me", e);
@@ -234,13 +400,16 @@ app.get("/api/auth/google-callback-done", async (req, res) => {
 });
 
 // ---- Email/password register and login (unchanged API contract; store session in express-session) ----
-app.post("/api/auth/register", express.json(), (req, res) => {
+// Role: "client" | "admin". Admin only if ADMIN_REGISTRATION_CODE matches.
+app.post("/api/auth/register", express.json(), async (req, res) => {
   const rawName = (req.body.name || '').trim();
   const rawContact = (req.body.contactNumber || '').trim();
   const rawUsername = (req.body.username || '').trim();
   const rawEmail = (req.body.email || '').trim();
   const email = rawEmail.toLowerCase();
   const password = req.body.password;
+  const roleRequested = (req.body.role || 'client').toLowerCase() === 'admin' ? 'admin' : 'client';
+  const adminCode = (req.body.adminCode || '').trim();
 
   if (!rawName) {
     return res.status(400).json({ success: false, message: 'Please enter your name.' });
@@ -258,7 +427,7 @@ app.post("/api/auth/register", express.json(), (req, res) => {
     return res.status(400).json({ success: false, message: 'Password must be at least 8 characters.' });
   }
 
-  const users = readUsers();
+  const users = await getUsersAsync();
   if (users.some(u => (u.email || '').toLowerCase() === email)) {
     return res.status(400).json({ success: false, message: 'An account with this email already exists. Log in or use a different email.' });
   }
@@ -266,26 +435,58 @@ app.post("/api/auth/register", express.json(), (req, res) => {
     return res.status(400).json({ success: false, message: 'That username is already taken. Choose another one.' });
   }
 
+  let role = 'client';
+  if (roleRequested === 'admin') {
+    let secret = (process.env.ADMIN_REGISTRATION_CODE || '').trim();
+    if (secret.length >= 2 && secret.startsWith('"') && secret.endsWith('"')) {
+      secret = secret.slice(1, -1).trim();
+    }
+    if (secret.length >= 2 && secret.startsWith("'") && secret.endsWith("'")) {
+      secret = secret.slice(1, -1).trim();
+    }
+    if (!secret) {
+      return res.status(503).json({ success: false, message: 'Admin registration is not configured. The server administrator must set ADMIN_REGISTRATION_CODE in auth-server/.env.' });
+    }
+    if ((adminCode || '').trim() !== secret) {
+      return res.status(403).json({ success: false, message: 'Admin registration requires a valid approval code. Sign up as Client or contact an administrator.' });
+    }
+    role = 'admin';
+  }
+
   const passwordHash = bcrypt.hashSync(password, 10);
-  users.push({
+  const newUser = {
     email,
     username: rawUsername,
     name: rawName,
     contactNumber: rawContact,
     passwordHash,
-    provider: 'local'
-  });
-  writeUsers(users);
+    provider: (req.body.provider || 'local').toLowerCase() === 'google' ? 'google' : (req.body.provider || 'local').toLowerCase() === 'microsoft' ? 'microsoft' : 'local',
+    role,
+  };
+  if (usePgUsers()) {
+    try {
+      await insertUserPG(newUser);
+    } catch (e) {
+      if (e.code === '23505') {
+        return res.status(400).json({ success: false, message: 'An account with this email already exists. Log in or use a different email.' });
+      }
+      console.error('register insertUserPG', e);
+      return res.status(500).json({ success: false, message: 'Registration failed.' });
+    }
+  } else {
+    users.push(newUser);
+    writeUsers(users);
+  }
   res.json({ success: true, message: 'Account created. You can now log in.' });
 });
 
-app.post("/api/auth/login", express.json(), (req, res) => {
+app.post("/api/auth/login", express.json(), async (req, res) => {
   const identifierRaw = (req.body.email || '').trim();
   const password = req.body.password;
   if (!identifierRaw || !password) {
     return res.status(400).json({ success: false, message: 'Email or username and password are required.' });
   }
-  const users = readUsers();
+  const users = await getUsersAsync();
   const lower = identifierRaw.toLowerCase();
   let user;
   if (identifierRaw.includes('@')) {
@@ -293,13 +494,17 @@ app.post("/api/auth/login", express.json(), (req, res) => {
   } else {
     user = users.find(u => (u.username || '').toLowerCase() === lower);
   }
-  if (!user || user.provider !== 'local') {
+  if (!user) {
     return res.status(401).json({ success: false, message: 'Invalid email/username or password.' });
+  }
+  if (!user.passwordHash) {
+    return res.status(401).json({ success: false, message: 'This account uses Google or Microsoft sign-in. Use one of those buttons to log in.' });
   }
   if (!bcrypt.compareSync(password, user.passwordHash)) {
     return res.status(401).json({ success: false, message: 'Invalid email/username or password.' });
   }
-  req.session.user = { provider: "local", email: user.email, name: user.name };
+  const role = (user.role === 'admin') ? 'admin' : 'client';
+  req.session.user = { provider: "local", email: user.email, name: user.name, role };
   res.json({ success: true, redirect: FRONT_END_URL });
 });
 
@@ -338,11 +543,57 @@ app.get("/auth/microsoft/callback", async (req, res) => {
       RETURNING *
     `, [msUser.id, msUser.email, msUser.name]);
     const dbUser = result.rows[0];
+    const emailNorm = (dbUser.email || '').trim().toLowerCase();
+    const flow = req.session?.msFlow || 'login';
+
+    // Login flow: only allow if this email is already registered (e.g. they registered with Google with same email)
+    if (flow === 'login') {
+      const users = await getUsersAsync();
+      const emailRegistered = users.some(u => (u.email || '').toLowerCase() === emailNorm);
+      if (!emailRegistered) {
+        req.session.msFlow = null;
+        return res.redirect(LOGIN_PAGE_URL + "?auth_error=email_not_registered&email=" + encodeURIComponent(dbUser.email || ''));
+      }
+    }
+
+    if (usePgUsers()) {
+      try {
+        await upsertUserPG({
+          email: dbUser.email,
+          name: dbUser.name,
+          username: '',
+          contactNumber: '',
+          role: 'client',
+          provider: 'microsoft',
+        });
+      } catch (e) {
+        console.error('Microsoft callback upsertUserPG', e);
+      }
+    }
+
+    // Resolve role from our user directory (same source as Google) — prefer admin if duplicate rows exist
+    let role = 'client';
+    if (usePgUsers()) {
+      try {
+        const r = await pgQuery(
+          `SELECT role FROM public."DataPortalUsers" WHERE LOWER(email) = $1
+           ORDER BY (role = 'admin') DESC NULLS LAST, id LIMIT 1`,
+          [emailNorm]
+        );
+        if (r?.rows?.[0]?.role === 'admin') role = 'admin';
+      } catch (e) {
+        console.error('Microsoft callback get role', e);
+      }
+    } else {
+      role = await getRoleForEmailAsync(dbUser.email);
+    }
+
     req.session.user = {
       id:       dbUser.id,
       email:    dbUser.email,
       name:     dbUser.name,
       provider: "microsoft",
+      role,
     };
 
     req.session.save((err) => {
@@ -350,10 +601,10 @@ app.get("/auth/microsoft/callback", async (req, res) => {
         console.error("Session save error:", err);
         return res.redirect(FRONT_END_URL + "?auth_error=session_failed");
       }
-      const flow = req.session.msFlow || 'login';
+      const flowSaved = req.session.msFlow || 'login';
       req.session.msFlow = null;
     
-      if (flow === 'register') {
+      if (flowSaved === 'register') {
         // Send back to register page with pre-filled details
         return res.redirect(
           `http://localhost:3000/html/front-pages/register.html?logged_in=1&email=${encodeURIComponent(dbUser.email)}&name=${encodeURIComponent(dbUser.name || '')}&provider=microsoft`
@@ -370,6 +621,26 @@ app.get("/auth/microsoft/callback", async (req, res) => {
     console.error("Microsoft callback error:", err);
     res.redirect(FRONT_END_URL + "?auth_error=microsoft_auth_failed");
   }
+});
+
+// Logout: destroy express session (local/Microsoft).
+app.post("/api/auth/logout", (req, res) => {
+  req.session.destroy((err) => {
+    if (err) console.error("logout session.destroy", err);
+    res.json({ success: true });
+  });
+});
+
+// GET /api/auth/sign-out: clear express and Better Auth sessions, then redirect to callbackURL (avoids 404 from Better Auth's internal path).
+app.get("/api/auth/sign-out", async (req, res) => {
+  const callbackURL = (req.query.callbackURL || FRONT_END_URL).toString();
+  req.session.destroy(() => {});
+  try {
+    await auth.api.signOut({ headers: fromNodeHeaders(req.headers) });
+  } catch (e) {
+    console.error("sign-out Better Auth", e);
+  }
+  res.redirect(302, callbackURL);
 });
 
 // Check if the currently logged-in user has completed registration
@@ -400,22 +671,11 @@ app.get("/api/auth/check-registered", async (req, res) => {
       return res.json({ registered: true });
     }
 
-    // Google users: Better Auth stores them in the DB, consider them registered
-    if (provider === 'google') {
-      return res.json({ registered: true });
-    }
-
-    // Microsoft users: check if they completed the register form in users.json
-    if (provider === 'microsoft') {
-      const users = readUsers();
-      const found = users.some(u =>
-        (u.email || '').toLowerCase() === email.toLowerCase() &&
-        u.username  // must have username = completed the form
-      );
-      return res.json({ registered: found });
-    }
-
-    res.json({ registered: false });
+    // One email = one account: already registered if this email exists in DataPortalUsers / users.json
+    // (prevents same email from having two accounts via Google and Microsoft)
+    const users = await getUsersAsync();
+    const found = users.some(u => (u.email || '').toLowerCase() === email.toLowerCase());
+    return res.json({ registered: !!found });
   } catch (e) {
     console.error("check-registered error:", e);
     res.json({ registered: false });
@@ -451,6 +711,54 @@ app.get('/api/map-data/:id', async (req, res) => {
   } catch (e) {
     console.error('GET /api/map-data/:id', e);
     res.status(500).json({ error: 'Failed to load map data.' });
+  }
+});
+
+// ---- Protect routes: upload requires login; admin requires admin role ----
+app.use('/api/admin', requireAuth, requireAdmin);
+app.use('/api/upload', requireAuth);
+
+// ---- Admin: list users and promote a user to admin (DataPortalUsers when PG, else users.json) ----
+app.get('/api/admin/users', async (req, res) => {
+  try {
+    const users = await getUsersAsync();
+    const list = users.map(u => ({
+      email: u.email || '',
+      name: u.name || '',
+      username: u.username || '',
+      role: u.role === 'admin' ? 'admin' : 'client',
+    }));
+    res.json(list);
+  } catch (e) {
+    console.error('GET /api/admin/users', e);
+    res.status(500).json({ error: 'Failed to load users.' });
+  }
+});
+
+app.post('/api/admin/users/promote', express.json(), async (req, res) => {
+  const email = (req.body && req.body.email || '').trim().toLowerCase();
+  if (!email) {
+    return res.status(400).json({ success: false, message: 'Email is required.' });
+  }
+  try {
+    if (usePgUsers()) {
+      const updated = await updateUserRolePG(email, 'admin');
+      if (!updated) {
+        return res.status(404).json({ success: false, message: 'User not found. Only users in the Data Portal (DataPortalUsers table) can be promoted.' });
+      }
+      return res.json({ success: true, message: email + ' is now an admin.' });
+    }
+    const users = readUsers();
+    const idx = users.findIndex(u => (u.email || '').toLowerCase() === email);
+    if (idx < 0) {
+      return res.status(404).json({ success: false, message: 'User not found. Only users in the Data Portal (users.json) can be promoted.' });
+    }
+    users[idx].role = 'admin';
+    writeUsers(users);
+    res.json({ success: true, message: email + ' is now an admin.' });
+  } catch (e) {
+    console.error('POST /api/admin/users/promote', e);
+    res.status(500).json({ success: false, message: 'Failed to update role.' });
   }
 });
 
@@ -944,6 +1252,7 @@ app.post('/api/upload/finalize', express.json(), async (req, res) => {
       console.warn("Failed to cleanup temp dir", tempDir, e);
     }
 
+    console.log("[upload] Client upload saved: " + actualFileCount + " files at " + finalDir + " (Admin can download from Client Uploads)");
     res.json({ success: true, message: 'Upload successfully assembled and saved.', projectId: metadata.projectID, fileCount: actualFileCount });
 
   } catch (e) {
@@ -963,6 +1272,108 @@ app.get('/api/admin/client-uploads', async (req, res) => {
   } catch (e) {
     console.error('GET /api/admin/client-uploads', e);
     res.status(500).json({ error: 'Failed to load client uploads.' });
+  }
+});
+
+// Parse file_paths from DB: may be array or string (PG array literal or JSON)
+function parseFilePaths(value) {
+  if (Array.isArray(value)) return value.filter(Boolean).map(String);
+  if (value == null || value === '') return [];
+  const s = String(value).trim();
+  if (!s) return [];
+  try {
+    const parsed = JSON.parse(s);
+    return Array.isArray(parsed) ? parsed.filter(Boolean).map(String) : [];
+  } catch (_) { /* not JSON */ }
+  // PostgreSQL array literal: {"a","b"} or {a,b}
+  if (s.startsWith('{') && s.endsWith('}')) {
+    const inner = s.slice(1, -1);
+    return inner.split(',').map((x) => x.replace(/^"|"$/g, '').trim()).filter(Boolean);
+  }
+  return [s];
+}
+
+// Resolve to absolute path and ensure it is under a allowed directory (for security).
+function resolveUnderDir(rel, baseDir) {
+  const normalized = path.normalize(rel).replace(/^(\.\.(\/|\\))+/, '');
+  return path.resolve(baseDir, normalized);
+}
+function isPathUnderDir(fullPath, allowedDir) {
+  const full = path.resolve(fullPath);
+  const dir = path.resolve(allowedDir);
+  const dirWithSep = dir.endsWith(path.sep) ? dir : dir + path.sep;
+  return full === dir || full.startsWith(dirWithSep);
+}
+
+// ---- Admin: download all uploaded files for a client upload (ZIP) ----
+app.get('/api/admin/client-uploads/:id/download', async (req, res) => {
+  const id = req.params.id && parseInt(req.params.id, 10);
+  if (!id || isNaN(id) || !process.env.PG_DATABASE) {
+    return res.status(400).json({ success: false, message: 'Valid upload id is required.' });
+  }
+  try {
+    const q = await pgQuery('SELECT id, project_id, project_title, COALESCE(to_json(file_paths), \'[]\'::json) AS file_paths, drone_pos_file_path FROM public."ClientUploads" WHERE id = $1', [id]);
+    const row = q && q.rows && q.rows[0];
+    if (!row) return res.status(404).json({ success: false, message: 'Client upload not found.' });
+    const filePaths = parseFilePaths(row.file_paths);
+    const dronePath = (row.drone_pos_file_path || '').trim();
+    if (dronePath) filePaths.push(dronePath);
+    const filesToAdd = [];
+    const uploadDirResolved = path.resolve(UPLOAD_DIR);
+    const projectRootResolved = path.resolve(PROJECT_ROOT);
+    for (const rel of filePaths) {
+      const normalized = path.normalize(rel).replace(/^(\.\.(\/|\\))+/, '');
+      const candidates = [
+        resolveUnderDir(normalized, projectRootResolved),
+        path.join(uploadDirResolved, normalized),
+        path.join(uploadDirResolved, normalized.replace(/^([^/\\]+[/\\])+/, ''))
+      ];
+      const seen = new Set();
+      for (const full of candidates) {
+        const fullResolved = path.resolve(full);
+        if (seen.has(fullResolved)) continue;
+        seen.add(fullResolved);
+        if (!isPathUnderDir(fullResolved, uploadDirResolved) && !isPathUnderDir(fullResolved, projectRootResolved)) continue;
+        try {
+          const stat = await fs.promises.stat(fullResolved);
+          if (stat.isFile()) {
+            filesToAdd.push({ full: fullResolved, name: path.basename(fullResolved) });
+            break;
+          }
+        } catch (err) {
+          if (process.env.NODE_ENV !== 'production') {
+            console.warn('[download] Upload #%s path "%s" -> %s: %s', id, rel, fullResolved, err.code || err.message);
+          }
+        }
+      }
+    }
+    if (filesToAdd.length === 0) {
+      console.warn('[download] Upload #%s: no files found. DB file_paths=%s, drone_pos_file_path=%s. UPLOAD_DIR=%s, PROJECT_ROOT=%s. Parsed paths: %s',
+        id, JSON.stringify(row.file_paths), dronePath || '(none)', uploadDirResolved, projectRootResolved, JSON.stringify(filePaths));
+      return res.status(404).json({ success: false, message: 'No files found for this upload. Check that file_paths in the database point to existing files under the uploads directory.' });
+    }
+    let archiver;
+    try {
+      archiver = (await import('archiver')).default;
+    } catch (e) {
+      return res.status(503).json({ success: false, message: 'Download requires the archiver package. Run: npm install archiver' });
+    }
+    const zipName = 'upload-' + id + '-' + (row.project_id || 'files').replace(/[^a-zA-Z0-9_-]/g, '_') + '.zip';
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', 'attachment; filename="' + zipName + '"');
+    const archive = archiver('zip', { zlib: { level: 6 } });
+    archive.on('error', (e) => {
+      console.error('archiver error', e);
+      if (!res.headersSent) res.status(500).end();
+    });
+    archive.pipe(res);
+    for (const { full, name } of filesToAdd) {
+      archive.file(full, { name });
+    }
+    await archive.finalize();
+  } catch (e) {
+    console.error('GET /api/admin/client-uploads/:id/download', e);
+    if (!res.headersSent) res.status(500).json({ success: false, message: e.message || 'Download failed.' });
   }
 });
 

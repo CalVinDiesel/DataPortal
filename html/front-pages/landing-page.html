@@ -140,7 +140,7 @@
           <li class="nav-item">
             <a class="nav-link fw-medium" href="landing-page.html#landingShowCase">ShowCase</a>
           </li>
-          <li class="nav-item">
+          <li class="nav-item" id="navUpload" style="display:none;">
             <a class="nav-link fw-medium" href="upload-data.html">Upload</a>
           </li>
           <!--<li class="nav-item">
@@ -322,7 +322,7 @@
               </div>
             </div>
           </li>
-          <li class="nav-item">
+          <li class="nav-item" id="navAdmin" style="display:none;">
             <a class="nav-link fw-medium" href="/html/admin-data-portal/index.html" target="_blank">Admin</a>
           </li>
         </ul>
@@ -358,9 +358,13 @@
           </li>
           <!-- / Style Switcher-->
         
-        <!-- navbar button: Start -->
-        <li>
+        <!-- navbar button: Login (when logged out) / Log out (when logged in) -->
+        <li id="navLoginWrap">
           <a href="login.html" class="btn btn-primary"><span class="tf-icons icon-base bx bx-log-in-circle scaleX-n1-rtl me-md-1"></span><span class="d-none d-md-block">Login/Register</span></a>
+        </li>
+        <li id="navUserWrap" style="display:none;">
+          <span class="navbar-text text-body me-2 d-none d-md-inline" id="navUserEmail"></span>
+          <button type="button" id="navLogoutBtn" class="btn btn-outline-secondary"><span class="tf-icons icon-base bx bx-log-out me-1"></span><span class="d-none d-md-inline">Log out</span></button>
         </li>
         <!-- navbar button: End -->
       </ul>
@@ -1356,8 +1360,8 @@
         <div class="col-lg-2 col-md-4 col-sm-6">
           <h6 class="footer-title mb-6">Demos</h6>
           <ul class="list-unstyled">
-            <li class="mb-4">
-              <a href="/html/admin-data-portal/" target="_blank" class="footer-link">Admin Data Portal</a>
+            <li class="mb-4" id="footerAdmin" style="display:none;">
+              <a href="/html/admin-data-portal/index.html" target="_blank" class="footer-link">Admin Data Portal</a>
             </li>
             <li class="mb-4">
               <a href="../horizontal-menu-template/" target="_blank" class="footer-link">Horizontal Layout</a>
@@ -1499,44 +1503,81 @@
     // If there's an auth error in the URL, redirect to login
         if (authError) {
           window.location.href = LOGIN_URL + '?error=' + encodeURIComponent(authError);
-        return;
-       }
-  
-    // Check session with server
-    fetch(AUTH_API + '/api/auth/me', { credentials: 'include' })
-      .then(function(r) { return r.json(); })
-      .then(function(data) {
-        if (!data.loggedIn) {
-          // Not logged in — redirect to login page
-          window.location.href = LOGIN_URL;
           return;
         }
-  
-        // Logged in — check if they have completed registration in users.json
-        // by checking if they exist as a fully registered user
-        fetch(AUTH_API + '/api/auth/check-registered', { credentials: 'include' })
+        // Public visitors can view landing; Upload/Admin nav shown only when logged in (Admin only for admin role)
+        fetch(AUTH_API + '/api/auth/me', { credentials: 'include' })
           .then(function(r) { return r.json(); })
-          .then(function(regData) {
-            if (!regData.registered) {
-              // Authenticated via OAuth but never completed the register form
-              window.location.href = REGISTER_URL +
-                '?logged_in=1' +
-                '&email=' + encodeURIComponent(data.email || '') +
-                '&name=' + encodeURIComponent(data.name || '') +
-                '&provider=' + encodeURIComponent(data.provider || '');
-            }
-            // else: fully registered — allow access, do nothing
+          .then(function(data) {
+            if (!data.loggedIn) return;
+            fetch(AUTH_API + '/api/auth/check-registered', { credentials: 'include' })
+              .then(function(r) { return r.json(); })
+              .then(function(regData) {
+                if (!regData.registered) {
+                  window.location.href = REGISTER_URL +
+                    '?logged_in=1&email=' + encodeURIComponent(data.email || '') +
+                    '&name=' + encodeURIComponent(data.name || '') +
+                    '&provider=' + encodeURIComponent(data.provider || '');
+                  return;
+                }
+                var navUpload = document.getElementById('navUpload');
+                if (navUpload) navUpload.style.display = '';
+                if (data.role === 'admin') {
+                  var navAdmin = document.getElementById('navAdmin');
+                  if (navAdmin) navAdmin.style.display = '';
+                  var footerAdmin = document.getElementById('footerAdmin');
+                  if (footerAdmin) footerAdmin.style.display = '';
+                }
+                var navLoginWrap = document.getElementById('navLoginWrap');
+                var navUserWrap = document.getElementById('navUserWrap');
+                if (navLoginWrap) navLoginWrap.style.display = 'none';
+                if (navUserWrap) navUserWrap.style.display = '';
+                var emailEl = document.getElementById('navUserEmail');
+                if (emailEl && data.email) emailEl.textContent = data.email;
+              })
+              .catch(function() {});
           })
-          .catch(function() {
-            // If check fails, allow access to avoid blocking legitimate users
-          });
-      })
-      .catch(function() {
-        // Can't reach server — redirect to login
-        window.location.href = LOGIN_URL;
-      });
-  })();
-  </script>
+          .catch(function() {});
+      })();
+    </script>
+    <!-- Confirm logout modal -->
+    <div class="modal fade" id="logoutConfirmModal" tabindex="-1" aria-labelledby="logoutConfirmLabel" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="logoutConfirmLabel">Log out</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">Are you sure you want to log out? You will need to sign in again to use Upload or Admin.</div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-primary" id="logoutConfirmBtn">Log out</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script>
+      (function() {
+        var AUTH_API = 'http://localhost:3000';
+        var LANDING_URL = (window.location.origin || 'http://localhost:3000') + '/html/front-pages/landing-page.html';
+        function doLogout() {
+          var btn = document.getElementById('logoutConfirmBtn');
+          if (btn) btn.disabled = true;
+          fetch(AUTH_API + '/api/auth/logout', { method: 'POST', credentials: 'include' })
+            .then(function() {
+              window.location.href = AUTH_API + '/api/auth/sign-out?callbackURL=' + encodeURIComponent(LANDING_URL);
+            })
+            .catch(function() {
+              window.location.href = LANDING_URL;
+            });
+        }
+        document.getElementById('navLogoutBtn').addEventListener('click', function() {
+          var modal = new bootstrap.Modal(document.getElementById('logoutConfirmModal'));
+          modal.show();
+          document.getElementById('logoutConfirmBtn').onclick = function() { doLogout(); };
+        });
+      })();
+    </script>
 
     <!-- Load showcase tiles from API (admin-managed); fallback = static tiles above -->
     <script>

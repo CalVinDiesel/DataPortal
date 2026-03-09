@@ -48,6 +48,7 @@
               <p class="text-body small">Sign in with your account, or create one if you're new.</p>
             </div>
 
+            <div id="loginAuthError" class="alert alert-warning small py-2 mb-3 d-none" role="alert"></div>
             <div class="d-grid gap-2 mb-3">
               <a href="#" id="btnLoginGoogle" class="btn btn-google btn-social">
                 <i class="bx bxl-google icon-base" style="font-size: 1.25rem;"></i>
@@ -70,7 +71,12 @@
 
               <div class="mb-3">
                 <label class="form-label" for="loginPassword">Password <span class="text-danger">*</span></label>
-                <input type="password" class="form-control" id="loginPassword" name="loginPassword" placeholder="Password" autocomplete="current-password">
+                <div class="position-relative">
+                  <input type="password" class="form-control pe-5" id="loginPassword" name="loginPassword" placeholder="Password" autocomplete="current-password">
+                  <button type="button" class="btn btn-link position-absolute end-0 top-50 translate-middle-y text-body p-0 pe-2" id="loginPasswordToggle" aria-label="Show password" title="Show password">
+                    <i class="bx bx-show-alt icon-lg"></i>
+                  </button>
+                </div>
                 <div class="invalid-feedback">Please enter your password.</div>
               </div>
 
@@ -103,12 +109,39 @@
     var AUTH_MICROSOFT_URL = 'http://localhost:3000/auth/microsoft/login';
     var AUTH_API = 'http://localhost:3000';
 
-    // Show message if user cancelled Google/Microsoft login
+    // Password show/hide toggle
+    (function() {
+      var input = document.getElementById('loginPassword');
+      var btn = document.getElementById('loginPasswordToggle');
+      var icon = btn ? btn.querySelector('i') : null;
+      if (btn && input && icon) {
+        btn.addEventListener('click', function() {
+          var isPass = input.type === 'password';
+          input.type = isPass ? 'text' : 'password';
+          icon.className = isPass ? 'bx bx-hide icon-lg' : 'bx bx-show-alt icon-lg';
+          btn.setAttribute('aria-label', isPass ? 'Hide password' : 'Show password');
+          btn.setAttribute('title', isPass ? 'Hide password' : 'Show password');
+        });
+      }
+    })();
+
+    // Show message if user cancelled Google/Microsoft login or email not registered
     var urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('error') === 'cancelled') {
+    var authError = urlParams.get('auth_error');
+    var errMsg = urlParams.get('error') === 'cancelled' ? 'Login was cancelled. Please try again.' : null;
+    if (authError === 'email_not_registered') {
+      errMsg = 'This email is not registered with the Data Portal. Use the same email you used when you registered (e.g. sign in with Google if you registered with Google), or register first.';
+    }
+    if (errMsg) {
       var msg = document.getElementById('loginMessage');
-      msg.className = 'small mt-2 mb-0 text-center text-warning';
-      msg.textContent = 'Login was cancelled. Please try again.';
+      var alertEl = document.getElementById('loginAuthError');
+      if (alertEl) {
+        alertEl.textContent = errMsg;
+        alertEl.classList.remove('d-none');
+      } else if (msg) {
+        msg.className = 'small mt-2 mb-0 text-center text-warning';
+        msg.textContent = errMsg;
+      }
     }
 
     document.getElementById('btnLoginGoogle').addEventListener('click', function (e) {
