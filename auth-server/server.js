@@ -52,8 +52,8 @@ function usePgUsers() {
   return !!process.env.PG_DATABASE && typeof pgQuery === 'function';
 }
 
-/** Get role for an email. Uses DataPortalUsers when PG is set (with users.json fallback), else users.json only. Returns "admin" or "client".
- *  When multiple rows exist (same email, different case), prefer the one with role='admin'. */
+/** Get role for an email. Uses DataPortalUsers when PG is set (with users.json fallback), else users.json only.
+ *  Returns "admin" | "subscriber" | "client". Prefer admin, then subscriber, then client. */
 async function getRoleForEmailAsync(email) {
   if (!email) return 'client';
   const emailNorm = String(email).trim().toLowerCase();
@@ -62,21 +62,28 @@ async function getRoleForEmailAsync(email) {
     try {
       const r = await pgQuery(
         `SELECT role FROM public."DataPortalUsers" WHERE LOWER(email) = $1
-         ORDER BY (role = 'admin') DESC NULLS LAST, id LIMIT 1`,
+         ORDER BY (role = 'admin') DESC, (role = 'subscriber') DESC NULLS LAST, id LIMIT 1`,
         [emailNorm]
       );
       const role = r?.rows?.[0]?.role;
-      if (role !== undefined && role !== null) return (role === 'admin') ? 'admin' : 'client';
+      if (role !== undefined && role !== null) {
+        if (role === 'admin') return 'admin';
+        if (role === 'subscriber') return 'subscriber';
+        return 'client';
+      }
     } catch (e) {
       console.error('getRoleForEmail PG', e);
     }
-    // Fallback: PG had no row or error — check users.json so admin in JSON still works
   }
 
   try {
     const users = readUsers();
     const u = users.find(x => (x.email || '').toLowerCase() === emailNorm);
-    return (u && (u.role === 'admin')) ? 'admin' : 'client';
+    if (u) {
+      if (u.role === 'admin') return 'admin';
+      if (u.role === 'subscriber') return 'subscriber';
+    }
+    return 'client';
   } catch (e) {
     console.error('getRoleForEmailAsync fallback readUsers', e);
     return 'client';
@@ -88,7 +95,10 @@ function getRoleForEmail(email) {
   if (!email) return 'client';
   const users = readUsers();
   const u = users.find(x => (x.email || '').toLowerCase() === String(email).toLowerCase());
-  return (u && (u.role === 'admin')) ? 'admin' : 'client';
+  if (!u) return 'client';
+  if (u.role === 'admin') return 'admin';
+  if (u.role === 'subscriber') return 'subscriber';
+  return 'client';
 }
 
 /** Get all users for admin list / register check / login. From DataPortalUsers when PG, else users.json. */
@@ -103,7 +113,7 @@ async function getUsersAsync() {
         name: row.name || '',
         username: row.username || '',
         contactNumber: row.contact_number || '',
-        role: row.role === 'admin' ? 'admin' : 'client',
+        role: row.role === 'admin' ? 'admin' : (row.role === 'subscriber' ? 'subscriber' : 'client'),
         provider: row.provider || 'local',
         passwordHash: row.password_hash,
       }));
@@ -125,7 +135,7 @@ async function insertUserPG(user) {
       (user.name || '').trim() || null,
       (user.username || '').trim() || null,
       (user.contactNumber || '').trim() || null,
-      user.role === 'admin' ? 'admin' : 'client',
+      (user.role === 'admin' ? 'admin' : (user.role === 'subscriber' ? 'subscriber' : 'client')),
       user.provider || 'local',
       user.passwordHash || null,
     ]
@@ -167,7 +177,7 @@ async function upsertUserPG(user) {
       (user.name || '').trim() || null,
       (user.username || '').trim() || null,
       (user.contactNumber || '').trim() || null,
-      user.role === 'admin' ? 'admin' : 'client',
+      (user.role === 'admin' ? 'admin' : (user.role === 'subscriber' ? 'subscriber' : 'client')),
       user.provider || 'local',
     ]
   );
@@ -347,13 +357,14 @@ app.get("/api/auth/me", async (req, res) => {
 });
 
 // ---- Google: start OAuth by calling our Better Auth sign-in endpoint (so cookies are set), then forward redirect to browser ----
-const googleCallbackDoneUrl = `${baseURL}/api/auth/google-callback-done?then=${encodeURIComponent(FRONT_END_URL)}`;
 const googleCallbackRegisterUrl = `${baseURL}/api/auth/google-callback-done?flow=register&then=${encodeURIComponent('http://localhost:3000/html/front-pages/register.html')}`;
 app.get("/api/auth/google", async (req, res) => {
   if (!googleClientId || !googleClientSecret) {
     return res.status(503).send("Google OAuth not configured.");
   }
   const flow = req.query.flow || 'login';
+  const thenUrl = (req.query.then || '').trim() || FRONT_END_URL;
+  const googleCallbackDoneUrl = `${baseURL}/api/auth/google-callback-done?then=${encodeURIComponent(thenUrl)}`;
   const callbackUrl = flow === 'register' ? googleCallbackRegisterUrl : googleCallbackDoneUrl;
   res.send(`
     <html><body><script>
@@ -510,15 +521,50 @@ app.post("/api/auth/login", express.json(), async (req, res) => {
   if (!bcrypt.compareSync(password, user.passwordHash)) {
     return res.status(401).json({ success: false, message: 'Invalid email or password.' });
   }
-  const role = (user.role === 'admin') ? 'admin' : 'client';
+  const role = (user.role === 'admin') ? 'admin' : (user.role === 'subscriber' ? 'subscriber' : 'client');
   req.session.user = { provider: "local", email: user.email, name: user.name, role };
   res.json({ success: true, redirect: FRONT_END_URL });
+});
+
+// ─── Subscriber: check if email is client (for upgrade flow), upgrade client to subscriber ───
+app.get("/api/auth/check-client", async (req, res) => {
+  const email = (req.query.email || '').trim().toLowerCase();
+  if (!email) return res.status(400).json({ success: false, isClient: false, message: 'Email is required.' });
+  try {
+    const users = await getUsersAsync();
+    const u = users.find(x => (x.email || '').toLowerCase() === email);
+    const isClient = !!u && (u.role === 'client' || u.role === 'subscriber' || u.role === 'admin');
+    return res.json({ success: true, isClient, role: u ? u.role : null });
+  } catch (e) {
+    console.error('check-client', e);
+    return res.status(500).json({ success: false, isClient: false });
+  }
+});
+
+app.post("/api/auth/upgrade-to-subscriber", express.json(), async (req, res) => {
+  const email = (req.body.email || '').trim().toLowerCase();
+  if (!email) return res.status(400).json({ success: false, message: 'Email is required.' });
+  if (!usePgUsers()) return res.status(503).json({ success: false, message: 'Subscriber upgrade requires PostgreSQL.' });
+  try {
+    const users = await getUsersAsync();
+    const u = users.find(x => (x.email || '').toLowerCase() === email);
+    if (!u) return res.status(400).json({ success: false, message: 'No account found with this email. Create a client account first.' });
+    if (u.role === 'admin') return res.status(400).json({ success: false, message: 'Admins do not need to upgrade to subscriber.' });
+    if (u.role === 'subscriber') return res.json({ success: true, message: 'You are already a subscriber.' });
+    const updated = await updateUserRolePG(email, 'subscriber');
+    if (!updated) return res.status(500).json({ success: false, message: 'Upgrade failed.' });
+    return res.json({ success: true, message: 'You are now a subscriber. You can upload raw data and purchase 3D models.' });
+  } catch (e) {
+    console.error('upgrade-to-subscriber', e);
+    return res.status(500).json({ success: false, message: 'Upgrade failed.' });
+  }
 });
 
 // ─── Microsoft OAuth ──────────────────────────────────────────────────────────
 app.get("/auth/microsoft/login", async (req, res) => {
   try {
     req.session.msFlow = req.query.flow || 'login';
+    if ((req.query.then || '').trim()) req.session.msThenUrl = req.query.then.trim();
     const { authUrl, state } = await getMicrosoftAuthUrl();
     req.session.msState = state; // save state for callback verification
     console.log("MS Flow set to:", req.session.msFlow);
@@ -584,10 +630,12 @@ app.get("/auth/microsoft/callback", async (req, res) => {
       try {
         const r = await pgQuery(
           `SELECT role FROM public."DataPortalUsers" WHERE LOWER(email) = $1
-           ORDER BY (role = 'admin') DESC NULLS LAST, id LIMIT 1`,
+           ORDER BY (role = 'admin') DESC, (role = 'subscriber') DESC NULLS LAST, id LIMIT 1`,
           [emailNorm]
         );
-        if (r?.rows?.[0]?.role === 'admin') role = 'admin';
+        const dbRole = r?.rows?.[0]?.role;
+        if (dbRole === 'admin') role = 'admin';
+        else if (dbRole === 'subscriber') role = 'subscriber';
       } catch (e) {
         console.error('Microsoft callback get role', e);
       }
@@ -609,16 +657,17 @@ app.get("/auth/microsoft/callback", async (req, res) => {
         return res.redirect(FRONT_END_URL + "?auth_error=session_failed");
       }
       const flowSaved = req.session.msFlow || 'login';
+      const thenUrl = req.session.msThenUrl;
       req.session.msFlow = null;
-    
+      req.session.msThenUrl = null;
+
       if (flowSaved === 'register') {
-        // Send back to register page with pre-filled details
         return res.redirect(
           `http://localhost:3000/html/front-pages/register.html?logged_in=1&email=${encodeURIComponent(dbUser.email)}&name=${encodeURIComponent(dbUser.name || '')}&provider=microsoft`
         );
       }
-      // Normal login flow — go to landing page
-      const url = new URL(FRONT_END_URL);
+      var base = (thenUrl && thenUrl.indexOf('http') === 0) ? thenUrl : FRONT_END_URL;
+      const url = new URL(base);
       url.searchParams.set("logged_in", "1");
       url.searchParams.set("email", dbUser.email);
       res.redirect(url.toString());

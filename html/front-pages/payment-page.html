@@ -110,7 +110,17 @@
   <script type="text/javascript" src="https://a.omappapi.com/app/js/api.min.js" async="" data-user="252882" data-account="269977"></script><link rel="stylesheet" href="https://a.omappapi.com/app/js/api.min.css" id="omapi-css" media="all"></head>
 
   <body style="--bs-scrollbar-width: 16px;">
-    
+    <script>
+      (function() {
+        var AUTH_API = (window.TemaDataPortal_API_BASE || window.location.origin || 'http://localhost:3000');
+        var LANDING = (window.location.origin || 'http://localhost:3000') + '/html/front-pages/landing-page.html';
+        fetch(AUTH_API + '/api/auth/me', { credentials: 'include' }).then(function(r) { return r.json(); }).then(function(d) {
+          if (!d.loggedIn || (d.role !== 'subscriber' && d.role !== 'admin')) {
+            window.location.href = LANDING + (d.loggedIn ? '?message=subscriber_required' : '');
+          }
+        }).catch(function() {});
+      })();
+    </script>
       <!-- ?PROD Only: Google Tag Manager (noscript) (Default ThemeSelection: GTM-5DDHKGP, PixInvent: GTM-5J3LMKC) -->
       <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-5DDHKGP" height="0" width="0" style="display: none; visibility: hidden"></iframe></noscript>
       <!-- End Google Tag Manager (noscript) -->

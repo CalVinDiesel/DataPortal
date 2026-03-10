@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en" class="layout-navbar-fixed layout-wide" dir="ltr" data-assets-path="../../assets/" data-template="front-pages" data-bs-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Register as subscriber | TemaDigital Data Portal</title>
+  <link rel="icon" type="image/x-icon" href="../../assets/img/favicon/favicon.ico">
+  <link rel="stylesheet" href="../../assets/vendor/css/core.css">
+  <link rel="stylesheet" href="../../assets/css/demo.css">
+  <link rel="stylesheet" href="../../assets/vendor/css/pages/front-page.css">
+  <script src="../../assets/vendor/js/helpers.js"></script>
+  <script src="../../assets/js/front-config.js"></script>
+</head>
+<body class="min-vh-100 d-flex flex-column">
+  <nav class="layout-navbar shadow-none py-0">
+    <div class="container">
+      <div class="navbar navbar-expand-lg landing-navbar px-3">
+        <a href="landing-page.html" class="app-brand-link d-flex align-items-center">
+          <span class="app-brand-text demo menu-text fw-bold">Temadigital</span>
+        </a>
+        <div class="ms-auto">
+          <a href="landing-page.html" class="btn btn-outline-primary btn-sm">Back to Home</a>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <div class="flex-grow-1 d-flex align-items-center">
+  <div class="container py-5">
+    <div class="row justify-content-center">
+      <div class="col-md-6 col-lg-5">
+        <div class="card shadow">
+          <div class="card-body p-4 p-sm-5">
+            <div class="text-center mb-4">
+              <h4 class="mb-1">Register as subscriber</h4>
+              <p class="text-body small">You must have a client account first. Enter your email to verify, then upgrade to subscriber.</p>
+            </div>
+
+            <div id="subscriberMessage" class="alert d-none mb-3" role="alert"></div>
+            <div id="stepVerify">
+              <div class="mb-3">
+                <label class="form-label" for="subscriberEmail">Your email (client account) <span class="text-danger">*</span></label>
+                <input type="email" class="form-control" id="subscriberEmail" placeholder="your@email.com" autocomplete="email">
+                <div class="invalid-feedback">Please enter your email.</div>
+              </div>
+              <div class="d-grid">
+                <button type="button" id="btnVerifyEmail" class="btn btn-primary">Verify and continue</button>
+              </div>
+            </div>
+            <div id="stepUpgrade" style="display:none;">
+              <p class="text-success small mb-2" id="verifiedEmailText"></p>
+              <div class="d-grid">
+                <button type="button" id="btnUpgrade" class="btn btn-primary">Upgrade to subscriber</button>
+              </div>
+            </div>
+
+            <hr class="my-4">
+            <div class="text-center small">
+              Already a subscriber? <a href="subscriber-login.html" class="fw-medium">Log in</a><br>
+              Need a client account first? <a href="register.html">Register</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  </div>
+
+  <script src="../../assets/vendor/libs/jquery/jquery.js"></script>
+  <script src="../../assets/vendor/js/bootstrap.js"></script>
+  <script>
+    var AUTH_API = 'http://localhost:3000';
+    function msg(el, text, isError) {
+      if (!el) return;
+      el.textContent = text;
+      el.className = 'alert alert-' + (isError ? 'danger' : 'success') + ' mb-3';
+      el.classList.remove('d-none');
+    }
+    document.getElementById('btnVerifyEmail').addEventListener('click', function() {
+      var btn = this;
+      var email = (document.getElementById('subscriberEmail').value || '').trim().toLowerCase();
+      var stepVerify = document.getElementById('stepVerify');
+      var stepUpgrade = document.getElementById('stepUpgrade');
+      var msgEl = document.getElementById('subscriberMessage');
+      var emailInput = document.getElementById('subscriberEmail');
+      if (!email) {
+        emailInput.classList.add('is-invalid');
+        return;
+      }
+      emailInput.classList.remove('is-invalid');
+      msgEl.classList.add('d-none');
+      btn.disabled = true;
+      fetch(AUTH_API + '/api/auth/check-client?email=' + encodeURIComponent(email), { credentials: 'include' })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          if (data.isClient && data.role === 'subscriber') {
+            msg(msgEl, 'This email is already a subscriber. Go to subscriber login.', false);
+            stepUpgrade.style.display = 'block';
+            stepVerify.style.display = 'none';
+            document.getElementById('verifiedEmailText').textContent = 'Already a subscriber.';
+            document.getElementById('btnUpgrade').style.display = 'none';
+          } else if (data.isClient && data.role === 'client') {
+            stepVerify.style.display = 'none';
+            document.getElementById('verifiedEmailText').textContent = 'Verified: ' + email + '. Click below to upgrade.';
+            stepUpgrade.style.display = 'block';
+          } else if (data.isClient && data.role === 'admin') {
+            msg(msgEl, 'Admins do not need to register as subscriber.', false);
+          } else {
+            msg(msgEl, 'No client account found with this email. Create a client account first, then return here.', true);
+          }
+          btn.disabled = false;
+        })
+        .catch(function() {
+          msg(msgEl, 'Cannot reach server.', true);
+          btn.disabled = false;
+        });
+    });
+
+    document.getElementById('btnUpgrade').addEventListener('click', function() {
+      var btn = this;
+      var email = (document.getElementById('subscriberEmail').value || '').trim().toLowerCase();
+      var msgEl = document.getElementById('subscriberMessage');
+      btn.disabled = true;
+      fetch(AUTH_API + '/api/auth/upgrade-to-subscriber', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email }),
+        credentials: 'include'
+      })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          if (data.success) {
+            msg(msgEl, data.message + ' You can now log in as subscriber.', false);
+            document.getElementById('stepUpgrade').style.display = 'none';
+            setTimeout(function() { window.location.href = 'subscriber-login.html'; }, 2000);
+          } else {
+            msg(msgEl, data.message || 'Upgrade failed.', true);
+            btn.disabled = false;
+          }
+        })
+        .catch(function() {
+          msg(msgEl, 'Cannot reach server.', true);
+          btn.disabled = false;
+        });
+    });
+  </script>
+</body>
+</html>

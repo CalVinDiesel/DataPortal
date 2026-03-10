@@ -364,6 +364,7 @@
         </li>
         <li id="navUserWrap" style="display:none;">
           <span class="navbar-text text-body me-2 d-none d-md-inline" id="navUserEmail"></span>
+          <a href="subscriber-login.html" id="navSubscriberBtn" class="btn btn-outline-primary me-2" style="display:none;"><span class="d-none d-md-inline">Subscribe</span><span class="d-md-none">Subscribe</span></a>
           <button type="button" id="navLogoutBtn" class="btn btn-outline-secondary"><span class="tf-icons icon-base bx bx-log-out me-1"></span><span class="d-none d-md-inline">Log out</span></button>
         </li>
         <!-- navbar button: End -->
@@ -973,7 +974,7 @@
                   </li>-->
                 </ul>
                 <div class="d-grid mt-8">
-                  <a href="payment-page.html" class="btn btn-primary">Get Started</a>
+                  <button type="button" class="btn btn-primary" id="pricingSubscribeBtn">Subscribe</button>
                 </div>
               </div>
             </div>
@@ -1043,7 +1044,7 @@
                   </li>-->
                 </ul>
                 <div class="d-grid mt-8">
-                  <a href="payment-page.html" class="btn btn-label-primary">Get Started</a>
+                  <a href="payment-page.html" class="btn btn-label-primary">Purchase/Reload</a>
                 </div>
               </div>
             </div>
@@ -1509,6 +1510,8 @@
         fetch(AUTH_API + '/api/auth/me', { credentials: 'include' })
           .then(function(r) { return r.json(); })
           .then(function(data) {
+            window.__authLoggedIn = !!data.loggedIn;
+            window.__authRole = data.role || 'client';
             if (!data.loggedIn) return;
             fetch(AUTH_API + '/api/auth/check-registered', { credentials: 'include' })
               .then(function(r) { return r.json(); })
@@ -1521,13 +1524,19 @@
                   return;
                 }
                 var navUpload = document.getElementById('navUpload');
-                if (navUpload) navUpload.style.display = '';
+                if (data.role === 'subscriber' || data.role === 'admin') {
+                  if (navUpload) navUpload.style.display = '';
+                } else {
+                  if (navUpload) navUpload.style.display = 'none';
+                }
                 if (data.role === 'admin') {
                   var navAdmin = document.getElementById('navAdmin');
                   if (navAdmin) navAdmin.style.display = '';
                   var footerAdmin = document.getElementById('footerAdmin');
                   if (footerAdmin) footerAdmin.style.display = '';
                 }
+                var navSubscriberBtn = document.getElementById('navSubscriberBtn');
+                if (navSubscriberBtn) navSubscriberBtn.style.display = data.role === 'client' ? '' : 'none';
                 var navLoginWrap = document.getElementById('navLoginWrap');
                 var navUserWrap = document.getElementById('navUserWrap');
                 if (navLoginWrap) navLoginWrap.style.display = 'none';
@@ -1540,6 +1549,66 @@
           .catch(function() {});
       })();
     </script>
+    <script>
+      (function() {
+        var AUTH_API = 'http://localhost:3000';
+        document.addEventListener('DOMContentLoaded', function() {
+          var btn = document.getElementById('pricingSubscribeBtn');
+          if (!btn) return;
+          btn.addEventListener('click', function() {
+            var loggedIn = window.__authLoggedIn;
+            var role = window.__authRole || 'client';
+            if (!loggedIn) {
+              var modal = new bootstrap.Modal(document.getElementById('subscribeVisitorModal'));
+              modal.show();
+              return;
+            }
+            if (role === 'client') {
+              var modal = new bootstrap.Modal(document.getElementById('subscribeClientModal'));
+              modal.show();
+              return;
+            }
+            window.location.href = 'payment-page.html';
+          });
+        });
+      })();
+    </script>
+    <!-- Subscribe modal: visitor (not logged in) -->
+    <div class="modal fade" id="subscribeVisitorModal" tabindex="-1" aria-labelledby="subscribeVisitorLabel" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="subscribeVisitorLabel">Subscribe</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <p class="mb-0">To subscribe, you need a Data Portal account. Create an account to become a client first, or log in if you already have an account. Then click Subscribe again.</p>
+          </div>
+          <div class="modal-footer">
+            <a href="register.html" class="btn btn-label-primary">Create account</a>
+            <a href="login.html" class="btn btn-primary">Log in</a>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Subscribe modal: client (logged in, not subscriber) -->
+    <div class="modal fade" id="subscribeClientModal" tabindex="-1" aria-labelledby="subscribeClientLabel" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="subscribeClientLabel">Subscribe</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <p class="mb-0">Do you have a subscriber account? If not, register as a subscriber now. If yes, log in with your subscriber account.</p>
+          </div>
+          <div class="modal-footer">
+            <a href="subscriber-register.html" class="btn btn-label-primary">Register as subscriber</a>
+            <a href="subscriber-login.html" class="btn btn-primary">Log in as subscriber</a>
+          </div>
+        </div>
+      </div>
+    </div>
     <!-- Confirm logout modal -->
     <div class="modal fade" id="logoutConfirmModal" tabindex="-1" aria-labelledby="logoutConfirmLabel" aria-hidden="true">
       <div class="modal-dialog modal-dialog-centered">

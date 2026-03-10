@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en" class="layout-navbar-fixed layout-wide" dir="ltr" data-assets-path="../../assets/" data-template="front-pages" data-bs-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Subscriber login | TemaDigital Data Portal</title>
+  <link rel="icon" type="image/x-icon" href="../../assets/img/favicon/favicon.ico">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Public+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&amp;display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../assets/vendor/fonts/iconify-icons.css">
+  <link rel="stylesheet" href="../../assets/vendor/css/core.css">
+  <link rel="stylesheet" href="../../assets/css/demo.css">
+  <link rel="stylesheet" href="../../assets/vendor/css/pages/front-page.css">
+  <script src="../../assets/vendor/js/helpers.js"></script>
+  <script src="../../assets/js/front-config.js"></script>
+  <style>
+    .btn-google { background-color: #fff; color: #3c4043; border: 1px solid #dadce0; }
+    .btn-google:hover { background-color: #f8f9fa; border-color: #dadce0; color: #3c4043; }
+    .btn-social { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.625rem 1.25rem; font-weight: 500; }
+  </style>
+</head>
+<body class="min-vh-100 d-flex flex-column">
+  <nav class="layout-navbar shadow-none py-0">
+    <div class="container">
+      <div class="navbar navbar-expand-lg landing-navbar px-3">
+        <a href="landing-page.html" class="app-brand-link d-flex align-items-center">
+          <span class="app-brand-logo demo">
+            <img src="../../assets/img/front-pages/landing-page/temadigital_logo.png" alt="TemaDigital" style="height: 40px; display: block;">
+          </span>
+          <span class="app-brand-text demo menu-text fw-bold ms-2 ps-1">Temadigital</span>
+        </a>
+        <div class="ms-auto">
+          <a href="landing-page.html" class="btn btn-outline-primary btn-sm">Back to Home</a>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <div class="flex-grow-1 d-flex align-items-center">
+  <div class="container py-5">
+    <div class="row justify-content-center">
+      <div class="col-md-6 col-lg-5">
+        <div class="card shadow">
+          <div class="card-body p-4 p-sm-5">
+            <div class="text-center mb-4">
+              <h4 class="mb-1">Subscriber login</h4>
+              <p class="text-body small">Sign in with your subscriber account to upload raw data and purchase 3D models.</p>
+            </div>
+
+            <div id="loginAuthError" class="alert alert-warning small py-2 mb-3 d-none" role="alert"></div>
+            <div id="subscriberLoginWrap">
+              <div class="d-grid gap-2 mb-3">
+                <a href="#" id="btnLoginGoogle" class="btn btn-google btn-social">
+                  <svg width="20" height="20" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.16 7.09-10.27 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+                  Log in with Google
+                </a>
+                <a href="#" id="btnLoginMicrosoft" class="btn btn-social" style="background-color:#fff; color:#3c4043; border:1px solid #dadce0;">
+                  <img src="https://learn.microsoft.com/en-us/entra/identity-platform/media/howto-add-branding-in-apps/ms-symbollockup_mssymbol_19.png" alt="Microsoft" width="18" height="18">
+                  Log in with Microsoft
+                </a>
+              </div>
+              <p class="small text-body text-center mb-3">— or log in with email and password —</p>
+              <form id="loginForm" novalidate>
+                <div class="mb-3">
+                  <label class="form-label" for="loginUsername">Email <span class="text-danger">*</span></label>
+                  <input type="email" class="form-control" id="loginUsername" name="loginUsername" placeholder="your@email.com" autocomplete="email">
+                  <div class="invalid-feedback">Please enter your email.</div>
+                </div>
+                <div class="mb-3">
+                  <label class="form-label" for="loginPassword">Password <span class="text-danger">*</span></label>
+                  <div class="position-relative">
+                    <input type="password" class="form-control pe-5" id="loginPassword" name="loginPassword" placeholder="Password" autocomplete="current-password">
+                    <button type="button" class="btn btn-link position-absolute end-0 top-50 translate-middle-y text-body p-0 pe-2" id="loginPasswordToggle" aria-label="Show password"><i class="bx bx-show-alt icon-lg"></i></button>
+                  </div>
+                  <div class="invalid-feedback">Please enter your password.</div>
+                </div>
+                <p id="loginMessage" class="small mt-2 mb-0 text-center"></p>
+                <div class="d-grid gap-2 mt-4">
+                  <button type="submit" id="loginBtn" class="btn btn-primary">Log in</button>
+                </div>
+              </form>
+            </div>
+
+            <hr class="my-4">
+            <div class="text-center small">
+              Not a subscriber yet? <a href="subscriber-register.html" class="fw-medium">Register as subscriber</a><br>
+              <a href="login.html" class="text-body">Normal client login</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  </div>
+
+  <script src="../../assets/vendor/libs/jquery/jquery.js"></script>
+  <script src="../../assets/vendor/libs/popper/popper.js"></script>
+  <script src="../../assets/vendor/js/bootstrap.js"></script>
+  <script>
+    var AUTH_API = 'http://localhost:3000';
+    var SUBSCRIBER_LOGIN_URL = (window.location.origin || 'http://localhost:3000') + '/html/front-pages/subscriber-login.html';
+    var AUTH_GOOGLE_URL = AUTH_API + '/api/auth/google?then=' + encodeURIComponent(SUBSCRIBER_LOGIN_URL);
+    var AUTH_MICROSOFT_URL = AUTH_API + '/auth/microsoft/login?then=' + encodeURIComponent(SUBSCRIBER_LOGIN_URL);
+    var LANDING_URL = (window.location.origin || 'http://localhost:3000') + '/html/front-pages/landing-page.html';
+
+    function checkRoleAndRedirect() {
+      return fetch(AUTH_API + '/api/auth/me', { credentials: 'include' }).then(function(r) { return r.json(); })
+        .then(function(data) {
+          if (!data.loggedIn) return { role: null };
+          return { role: data.role || 'client', email: data.email };
+        });
+    }
+
+    (function() {
+      var alertEl = document.getElementById('loginAuthError');
+      var wrap = document.getElementById('subscriberLoginWrap');
+      checkRoleAndRedirect().then(function(o) {
+        if (o.role === 'subscriber' || o.role === 'admin') {
+          window.location.href = LANDING_URL;
+          return;
+        }
+        if (o.role === 'client') {
+          if (alertEl) {
+            alertEl.textContent = 'You are logged in as a client. Upgrade to subscriber to upload raw data and purchase 3D models.';
+            alertEl.classList.remove('d-none');
+          }
+        }
+      });
+    })();
+
+    document.getElementById('btnLoginGoogle').addEventListener('click', function(e) { e.preventDefault(); window.location.href = AUTH_GOOGLE_URL; });
+    document.getElementById('btnLoginMicrosoft').addEventListener('click', function(e) { e.preventDefault(); window.location.href = AUTH_MICROSOFT_URL; });
+
+    var urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('auth_error') === 'email_not_registered') {
+      var ae = document.getElementById('loginAuthError');
+      if (ae) { ae.textContent = 'This email is not registered. Create a client account first, then register as subscriber.'; ae.classList.remove('d-none'); }
+    }
+
+    document.getElementById('loginForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      var emailEl = document.getElementById('loginUsername');
+      var passEl = document.getElementById('loginPassword');
+      var msg = document.getElementById('loginMessage');
+      var btn = document.getElementById('loginBtn');
+      msg.textContent = '';
+      msg.className = 'small mt-2 mb-0 text-center';
+      if (!emailEl.value.trim() || !passEl.value.trim()) {
+        emailEl.classList.toggle('is-invalid', !emailEl.value.trim());
+        passEl.classList.toggle('is-invalid', !passEl.value.trim());
+        return;
+      }
+      btn.disabled = true;
+      fetch(AUTH_API + '/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: emailEl.value.trim(), password: passEl.value }),
+        credentials: 'include'
+      })
+        .then(function(r) { return r.json().then(function(j) { return { status: r.status, body: j }; }); })
+        .then(function(x) {
+          if (!x.body.success) {
+            msg.className = 'small mt-2 mb-0 text-center text-danger';
+            msg.textContent = x.body.message || 'Invalid email or password.';
+            btn.disabled = false;
+            return;
+          }
+          return checkRoleAndRedirect().then(function(o) {
+            if (o.role === 'subscriber' || o.role === 'admin') {
+              window.location.href = LANDING_URL;
+              return;
+            }
+            if (o.role === 'client') {
+              msg.className = 'small mt-2 mb-0 text-center text-warning';
+              msg.textContent = 'You are a client. Upgrade to subscriber to access upload and purchase.';
+            } else {
+              msg.className = 'small mt-2 mb-0 text-center text-warning';
+              msg.textContent = 'No subscriber account for this email. Register as subscriber or use a different account.';
+            }
+            btn.disabled = false;
+          });
+        })
+        .catch(function() {
+          msg.className = 'small mt-2 mb-0 text-center text-danger';
+          msg.textContent = 'Cannot reach server. Is the auth server running?';
+          btn.disabled = false;
+        });
+    });
+  </script>
+</body>
+</html>
