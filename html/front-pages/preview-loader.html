@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Public+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="../../assets/vendor/css/core.css">
+    <style>
+        body {
+            font-family: 'Public Sans', sans-serif;
+            padding: 50px;
+            background: #f5f5f9;
+        }
+
+        .premium-loading-panel {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(105, 108, 255, 0.15);
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: 0 8px 32px rgba(105, 108, 255, 0.08);
+            position: relative;
+            overflow: hidden;
+            max-width: 500px;
+        }
+
+        .premium-loading-panel::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, #696cff, #03c3ec);
+            animation: gradientShift 3s ease infinite;
+            background-size: 200% 200%;
+        }
+
+        @keyframes gradientShift {
+            0% {
+                background-position: 0% 50%;
+            }
+
+            50% {
+                background-position: 100% 50%;
+            }
+
+            100% {
+                background-position: 0% 50%;
+            }
+        }
+
+        .pulsing-orbit {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            border: 3px solid rgba(105, 108, 255, 0.2);
+            border-top-color: #696cff;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .loading-steps {
+            padding-left: 0.5rem;
+        }
+
+        .loading-step {
+            display: flex;
+            align-items: center;
+            margin-bottom: 1.25rem;
+            color: #8592a3;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .loading-step:last-child {
+            margin-bottom: 0;
+        }
+
+        .step-indicator {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #e2e8f0;
+            margin-right: 16px;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            z-index: 2;
+        }
+
+        .loading-step::after {
+            content: '';
+            position: absolute;
+            left: 9px;
+            top: 24px;
+            width: 2px;
+            height: calc(100% - 4px);
+            background: #e2e8f0;
+            z-index: 1;
+            transition: all 0.3s ease;
+        }
+
+        .loading-step:last-child::after {
+            display: none;
+        }
+
+        .step-text {
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .loading-step.active {
+            color: #696cff;
+        }
+
+        .loading-step.active .step-indicator {
+            background: transparent;
+            border: 2px solid #696cff;
+        }
+
+        .loading-step.active .step-indicator::after {
+            content: '';
+            width: 8px;
+            height: 8px;
+            background: #696cff;
+            border-radius: 50%;
+            animation: pulseDot 1.5s infinite;
+        }
+
+        @keyframes pulseDot {
+            0% {
+                transform: scale(0.8);
+                opacity: 0.5;
+            }
+
+            50% {
+                transform: scale(1.2);
+                opacity: 1;
+                box-shadow: 0 0 8px rgba(105, 108, 255, 0.6);
+            }
+
+            100% {
+                transform: scale(0.8);
+                opacity: 0.5;
+            }
+        }
+
+        .loading-step.completed {
+            color: #71dd37;
+        }
+
+        .loading-step.completed .step-indicator {
+            background: #71dd37;
+        }
+
+        .loading-step.completed .step-indicator::after {
+            content: '✓';
+            color: white;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        .loading-step.completed::after {
+            background: #71dd37;
+        }
+
+        /* Utility classes needed for rendering since we don't load the full bootstrap */
+        .d-flex {
+            display: flex;
+        }
+
+        .align-items-center {
+            align-items: center;
+        }
+
+        .mb-4 {
+            margin-bottom: 1.5rem;
+        }
+
+        .me-3 {
+            margin-right: 1rem;
+        }
+
+        .m-0 {
+            margin: 0;
+        }
+
+        .fw-bold {
+            font-weight: 700;
+        }
+
+        .text-muted {
+            color: #8592a3;
+        }
+
+        .ms-2 {
+            margin-left: 0.5rem;
+        }
+
+        .fw-normal {
+            font-weight: 400;
+        }
+
+        .fs-tiny {
+            font-size: 0.75rem;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="premium-loading-panel">
+        <div class="d-flex align-items-center mb-4">
+            <div class="pulsing-orbit me-3"></div>
+            <h5 class="m-0 fw-bold" style="color: #696cff; letter-spacing: 0.5px;">Synthesizing Dataset...</h5>
+        </div>
+        <div class="loading-steps">
+            <div class="loading-step completed" id="loadStep1">
+                <div class="step-indicator"></div>
+                <span class="step-text">Analyzing image signatures</span>
+            </div>
+            <div class="loading-step active" id="loadStep2">
+                <div class="step-indicator"></div>
+                <span class="step-text">Extracting spatial metadata <span id="md5CountDisplay"
+                        class="text-muted ms-2 fs-tiny fw-normal">14 / 276</span></span>
+            </div>
+            <div class="loading-step" id="loadStep3">
+                <div class="step-indicator"></div>
+                <span class="step-text">Finalizing logical structures</span>
+            </div>
+        </div>
+    </div>
+
+</body>
+
+</html>

@@ -301,6 +301,11 @@
       border-bottom: 1px dashed rgba(0, 0, 0, 0.08);
       background: transparent;
       transition: background 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      /* allow wrapping on extreme squish */
     }
 
     .folder-list-item:last-child {
@@ -320,10 +325,13 @@
     }
 
     .folder-item-info {
-      flex-grow: 1;
+      flex: 1 1 auto;
+      /* Allow shrinking but prioritize taking space */
       display: flex;
       align-items: center;
       gap: 0.75rem;
+      min-width: 0;
+      /* Important constraint for text-overflow to work within flex child */
     }
 
     .folder-name {
@@ -470,33 +478,25 @@
           </div>
 
           <!-- Inline Loading State (Replaces Cards during reading) -->
-          <div id="inlineLoadingState" class="card shadow-none border mb-4 mt-2"
-            style="display: none; background: rgba(255,255,255,0.6);">
-            <div class="card-body p-4">
-              <h6 class="card-title text-primary mb-4 fw-bold"><i class='bx bx-loader-alt bx-spin me-2'></i> Reading
-                Dataset</h6>
-              <div class="loading-steps pl-2">
+          <div id="inlineLoadingState" class="mb-4 mt-2" style="display: none;">
+            <div class="premium-loading-panel">
+              <div class="d-flex align-items-center mb-4">
+                <div class="pulsing-orbit me-3"></div>
+                <h5 class="m-0 fw-bold" style="color: #696cff; letter-spacing: 0.5px;">Synthesizing Dataset...</h5>
+              </div>
+              <div class="loading-steps">
                 <div class="loading-step" id="loadStep1">
-                  <div class="step-icon">
-                    <span class="spinner-border text-primary" role="status"></span>
-                    <i class="bx bx-check"></i>
-                  </div>
-                  <span style="font-size: 0.95rem;">Analyzing image files</span>
+                  <div class="step-indicator"></div>
+                  <span class="step-text">Analyzing image signatures</span>
                 </div>
                 <div class="loading-step" id="loadStep2">
-                  <div class="step-icon">
-                    <span class="spinner-border text-primary" role="status"></span>
-                    <i class="bx bx-check"></i>
-                  </div>
-                  <span style="font-size: 0.95rem;">Reading EXIF & location <span id="md5CountDisplay"
-                      class="text-muted ms-1 fs-tiny"></span></span>
+                  <div class="step-indicator"></div>
+                  <span class="step-text">Extracting spatial metadata <span id="md5CountDisplay"
+                      class="text-muted ms-2 fs-tiny fw-normal"></span></span>
                 </div>
                 <div class="loading-step" id="loadStep3">
-                  <div class="step-icon">
-                    <span class="spinner-border text-primary" role="status"></span>
-                    <i class="bx bx-check"></i>
-                  </div>
-                  <span style="font-size: 0.95rem;">Preparing metadata</span>
+                  <div class="step-indicator"></div>
+                  <span class="step-text">Finalizing logical structures</span>
                 </div>
               </div>
             </div>
@@ -618,8 +618,8 @@
 
       <!-- Action Footer -->
       <div class="left-footer">
-        <a href="landing-page.html" class="btn btn-secondary text-white fw-medium border-0 px-4"
-          style="background:#8b9eb0;">Cancel</a>
+        <button type="button" id="btnCancelUpload" class="btn btn-secondary text-white fw-medium border-0 px-4"
+          style="background:#8b9eb0;" onclick="handleCancelClick()">Cancel</button>
         <button type="button" id="uploadPageLogoutBtn" class="btn btn-outline-secondary fw-medium px-3 ms-auto me-2"
           title="Log out and return to public landing page"><i class="bx bx-log-out me-1"></i>Log out</button>
         <button type="submit" form="uploadForm" class="btn btn-primary fw-medium px-4">Upload</button>
@@ -676,56 +676,205 @@
 
   <!-- Inline Loading Step Styles -->
   <style>
+    .premium-loading-panel {
+      background: rgba(255, 255, 255, 0.7);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(105, 108, 255, 0.15);
+      border-radius: 16px;
+      padding: 2rem;
+      box-shadow: 0 8px 32px rgba(105, 108, 255, 0.08);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .premium-loading-panel::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 4px;
+      background: linear-gradient(90deg, #696cff, #03c3ec);
+      animation: gradientShift 3s ease infinite;
+      background-size: 200% 200%;
+    }
+
+    @keyframes gradientShift {
+      0% {
+        background-position: 0% 50%;
+      }
+
+      50% {
+        background-position: 100% 50%;
+      }
+
+      100% {
+        background-position: 0% 50%;
+      }
+    }
+
+    .pulsing-orbit {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      border: 3px solid rgba(105, 108, 255, 0.2);
+      border-top-color: #696cff;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    /* Fallback in case Iconify doesn't bundle the spin animation */
+    .bx-spin {
+      animation: spin 2s linear infinite !important;
+      display: inline-block;
+    }
+
+    .loading-steps {
+      padding-left: 0.5rem;
+    }
+
     .loading-step {
       display: flex;
       align-items: center;
-      margin-bottom: 0.85rem;
-      color: #697a8d;
-      transition: color 0.3s;
+      margin-bottom: 1.25rem;
+      color: #8592a3;
+      transition: all 0.3s ease;
+      position: relative;
     }
 
+    .loading-step:last-child {
+      margin-bottom: 0;
+    }
+
+    .step-indicator {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #e2e8f0;
+      margin-right: 16px;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s ease;
+      z-index: 2;
+    }
+
+    .loading-step::after {
+      content: '';
+      position: absolute;
+      left: 9px;
+      top: 24px;
+      width: 2px;
+      height: calc(100% - 4px);
+      background: #e2e8f0;
+      z-index: 1;
+      transition: all 0.3s ease;
+    }
+
+    .loading-step:last-child::after {
+      display: none;
+    }
+
+    .step-text {
+      font-size: 1rem;
+      transition: all 0.3s ease;
+    }
+
+    /* Active State */
     .loading-step.active {
       color: #696cff;
-      font-weight: 500;
     }
 
+    .loading-step.active .step-indicator {
+      background: transparent;
+      border: 2px solid #696cff;
+    }
+
+    .loading-step.active .step-indicator::after {
+      content: '';
+      width: 8px;
+      height: 8px;
+      background: #696cff;
+      border-radius: 50%;
+      animation: pulseDot 1.5s infinite;
+    }
+
+    @keyframes pulseDot {
+      0% {
+        transform: scale(0.8);
+        opacity: 0.5;
+      }
+
+      50% {
+        transform: scale(1.2);
+        opacity: 1;
+        box-shadow: 0 0 8px rgba(105, 108, 255, 0.6);
+      }
+
+      100% {
+        transform: scale(0.8);
+        opacity: 0.5;
+      }
+    }
+
+    /* Completed State */
     .loading-step.completed {
       color: #71dd37;
     }
 
-    .step-icon {
-      width: 20px;
-      height: 20px;
-      margin-right: 12px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+    .loading-step.completed .step-indicator {
+      background: #71dd37;
     }
 
-    .step-icon .bx-check {
-      font-size: 1.25rem;
-      display: none;
+    .loading-step.completed .step-indicator::after {
+      content: '✓';
+      color: white;
+      font-size: 14px;
+      font-weight: bold;
     }
 
-    .step-icon .spinner-border {
-      display: none;
-      width: 1rem;
-      height: 1rem;
-      border-width: 0.15em;
-    }
-
-    .loading-step.active .step-icon .spinner-border {
-      display: block;
-    }
-
-    .loading-step.completed .step-icon .bx-check {
-      display: block;
+    .loading-step.completed::after {
+      background: #71dd37;
     }
   </style>
 
   <script>
     // Use same API base as auth so client uploads always go to the server that Admin → Client Uploads uses
     var UPLOAD_API = (window.TemaDataPortal_API_BASE || window.location.origin || 'http://localhost:3000');
+
+    var isUploadActive = false;
+    var isUploadPaused = false;
+
+    function handleCancelClick() {
+      if (!isUploadActive) {
+        window.location.href = 'landing-page.html';
+      } else {
+        isUploadPaused = !isUploadPaused;
+        const btn = document.getElementById('btnCancelUpload');
+        const statusText = document.getElementById('uploadStatusText');
+
+        if (isUploadPaused) {
+          btn.textContent = 'Resume';
+          btn.classList.remove('btn-secondary');
+          btn.classList.add('btn-warning');
+          btn.style.background = ''; // remove inline style to let bootstrap warning color show
+          if (statusText) statusText.textContent = 'Upload Paused';
+        } else {
+          btn.textContent = 'Pause';
+          btn.classList.remove('btn-warning');
+          btn.classList.add('btn-secondary');
+          btn.style.background = '#8b9eb0';
+          if (statusText) statusText.textContent = 'Resuming upload...';
+        }
+      }
+    }
 
     // Upload Card Selection & Drag-and-Drop Logic
     async function handleDrop(e, type) {
@@ -1345,11 +1494,12 @@
 
         cardsHtml += `
           <div class="folder-list-item" id="folder-item-${folder}">
-            <div class="folder-item-icon">
-              <i class="bx bxs-folder"></i>
-            </div>
-            <div class="folder-item-info">
-              <span class="folder-name" title="${folder}">${folder}</span>
+            <div class="d-flex align-items-center" style="min-width: 0; flex: 1;">
+              <div class="folder-item-icon">
+                <i class="bx bxs-folder"></i>
+              </div>
+              <div class="folder-item-info">
+                <span class="folder-name" title="${folder}">${folder}</span>
               <div class="folder-stat-item">
                 ${stats.photos} Photos
               </div>
@@ -1362,11 +1512,12 @@
                 ${formatBytes(stats.sizeBytes)}
               </div>
             </div>
-            <div class="d-flex align-items-center gap-3">
-              <div class="folder-status-text">
-                <i class="bx bx-time-five"></i> Waiting
+            </div>
+            <div class="d-flex align-items-center gap-3 ms-auto ps-2 border-start">
+              <div class="folder-status-text fw-medium" style="min-width: 90px;" id="status-${folder.replace(/[^a-zA-Z0-9_-]/g, '_')}">
+                <i class="bx bx-time-five me-1"></i> Waiting
               </div>
-              <button type="button" class="btn btn-icon btn-sm text-danger btn-link p-0 m-0" onclick="removeFolder('${folder}')" title="Remove folder">
+              <button type="button" class="btn btn-icon btn-sm text-danger btn-link p-0 m-0 ms-1" onclick="removeFolder('${folder}')" title="Remove folder">
                 <i class="bx bx-trash" style="font-size: 1.15rem;"></i>
               </button>
             </div>
@@ -1458,6 +1609,8 @@
       const percentText = document.getElementById('uploadPercentageText');
 
       submitBtn.disabled = true;
+      isUploadActive = true;
+      isUploadPaused = false;
       progressContainer.style.display = 'block';
       progressBar.style.width = '0%';
       percentText.textContent = '0%';
@@ -1532,6 +1685,45 @@
           let totalChunksFile = Math.ceil(file.size / CHUNK_SIZE);
           if (totalChunksFile === 0) totalChunksFile = 1; // handle empty files
 
+          // --- Skip Deleted Folders (Abort Hook) ---
+          if (isUploadActive && !pendingUploadFiles.includes(file)) {
+            // Exception: The POS file is never in pendingUploadFiles, so don't skip it
+            const isPosFile = posFile && posFile.files && posFile.files.length > 0 && posFile.files[0] === file;
+            if (!isPosFile) {
+              chunksUploaded += totalChunksFile;
+              const percent = Math.round((chunksUploaded / totalChunksToUpload) * 100);
+              progressBar.style.width = `${percent}%`;
+              percentText.textContent = `${percent}%`;
+              continue;
+            }
+          }
+
+          // --- Dynamic Folder UI Updates ---
+          const pathParts = file.webkitRelativePath ? file.webkitRelativePath.split('/') : [file.name];
+          const rootFolderName = pathParts.length > 1 ? pathParts[0] : 'Root';
+          const safeFolderId = 'status-' + rootFolderName.replace(/[^a-zA-Z0-9_-]/g, '_');
+          const folderStatusEl = document.getElementById(safeFolderId);
+
+          if (folderStatusEl && !folderStatusEl.dataset.uploading) {
+            folderStatusEl.innerHTML = `<i class='bx bx-loader-alt bx-spin text-primary me-1'></i> <span class="text-primary">Uploading</span>`;
+            folderStatusEl.dataset.uploading = 'true';
+          }
+
+          // Determine if previous folder is completed
+          if (fIndex > 0) {
+            const prevFile = allFilesToUpload[fIndex - 1];
+            const prevPathParts = prevFile.webkitRelativePath ? prevFile.webkitRelativePath.split('/') : [prevFile.name];
+            const prevRootFolderName = prevPathParts.length > 1 ? prevPathParts[0] : 'Root';
+            if (prevRootFolderName !== rootFolderName) {
+              const prevSafeId = 'status-' + prevRootFolderName.replace(/[^a-zA-Z0-9_-]/g, '_');
+              const prevFolderEl = document.getElementById(prevSafeId);
+              if (prevFolderEl) {
+                prevFolderEl.innerHTML = `<i class="bx bx-check text-success me-1"></i> <span class="text-success">Completed</span>`;
+              }
+            }
+          }
+          // ---------------------------------
+
           filesMapping.push({ filename: safeFilename, totalChunks: totalChunksFile });
 
           for (let chunkIndex = 0; chunkIndex < totalChunksFile; chunkIndex++) {
@@ -1551,6 +1743,11 @@
             let retries = 15;
 
             while (!chunkSuccess && retries > 0) {
+              // Pause Loop Hook
+              while (isUploadPaused) {
+                await new Promise(r => setTimeout(r, 1000));
+              }
+
               try {
                 const chunkRes = await fetch(UPLOAD_API + '/api/upload/chunk', {
                   method: 'POST',
@@ -1598,6 +1795,26 @@
         progressBar.classList.remove('progress-bar-animated');
         progressBar.classList.add('bg-success');
 
+        // Check if all folders were deleted during upload to gracefully abort before committing
+        if (pendingUploadFiles.length === 0) {
+          isUploadActive = false;
+          isUploadPaused = false;
+          submitBtn.disabled = false;
+          progressContainer.style.display = 'none';
+          msgDiv.className = 'small mt-2 mb-0 text-center text-secondary';
+          msgDiv.textContent = 'Upload aborted by user.';
+
+          // Reset cancel button just in case
+          const btnCancel = document.getElementById('btnCancelUpload');
+          if (btnCancel) {
+            btnCancel.textContent = 'Cancel';
+            btnCancel.classList.remove('btn-warning');
+            btnCancel.classList.add('btn-secondary');
+            btnCancel.style.background = '#8b9eb0';
+          }
+          return;
+        }
+
         // 4. Finalize Upload
         const finalizeRes = await fetch(UPLOAD_API + '/api/upload/finalize', {
           method: 'POST',
@@ -1613,10 +1830,35 @@
 
         msgDiv.className = 'small mt-2 mb-0 text-center text-success pb-3 fw-bold';
         msgDiv.textContent = '✓ Upload successful!';
+        isUploadActive = false;
+
+        // Mark the very last folder as completed
+        if (allFilesToUpload.length > 0) {
+          const lastFile = allFilesToUpload[allFilesToUpload.length - 1];
+          const lastPathParts = lastFile.webkitRelativePath ? lastFile.webkitRelativePath.split('/') : [lastFile.name];
+          const lastRootFolderName = lastPathParts.length > 1 ? lastPathParts[0] : 'Root';
+          const lastSafeId = 'status-' + lastRootFolderName.replace(/[^a-zA-Z0-9_-]/g, '_');
+          const lastFolderEl = document.getElementById(lastSafeId);
+          if (lastFolderEl) {
+            lastFolderEl.innerHTML = `<i class="bx bx-check text-success me-1"></i> <span class="text-success">Completed</span>`;
+          }
+        }
+
         setTimeout(() => window.location.href = 'landing-page.html', 1500);
 
       } catch (err) {
         console.error('Upload Process Error:', err);
+        isUploadActive = false;
+        isUploadPaused = false;
+        // Reset cancel button just in case
+        const btnCancel = document.getElementById('btnCancelUpload');
+        if (btnCancel) {
+          btnCancel.textContent = 'Cancel';
+          btnCancel.classList.remove('btn-warning');
+          btnCancel.classList.add('btn-secondary');
+          btnCancel.style.background = '#8b9eb0';
+        }
+
         if (document.getElementById('uploadStatusText')) {
           document.getElementById('uploadStatusText').textContent = 'Upload Failed';
           document.getElementById('uploadProgressBar').classList.remove('bg-primary');
