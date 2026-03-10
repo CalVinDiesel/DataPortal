@@ -596,9 +596,9 @@ app.get("/auth/microsoft/callback", async (req, res) => {
     }
 
     req.session.user = {
-      id:       dbUser.id,
-      email:    dbUser.email,
-      name:     dbUser.name,
+      id: dbUser.id,
+      email: dbUser.email,
+      name: dbUser.name,
       provider: "microsoft",
       role,
     };
@@ -610,7 +610,7 @@ app.get("/auth/microsoft/callback", async (req, res) => {
       }
       const flowSaved = req.session.msFlow || 'login';
       req.session.msFlow = null;
-    
+
       if (flowSaved === 'register') {
         // Send back to register page with pre-filled details
         return res.redirect(
@@ -641,7 +641,7 @@ app.post("/api/auth/logout", (req, res) => {
 // GET /api/auth/sign-out: clear express and Better Auth sessions, then redirect to callbackURL (avoids 404 from Better Auth's internal path).
 app.get("/api/auth/sign-out", async (req, res) => {
   const callbackURL = (req.query.callbackURL || FRONT_END_URL).toString();
-  req.session.destroy(() => {});
+  req.session.destroy(() => { });
   try {
     await auth.api.signOut({ headers: fromNodeHeaders(req.headers) });
   } catch (e) {
@@ -1495,15 +1495,15 @@ function startServer() {
     if (process.env.PG_DATABASE) console.log('  MapData & admin: using PostgreSQL database ' + process.env.PG_DATABASE);
     else if (mapDataDb) console.log('  MapData: using SQLite (table MapData)');
     else console.log('  MapData: using data/map-data.json (run npm run create-db to create SQLite DB)');
-  console.log('  Google (Better Auth): GET http://localhost:' + PORT + '/api/auth/google');
-  if (googleClientId && googleClientSecret) {
-    console.log('  Google callback URL (set this in Google Cloud Console):', baseURL + '/api/auth/callback/google');
-    console.log('  Google credentials: Client ID length', googleClientId.length, '| Secret length', googleClientSecret.length);
-    if (googleClientSecret.startsWith('GOCSPX--')) {
-      console.warn('  >>> WARNING: Secret starts with GOCSPX-- (double hyphen). In Google Cloud, secrets usually have ONE hyphen (GOCSPX-). If sign-in fails, re-copy the Client secret from Credentials.');
+    console.log('  Google (Better Auth): GET http://localhost:' + PORT + '/api/auth/google');
+    if (googleClientId && googleClientSecret) {
+      console.log('  Google callback URL (set this in Google Cloud Console):', baseURL + '/api/auth/callback/google');
+      console.log('  Google credentials: Client ID length', googleClientId.length, '| Secret length', googleClientSecret.length);
+      if (googleClientSecret.startsWith('GOCSPX--')) {
+        console.warn('  >>> WARNING: Secret starts with GOCSPX-- (double hyphen). In Google Cloud, secrets usually have ONE hyphen (GOCSPX-). If sign-in fails, re-copy the Client secret from Credentials.');
+      }
     }
-  }
-  if (!googleClientId || !googleClientSecret) console.log('  (Google not configured – set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in .env)');
+    if (!googleClientId || !googleClientSecret) console.log('  (Google not configured – set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in .env)');
   });
   server.on('error', (err) => {
     if (err.code === 'EADDRINUSE') {
