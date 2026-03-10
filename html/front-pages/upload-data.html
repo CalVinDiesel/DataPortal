@@ -29,18 +29,18 @@
   <script src="../../assets/vendor/js/helpers.js"></script>
   <script src="../../assets/js/front-config.js"></script>
   <script>
-    (function() {
+    (function () {
       var AUTH_API = (window.TemaDataPortal_API_BASE || window.location.origin || 'http://localhost:3000');
       var LANDING_URL = (window.location.origin || 'http://localhost:3000') + '/html/front-pages/landing-page.html';
-      fetch(AUTH_API + '/api/auth/me', { credentials: 'include' }).then(function(r) { return r.json(); }).then(function(d) {
+      fetch(AUTH_API + '/api/auth/me', { credentials: 'include' }).then(function (r) { return r.json(); }).then(function (d) {
         if (!d.loggedIn) window.location.href = '/html/front-pages/login.html?redirect=' + encodeURIComponent(window.location.pathname);
-      }).catch(function() {});
-      document.getElementById('uploadPageLogoutBtn').addEventListener('click', function() {
+      }).catch(function () { });
+      document.getElementById('uploadPageLogoutBtn').addEventListener('click', function () {
         if (!confirm('Are you sure you want to log out? You will need to sign in again to use Upload.')) return;
         this.disabled = true;
         fetch(AUTH_API + '/api/auth/logout', { method: 'POST', credentials: 'include' })
-          .then(function() { window.location.href = AUTH_API + '/api/auth/sign-out?callbackURL=' + encodeURIComponent(LANDING_URL); })
-          .catch(function() { window.location.href = LANDING_URL; });
+          .then(function () { window.location.href = AUTH_API + '/api/auth/sign-out?callbackURL=' + encodeURIComponent(LANDING_URL); })
+          .catch(function () { window.location.href = LANDING_URL; });
       });
     })();
   </script>
@@ -115,12 +115,15 @@
     .upload-card {
       border: 1px solid rgba(0, 0, 0, 0.05);
       border-radius: 12px;
-      /* Smoother corner */
-      padding: 1.25rem;
+      padding: 1.5rem 1.25rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
       text-align: center;
+      min-height: 140px;
       cursor: pointer;
       background: rgba(255, 255, 255, 0.8);
-      /* Slightly translucent */
       box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
       transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
       position: relative;
@@ -129,7 +132,6 @@
     .upload-card:hover {
       transform: translateY(-2px);
       box-shadow: 0 6px 12px rgba(105, 108, 255, 0.15);
-      /* #696cff tinted shadow */
       border-color: rgba(105, 108, 255, 0.3);
       background: #fff;
     }
@@ -137,14 +139,15 @@
     .upload-card.active {
       border: 2px solid #696cff;
       background: rgba(105, 108, 255, 0.05);
-      /* very faint #696cff */
       box-shadow: 0 4px 10px rgba(105, 108, 255, 0.2);
     }
 
     .upload-card-icon {
-      font-size: 2.5rem;
+      position: absolute;
+      top: 15px;
+      left: 15px;
+      font-size: 1.8rem;
       color: #566a7f;
-      margin-bottom: 0.5rem;
       display: block;
     }
 
@@ -170,7 +173,7 @@
 
     .question-mark {
       position: absolute;
-      top: 10px;
+      top: 15px;
       right: 15px;
       color: #a1acb8;
       font-size: 1.1rem;
@@ -249,11 +252,11 @@
     }
 
     .modal-body-custom {
-      padding: 1.5rem;
+      padding: 0;
       flex-grow: 1;
       display: flex;
       flex-direction: column;
-      overflow-y: auto;
+      position: relative;
     }
 
     .modal-footer-custom {
@@ -275,57 +278,67 @@
       display: flex;
       justify-content: space-between;
       align-items: baseline;
-      margin-bottom: 0.75rem;
+      margin-bottom: 0.5rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.06);
     }
 
     .folder-list-title {
-      font-size: 1.1rem;
+      font-size: 1.05rem;
       font-weight: 700;
       color: #32475c;
     }
 
     .folder-list-stats {
-      font-size: 0.9rem;
+      font-size: 0.85rem;
       color: #697a8d;
     }
 
-    .folder-card {
-      border: 1px solid #d9dee3;
-      border-radius: 6px;
-      padding: 0.75rem 1rem;
+    .folder-list-item {
       display: flex;
       align-items: center;
-      background: #fff;
-      margin-bottom: 0.5rem;
+      padding: 0.6rem 0;
+      border-bottom: 1px dashed rgba(0, 0, 0, 0.08);
+      background: transparent;
+      transition: background 0.2s ease;
     }
 
-    .folder-card-icon {
-      width: 40px;
-      height: 40px;
-      background: #f1f1f2;
-      border-radius: 6px;
+    .folder-list-item:last-child {
+      border-bottom: none;
+    }
+
+    .folder-list-item:hover {
+      background: rgba(105, 108, 255, 0.03);
+    }
+
+    .folder-item-icon {
+      font-size: 1.25rem;
+      color: #a1acb8;
+      margin-right: 0.75rem;
       display: flex;
       align-items: center;
-      justify-content: center;
-      margin-right: 1rem;
-      font-size: 1.5rem;
-      color: #697a8d;
     }
 
-    .folder-card-info {
+    .folder-item-info {
       flex-grow: 1;
       display: flex;
       align-items: center;
-      gap: 1rem;
+      gap: 0.75rem;
     }
 
     .folder-name {
       font-weight: 600;
       color: #32475c;
-      width: 120px;
+      width: 130px;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      font-size: 0.95rem;
+    }
+
+    .folder-stat-divider {
+      color: #d9dee3;
+      font-size: 0.8rem;
     }
 
     .folder-stat-item {
@@ -333,55 +346,70 @@
       align-items: center;
       color: #697a8d;
       font-size: 0.85rem;
-      gap: 0.25rem;
       white-space: nowrap;
     }
 
     .folder-stat-item.gps-stat {
+      color: #696cff;
+      /* Blue accent for GPS */
+    }
+
+    .folder-status-text {
       color: #a1acb8;
-    }
-
-    .folder-stat-item.gps-stat .bx-target-lock {
-      color: #00d2ff;
-      /* cyan dot analog */
-      font-size: 0.9rem;
-    }
-
-    .folder-status-badge {
-      background: #f1f1f2;
-      color: #4b4b4b;
-      padding: 0.25rem 0.75rem;
-      border-radius: 20px;
-      font-size: 0.85rem;
+      font-size: 0.8rem;
       display: flex;
       align-items: center;
-      gap: 0.35rem;
+      gap: 0.25rem;
     }
 
     .stats-table th,
     .stats-table td {
       padding: 0.75rem 1rem;
       text-align: center;
-      border-bottom: 1px solid #e9ecef;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.05);
     }
 
     .stats-table th {
-      background: #f1f5f9;
+      background: rgba(241, 245, 249, 0.6);
       color: #475569;
       font-weight: 600;
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
     }
 
-    .modal-map-container {
-      flex-grow: 1;
-      min-height: 350px;
-      border-radius: 8px;
-      overflow: hidden;
-      border: 1px solid #e9ecef;
+    .stats-table tr:last-child td {
+      border-bottom: none;
     }
 
     #modalMap {
       width: 100%;
       height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 1;
+    }
+
+    .floating-glass-panel {
+      position: absolute;
+      top: 1.5rem;
+      left: 1.5rem;
+      z-index: 10;
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-radius: 12px;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15), 0 1px 3px rgba(0, 0, 0, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.5);
+      max-height: calc(100% - 3rem);
+      overflow-y: auto;
+      max-width: 800px;
+      padding: 0.5rem 1rem;
+    }
+
+    .floating-glass-panel .stats-table {
+      margin-bottom: 0;
+      /* Remove bottom margin to fit strictly */
     }
 
     /* Adjust map controls */
@@ -416,29 +444,62 @@
 
 
           <!-- Upload Type Selection Cards -->
-          <div class="mb-3">
-            <div class="upload-card" id="cardSingle" onclick="selectUploadType('single')">
-              <i class="bx bx-camera upload-card-icon"></i>
-              <div class="upload-card-title">Single-lens Photos Folder</div>
-              <div class="upload-card-text">Drag or click to upload<br><small>only jpg, jpeg</small></div>
-              <i class="bx bx-question-mark question-mark rounded-circle border border-secondary"
-                style="width:18px;height:18px;font-size:12px;line-height:16px;"></i>
-              <input type="radio" name="cameraConfiguration" id="singleCamera" value="single" class="d-none" required>
+          <div id="uploadTypeSelection">
+            <div class="mb-3">
+              <div class="upload-card" id="cardSingle" onclick="selectUploadType('single')">
+                <i class="bx bx-camera upload-card-icon"></i>
+                <div class="upload-card-title">Single-lens Photos Folder</div>
+                <div class="upload-card-text">Drag or click to upload<br><small>only jpg, jpeg</small></div>
+                <i class="bx bx-question-mark question-mark"></i>
+                <input type="radio" name="cameraConfiguration" id="singleCamera" value="single" class="d-none" required>
+              </div>
+            </div>
+
+            <div class="mb-4">
+              <div class="upload-card" id="cardMulti" onclick="selectUploadType('multiple')">
+                <i class="bx bxs-video upload-card-icon"></i>
+                <div class="upload-card-title">Multi-lens Photos Folder</div>
+                <div class="upload-card-text">Drag or click to upload<br><small>only jpg, jpeg</small></div>
+                <i class="bx bx-question-mark question-mark"></i>
+                <input type="radio" name="cameraConfiguration" id="multipleCamera" value="multiple" class="d-none"
+                  required>
+              </div>
+              <div class="invalid-feedback d-block" id="cameraError" style="display:none !important;">Please select an
+                upload type.</div>
             </div>
           </div>
 
-          <div class="mb-4">
-            <div class="upload-card" id="cardMulti" onclick="selectUploadType('multiple')">
-              <i class="bx bxs-video upload-card-icon"></i>
-              <div class="upload-card-title">Multi-lens Photos Folder</div>
-              <div class="upload-card-text">Drag or click to upload<br><small>only jpg, jpeg</small></div>
-              <i class="bx bx-question-mark question-mark rounded-circle border border-secondary"
-                style="width:18px;height:18px;font-size:12px;line-height:16px;"></i>
-              <input type="radio" name="cameraConfiguration" id="multipleCamera" value="multiple" class="d-none"
-                required>
+          <!-- Inline Loading State (Replaces Cards during reading) -->
+          <div id="inlineLoadingState" class="card shadow-none border mb-4 mt-2"
+            style="display: none; background: rgba(255,255,255,0.6);">
+            <div class="card-body p-4">
+              <h6 class="card-title text-primary mb-4 fw-bold"><i class='bx bx-loader-alt bx-spin me-2'></i> Reading
+                Dataset</h6>
+              <div class="loading-steps pl-2">
+                <div class="loading-step" id="loadStep1">
+                  <div class="step-icon">
+                    <span class="spinner-border text-primary" role="status"></span>
+                    <i class="bx bx-check"></i>
+                  </div>
+                  <span style="font-size: 0.95rem;">Analyzing image files</span>
+                </div>
+                <div class="loading-step" id="loadStep2">
+                  <div class="step-icon">
+                    <span class="spinner-border text-primary" role="status"></span>
+                    <i class="bx bx-check"></i>
+                  </div>
+                  <span style="font-size: 0.95rem;">Reading EXIF & location <span id="md5CountDisplay"
+                      class="text-muted ms-1 fs-tiny"></span></span>
+                </div>
+                <div class="loading-step" id="loadStep3">
+                  <div class="step-icon">
+                    <span class="spinner-border text-primary" role="status"></span>
+                    <i class="bx bx-check"></i>
+                  </div>
+                  <span style="font-size: 0.95rem;">Preparing metadata</span>
+                </div>
+              </div>
             </div>
-            <div class="invalid-feedback d-block" id="cameraError" style="display:none !important;">Please select an
-              upload type.</div>
           </div>
 
           <!-- Shared File Upload Input (Hidden, triggered via JS) -->
@@ -525,11 +586,6 @@
               placeholder="e.g., 4.2 km²">
           </div>
 
-          <div class="mb-3">
-            <label class="form-label" for="projectDescription">Description</label>
-            <textarea class="form-control form-control-sm" id="projectDescription" name="projectDescription" rows="2"
-              placeholder="Brief survey description..."></textarea>
-          </div>
 
           <div class="mb-3">
             <label class="form-label" for="captureDate">Capture Date</label>
@@ -564,7 +620,8 @@
       <div class="left-footer">
         <a href="landing-page.html" class="btn btn-secondary text-white fw-medium border-0 px-4"
           style="background:#8b9eb0;">Cancel</a>
-        <button type="button" id="uploadPageLogoutBtn" class="btn btn-outline-secondary fw-medium px-3 ms-auto me-2" title="Log out and return to public landing page"><i class="bx bx-log-out me-1"></i>Log out</button>
+        <button type="button" id="uploadPageLogoutBtn" class="btn btn-outline-secondary fw-medium px-3 ms-auto me-2"
+          title="Log out and return to public landing page"><i class="bx bx-log-out me-1"></i>Log out</button>
         <button type="submit" form="uploadForm" class="btn btn-primary fw-medium px-4">Upload</button>
       </div>
     </div>
@@ -588,24 +645,24 @@
         <button type="button" class="btn-close" onclick="cancelSetPositionModal()"></button>
       </div>
       <div class="modal-body-custom">
-        <table class="stats-table" id="exifStatsTable">
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Folder</th>
-              <th>Photos</th>
-              <th>EXIF Located</th>
-              <th>Located</th>
-              <th>Method</th>
-            </tr>
-          </thead>
-          <tbody>
-            <!-- Dynamically populated from EXIF parsing -->
-          </tbody>
-        </table>
+        <div id="modalMap"></div>
 
-        <div class="modal-map-container">
-          <div id="modalMap"></div>
+        <div class="floating-glass-panel" id="statsTableContainer">
+          <table class="stats-table" id="exifStatsTable">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Folder</th>
+                <th>Photos</th>
+                <th>EXIF Located</th>
+                <th>Located</th>
+                <th>Method</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- Dynamically populated from EXIF parsing -->
+            </tbody>
+          </table>
         </div>
       </div>
       <div class="modal-footer-custom">
@@ -617,32 +674,13 @@
     </div>
   </div>
 
-  <!-- Data Loading Overlay -->
+  <!-- Inline Loading Step Styles -->
   <style>
-    .data-loading-modal {
-      display: none;
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(248, 249, 250, 0.85);
-      /* Light backdrop matching theme */
-      z-index: 2000;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .data-loading-modal.show {
-      display: flex;
-    }
-
     .loading-step {
       display: flex;
       align-items: center;
-      margin-bottom: 1rem;
+      margin-bottom: 0.85rem;
       color: #697a8d;
-      font-size: 1.05rem;
       transition: color 0.3s;
     }
 
@@ -656,8 +694,8 @@
     }
 
     .step-icon {
-      width: 24px;
-      height: 24px;
+      width: 20px;
+      height: 20px;
       margin-right: 12px;
       display: flex;
       align-items: center;
@@ -665,7 +703,7 @@
     }
 
     .step-icon .bx-check {
-      font-size: 1.5rem;
+      font-size: 1.25rem;
       display: none;
     }
 
@@ -684,37 +722,6 @@
       display: block;
     }
   </style>
-
-  <div class="data-loading-modal" id="dataLoadingModal">
-    <div class="card shadow-sm border" style="width: 400px;">
-      <div class="card-body p-4">
-        <h5 class="card-title text-primary mb-4 fw-bold text-center">Reading Dataset</h5>
-        <div class="loading-steps pl-2">
-          <div class="loading-step" id="loadStep1">
-            <div class="step-icon">
-              <span class="spinner-border text-primary" role="status"></span>
-              <i class="bx bx-check"></i>
-            </div>
-            <span>Analyzing image files</span>
-          </div>
-          <div class="loading-step" id="loadStep2">
-            <div class="step-icon">
-              <span class="spinner-border text-primary" role="status"></span>
-              <i class="bx bx-check"></i>
-            </div>
-            <span>Reading EXIF and location <span id="md5CountDisplay" class="text-muted ms-1 fs-tiny"></span></span>
-          </div>
-          <div class="loading-step" id="loadStep3">
-            <div class="step-icon">
-              <span class="spinner-border text-primary" role="status"></span>
-              <i class="bx bx-check"></i>
-            </div>
-            <span>Preparing for upload transfer</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
 
   <script>
     // Use same API base as auth so client uploads always go to the server that Admin → Client Uploads uses
@@ -1096,8 +1103,8 @@
     let loadingInterval;
 
     function openDataLoadingModal(totalFiles) {
-      const modal = document.getElementById('dataLoadingModal');
-      modal.classList.add('show');
+      document.getElementById('uploadTypeSelection').style.display = 'none';
+      document.getElementById('inlineLoadingState').style.display = 'block';
 
       const step1 = document.getElementById('loadStep1');
       const step2 = document.getElementById('loadStep2');
@@ -1124,7 +1131,8 @@
       setTimeout(() => {
         step3.className = 'loading-step completed';
         setTimeout(() => {
-          document.getElementById('dataLoadingModal').classList.remove('show');
+          document.getElementById('inlineLoadingState').style.display = 'none';
+          document.getElementById('uploadTypeSelection').style.display = 'block';
           if (callback) callback();
         }, 400);
       }, 500);
@@ -1252,8 +1260,10 @@
       placeMarker([centerLat, centerLng]);
 
       if (flightPath.length > 1) {
+        // Draw trajectory (Light Blue dashed line)
+        const polyline = L.polyline(flightPath, { color: '#00d2ff', weight: 3, dashArray: '5, 8' }).addTo(map);
+
         // Use fitBounds with padding so the flight path isn't hidden under the floating left panel
-        const polyline = L.polyline(flightPath);
         map.fitBounds(polyline.getBounds(), {
           paddingTopLeft: [620, 20], // Offset by the 580px panel + margins
           paddingBottomRight: [20, 20],
@@ -1266,6 +1276,18 @@
           fillColor: '#3b82f6',
           fillOpacity: 0.15
         }).addTo(map);
+
+        // Add dots (White center, blue border)
+        flightPath.forEach(latlng => {
+          L.circleMarker(latlng, {
+            radius: 4,
+            fillColor: "#ffffff",
+            color: "#00d2ff",
+            weight: 2,
+            opacity: 1,
+            fillOpacity: 1
+          }).addTo(map);
+        });
 
       } else {
         map.setView([centerLat, centerLng], 16);
@@ -1322,29 +1344,30 @@
         totalBytes += stats.sizeBytes;
 
         cardsHtml += `
-          <div class="folder-card" id="folder-card-${folder}">
-            <div class="folder-card-icon">
-              <!-- Using standard bx image icon, can replace with specific png if needed -->
-              <i class="bx bxs-camera" style="color: #a1acb8;"></i>
+          <div class="folder-list-item" id="folder-item-${folder}">
+            <div class="folder-item-icon">
+              <i class="bx bxs-folder"></i>
             </div>
-            <div class="folder-card-info">
+            <div class="folder-item-info">
               <span class="folder-name" title="${folder}">${folder}</span>
               <div class="folder-stat-item">
-                <i class="bx bx-image"></i> ${stats.photos}
+                ${stats.photos} Photos
               </div>
+              <span class="folder-stat-divider">•</span>
               <div class="folder-stat-item gps-stat">
-                <i class="bx bx-target-lock"></i> GPS ${stats.located}
+                GPS ${stats.located}
               </div>
+              <span class="folder-stat-divider">•</span>
               <div class="folder-stat-item">
-                <i class="bx bx-cylinder"></i> ${formatBytes(stats.sizeBytes)}
+                ${formatBytes(stats.sizeBytes)}
               </div>
             </div>
-            <div class="d-flex align-items-center gap-2">
-              <div class="folder-status-badge">
+            <div class="d-flex align-items-center gap-3">
+              <div class="folder-status-text">
                 <i class="bx bx-time-five"></i> Waiting
               </div>
-              <button type="button" class="btn btn-icon btn-sm btn-outline-danger border-0" onclick="removeFolder('${folder}')" title="Remove folder">
-                <i class="bx bx-x fs-4"></i>
+              <button type="button" class="btn btn-icon btn-sm text-danger btn-link p-0 m-0" onclick="removeFolder('${folder}')" title="Remove folder">
+                <i class="bx bx-trash" style="font-size: 1.15rem;"></i>
               </button>
             </div>
           </div>
@@ -1446,7 +1469,7 @@
       const catVal = document.getElementById('category').value;
       const initMetadata = {
         projectID: document.getElementById('projectID').value || 'proj-' + Date.now(),
-        projectTitle: document.getElementById('projectTitle').value.trim(),
+        projectTitle: document.getElementById('projectID').value.trim(),
         projectDescription: document.getElementById('projectDescription').value.trim() || 'No description',
         category: catVal === 'Other' ? document.getElementById('categoryOther').value.trim() : catVal,
         latitude: latInput.value,
