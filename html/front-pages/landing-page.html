@@ -654,6 +654,34 @@
 
     <!-- Pricing plans: Start -->
     <section id="landingPricing" class="section-py bg-body landing-pricing">
+      <style>
+        .landing-pricing .pricing-plan-card {
+          border: 2px solid transparent;
+          transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+        }
+        .landing-pricing .pricing-plan-card:hover {
+          border-color: var(--bs-primary);
+          transform: scale(1.03);
+          box-shadow: 0 0.5rem 1.5rem rgba(105, 108, 255, 0.2);
+        }
+        .landing-pricing .pricing-plan-card .card-body .btn,
+        .landing-pricing .pricing-plan-card .card-body .d-grid .btn {
+          transition: background-color 0.25s ease, color 0.25s ease, border-color 0.25s ease;
+        }
+        .landing-pricing .pricing-plan-card:hover .card-body .btn-label-primary,
+        .landing-pricing .pricing-plan-card:hover .card-body .btn-primary {
+          background-color: var(--bs-primary) !important;
+          color: #fff !important;
+          border-color: var(--bs-primary) !important;
+        }
+        .landing-pricing .pricing-plan-card .pricing-list .badge.rounded-pill {
+          transition: background-color 0.25s ease, color 0.25s ease;
+        }
+        .landing-pricing .pricing-plan-card:hover .pricing-list .badge.rounded-pill {
+          background-color: var(--bs-primary) !important;
+          color: #fff !important;
+        }
+      </style>
       <div class="container">
         <div class="text-center mb-4">
           <span class="badge bg-label-primary">Pricing Plans</span>
@@ -686,7 +714,7 @@
         <div class="row g-6 pt-lg-5">
           <!-- Basic Plan: Start -->
           <div class="col-xl-4 col-lg-6">
-            <div class="card">
+            <div class="card pricing-plan-card">
               <div class="card-header">
                 <div class="text-center">
                   <img src="../../assets/img/front-pages/icons/paper-airplane.png" alt="paper airplane icon" class="mb-8 pb-2" />
@@ -755,7 +783,7 @@
 
           <!-- Favourite Plan: Start -->
           <div class="col-xl-4 col-lg-6">
-            <div class="card border border-primary shadow-xl">
+            <div class="card pricing-plan-card">
               <div class="card-header">
                 <div class="text-center">
                   <img src="../../assets/img/front-pages/icons/plane.png" alt="plane icon" class="mb-8 pb-2" />
@@ -774,13 +802,13 @@
                 <ul class="list-unstyled pricing-list">
                   <li>
                     <h6 class="d-flex align-items-center mb-3">
-                      <span class="badge badge-center rounded-pill bg-primary p-0 me-3"><i class="icon-base bx bx-check icon-12px"></i></span>
+                      <span class="badge badge-center rounded-pill bg-label-primary p-0 me-3"><i class="icon-base bx bx-check icon-12px"></i></span>
                       Request for 3D Model Purchases
                     </h6>
                   </li>
                   <li>
                     <h6 class="d-flex align-items-center mb-3">
-                      <span class="badge badge-center rounded-pill bg-primary p-0 me-3"><i class="icon-base bx bx-check icon-12px"></i></span>
+                      <span class="badge badge-center rounded-pill bg-label-primary p-0 me-3"><i class="icon-base bx bx-check icon-12px"></i></span>
                       Request for Raw Data Upload Processing
                     </h6>
                   </li>
@@ -816,7 +844,7 @@
                   </li>-->
                 </ul>
                 <div class="d-grid mt-8">
-                  <button type="button" class="btn btn-primary" id="pricingSubscribeBtn">Subscribe</button>
+                  <button type="button" class="btn btn-label-primary" id="pricingSubscribeBtn">Subscribe</button>
                 </div>
               </div>
             </div>
@@ -825,7 +853,7 @@
 
           <!-- Standard Plan: Start -->
           <div class="col-xl-4 col-lg-6">
-            <div class="card">
+            <div class="card pricing-plan-card">
               <div class="card-header">
                 <div class="text-center">
                   <img src="../../assets/img/front-pages/icons/shuttle-rocket.png" alt="shuttle rocket icon" class="mb-8 pb-2" />
