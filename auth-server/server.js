@@ -30,6 +30,9 @@ const MAPDATA_FILE = path.join(__dirname, 'data', 'map-data.json');
 const MAPDATA_DB_PATH = path.join(__dirname, 'data', 'Temadigital_Data_Portal.sqlite');
 const PROJECT_ROOT = path.join(__dirname, '..');
 const UPLOAD_DIR = path.join(PROJECT_ROOT, process.env.UPLOAD_DIR || 'uploads');
+console.log('[startup] __dirname:', __dirname);
+console.log('[startup] PROJECT_ROOT:', PROJECT_ROOT);
+console.log('[startup] UPLOAD_DIR:', UPLOAD_DIR);
 const MAP_THUMBNAIL_DIR = path.join(PROJECT_ROOT, 'uploads', 'map-thumbnails');
 
 let mapDataDb = null; // SQLite (sql.js) instance when DB file exists
@@ -1181,6 +1184,7 @@ const chunkStorage = multer.diskStorage({
     cb(null, `${safeFilename}.part${chunkIndex}`);
   }
 });
+
 const uploadChunkMulter = multer({ storage: chunkStorage, limits: { fileSize: 50 * 1024 * 1024 } }); // 50MB limits for 10MB chunks (extra padding for metadata)
 
 app.post('/api/upload/chunk', (req, res) => {
@@ -1204,6 +1208,8 @@ app.post('/api/upload/chunk', (req, res) => {
         return res.status(400).json({ success: false, message: 'Missing required chunk parameters.' });
       }
 
+      console.log(`[chunk] req.file:`, req.file ? { path: req.file.path, size: req.file.size, fieldname: req.file.fieldname } : 'MISSING');
+
       res.json({ success: true, message: `Chunk ${chunkIndex} received.` });
     } catch (e) {
       console.error('POST /api/upload/chunk saving error:', e);
@@ -1216,6 +1222,10 @@ app.post('/api/upload/finalize', express.json(), async (req, res) => {
   try {
     const uploadId = req.body.uploadId;
     if (!uploadId) return res.status(400).json({ success: false, message: 'Missing uploadId' });
+
+    console.log('[finalize] UPLOAD_DIR:', UPLOAD_DIR);
+    console.log('[finalize] PROJECT_ROOT:', PROJECT_ROOT);
+    console.log('[finalize] __dirname:', __dirname);
 
     const tempDir = path.join(UPLOAD_DIR, `temp_${uploadId}`);
     const filesMapping = req.body.files; // Array of { filename, totalChunks }
