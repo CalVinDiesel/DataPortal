@@ -303,23 +303,22 @@
     .folder-list-item {
       display: flex;
       align-items: center;
-      padding: 0.6rem 0;
-      border-bottom: 1px dashed rgba(0, 0, 0, 0.08);
-      background: transparent;
+      padding: 0.5rem 1rem;
+      border: 1px solid #ebedf2;
+      border-radius: 0.375rem;
+      background: #f8f9fa;
+      margin-bottom: 0.5rem;
       transition: background 0.2s ease;
-      display: flex;
-      align-items: center;
       justify-content: space-between;
       flex-wrap: wrap;
-      /* allow wrapping on extreme squish */
     }
 
     .folder-list-item:last-child {
-      border-bottom: none;
+      margin-bottom: 0;
     }
 
     .folder-list-item:hover {
-      background: rgba(105, 108, 255, 0.03);
+      background: rgba(105, 108, 255, 0.05);
     }
 
     .folder-item-icon {
@@ -522,7 +521,9 @@
             </label>
             <div class="small text-muted mb-2 lh-sm">Provide a .txt or .csv Position Orientation System file for highly
               accurate flight path coordinates. This will override image EXIF extraction.</div>
-            <input type="file" id="posFile" name="posFile" class="form-control" accept=".txt,.csv,.pos">
+            <input type="file" id="posFile" name="posFile" class="form-control" accept=".txt,.csv,.pos" multiple>
+            <!-- POS File List UI Wrapper (Populated via JS) -->
+            <div id="posFileListWrapper" class="mt-2" style="display: none;"></div>
           </div>
 
           <!-- Folder List UI Wrapper (Populated via JS) -->
@@ -1034,6 +1035,7 @@
     var modalMap = null;
     var flightPath = []; // Dynamically populated now
     let pendingUploadFiles = []; // Track actual files to allow deletion
+    let pendingPosFiles = []; // Track actual POS files to allow deletion
     var parsedFilesCount = 0;
     var locatedFilesCount = 0;
     var locatedFilesCount = 0;
@@ -1049,6 +1051,49 @@
     }
 
     document.getElementById('dataFile').addEventListener('change', handleFilesSelected);
+    document.getElementById('posFile').addEventListener('change', handlePosFilesSelected);
+
+    function handlePosFilesSelected(e) {
+      if (e.target.files.length > 0) {
+        const files = Array.from(e.target.files);
+        pendingPosFiles = pendingPosFiles.concat(files);
+        e.target.value = ''; // clear input to allow re-upload
+        renderPosFileListUI();
+      }
+    }
+
+    function renderPosFileListUI() {
+      const wrapper = document.getElementById('posFileListWrapper');
+      if (pendingPosFiles.length === 0) {
+        wrapper.style.display = 'none';
+        wrapper.innerHTML = '';
+        return;
+      }
+      
+      let html = `<div class="fw-bold mb-1 mt-2 text-primary" style="font-size: 0.85rem;">Selected POS Files:</div>`;
+      pendingPosFiles.forEach((f, i) => {
+        html += `
+          <div class="d-flex align-items-center justify-content-between bg-lighter rounded px-3 py-2 border mb-2">
+            <div class="d-flex align-items-center" style="min-width: 0; flex: 1;">
+              <i class="bx bx-file text-secondary me-2"></i>
+              <span class="fs-small text-truncate" title="${f.name}">${f.name}</span>
+            </div>
+            <button type="button" class="btn btn-icon btn-sm text-danger btn-link p-0 m-0 ms-2" onclick="removePosFile(${i})" title="Remove POS file">
+              <i class="bx bx-trash" style="font-size: 1.15rem;"></i>
+            </button>
+          </div>
+        `;
+      });
+      wrapper.innerHTML = html;
+      wrapper.style.display = 'block';
+    }
+
+    function removePosFile(index) {
+      if (confirm(`Are you sure you want to remove the POS file "${pendingPosFiles[index].name}" from the upload?`)) {
+        pendingPosFiles.splice(index, 1);
+        renderPosFileListUI();
+      }
+    }
 
     async function handleFilesSelected(e) {
       if (e.target.files.length > 0) {
@@ -1070,8 +1115,7 @@
           return;
         }
 
-        const posFileInput = document.getElementById('posFile');
-        const isPosActive = posFileInput && posFileInput.files.length > 0;
+        const isPosActive = pendingPosFiles.length > 0;
 
         // Only wipe state completely if using POS file matching, otherwise append to allow multiple folders
         if (isPosActive) {
@@ -1095,9 +1139,6 @@
           btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Reading POS File...';
           openDataLoadingModal(totalPendingFiles);
 
-          const posText = await posFileInput.files[0].text();
-          const lines = posText.split('\n');
-
           let validLocations = 0;
 
           for (const file of pendingUploadFiles) {
@@ -1114,27 +1155,32 @@
             rootFolderStats[rootFolderName].sizeBytes += file.size || 0;
           }
 
-          // Very basic heuristic parser for common POS/CSV formats: find numbers that look like Lat/Lng
-          lines.forEach(line => {
-            const parts = line.split(/[,\s]+/).map(p => parseFloat(p)).filter(p => !isNaN(p));
-            // Look for a combination that resembles Lat [-90 to 90] and Lng [-180 to 180]
-            if (parts.length >= 2) {
-              // Assuming standard formats mostly put Lat/Lng or Lng/Lat near the beginning or after an ID
-              let lat = null, lng = null;
-              for (let val of parts) {
-                if (val > -90 && val < 90 && lat === null) {
-                  lat = val;
-                } else if (val > -180 && val < 180 && lng === null) {
-                  lng = val;
+          for (let i = 0; i < pendingPosFiles.length; i++) {
+            const posText = await pendingPosFiles[i].text();
+            const lines = posText.split('\n');
+
+            // Very basic heuristic parser for common POS/CSV formats: find numbers that look like Lat/Lng
+            lines.forEach(line => {
+              const parts = line.split(/[,\s]+/).map(p => parseFloat(p)).filter(p => !isNaN(p));
+              // Look for a combination that resembles Lat [-90 to 90] and Lng [-180 to 180]
+              if (parts.length >= 2) {
+                // Assuming standard formats mostly put Lat/Lng or Lng/Lat near the beginning or after an ID
+                let lat = null, lng = null;
+                for (let val of parts) {
+                  if (val > -90 && val < 90 && lat === null) {
+                    lat = val;
+                  } else if (val > -180 && val < 180 && lng === null) {
+                    lng = val;
+                  }
+                }
+
+                if (lat !== null && lng !== null) {
+                  flightPath.push([lat, lng]);
+                  validLocations++;
                 }
               }
-
-              if (lat !== null && lng !== null) {
-                flightPath.push([lat, lng]);
-                validLocations++;
-              }
-            }
-          });
+            });
+          }
 
           // If we couldn't parse the POS, fallback to assigning the first parsed point or a mock to all
           if (flightPath.length > 0) {
@@ -1618,6 +1664,12 @@
         return;
       }
 
+      // Ensure images are actually selected
+      if (pendingUploadFiles.length === 0) {
+        alert('Please upload a folder containing images. A POS file alone is not sufficient.');
+        return;
+      }
+
       if (!this.checkValidity()) {
         e.stopPropagation();
         this.classList.add('was-validated');
@@ -1679,9 +1731,10 @@
 
         // Combine pending data files and pos file if any
         let allFilesToUpload = [...pendingUploadFiles];
-        const posFile = document.getElementById('posFile');
-        if (posFile && posFile.files.length > 0) {
-          allFilesToUpload.push(posFile.files[0]);
+        if (pendingPosFiles.length > 0) {
+          for (let i = 0; i < pendingPosFiles.length; i++) {
+            allFilesToUpload.push(pendingPosFiles[i]);
+          }
         }
 
         const filesMapping = [];
@@ -1712,7 +1765,7 @@
           // --- Skip Deleted Folders (Abort Hook) ---
           if (isUploadActive && !pendingUploadFiles.includes(file)) {
             // Exception: The POS file is never in pendingUploadFiles, so don't skip it
-            const isPosFile = posFile && posFile.files && posFile.files.length > 0 && posFile.files[0] === file;
+            const isPosFile = pendingPosFiles.length > 0 && pendingPosFiles.includes(file);
             if (!isPosFile) {
               chunksUploaded += totalChunksFile;
               const percent = Math.round((chunksUploaded / totalChunksToUpload) * 100);

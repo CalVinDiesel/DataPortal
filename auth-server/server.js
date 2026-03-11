@@ -209,33 +209,41 @@ async function upsertUserPG(user) {
   );
 }
 
-/** Middleware: set req.user from Better Auth or express-session; 401 if not logged in. */
+// ---- Middleware: set req.user from Better Auth or express-session; 401 if not logged in. ----
 async function requireAuth(req, res, next) {
   try {
-    const betterAuthSession = await auth.api.getSession({ headers: fromNodeHeaders(req.headers) });
-    if (betterAuthSession?.user) {
-      const role = await getRoleForEmailAsync(betterAuthSession.user.email);
-      req.user = {
-        email: betterAuthSession.user.email ?? null,
-        name: betterAuthSession.user.name ?? null,
-        role,
-      };
-      return next();
+    let userEmail = null;
+    let userName = null;
+    
+    // 1. Try express-session first (legacy local login)
+    if (req.session?.user && (req.session.user.email || req.session.user.id)) {
+      userEmail = req.session.user.email;
+      userName = req.session.user.name;
+    } 
+    // 2. Try better-auth session
+    else {
+      try {
+        const betterAuthSession = await auth.api.getSession({ headers: fromNodeHeaders(req.headers) });
+        if (betterAuthSession?.user) {
+          userEmail = betterAuthSession.user.email;
+          userName = betterAuthSession.user.name;
+        }
+      } catch (err) { }
     }
-    const local = req.session?.user;
-    if (local && (local.email || local.id)) {
-      const role = local.role || await getRoleForEmailAsync(local.email);
+
+    if (userEmail) {
+      const role = await getRoleForEmailAsync(userEmail);
       req.user = {
-        email: local.email,
-        name: local.name,
-        role,
+        email: userEmail,
+        name: userName,
+        role: role,
       };
       return next();
     }
   } catch (e) {
-    console.error('requireAuth', e);
+    console.error('requireAuth error:', e);
   }
-  res.status(401).json({ success: false, message: 'You must be logged in.' });
+  return res.status(401).json({ success: false, message: 'You must be logged in.' });
 }
 
 /** Middleware: require req.user.role === 'admin'. Use after requireAuth. */
@@ -352,7 +360,11 @@ app.use(session({
   secret: process.env.SESSION_SECRET || "temadataportal-auth-secret-change-in-production",
   resave: false,
   saveUninitialized: false,
-  cookie: { secure: false },
+  cookie: { 
+    secure: process.env.NODE_ENV === 'production', 
+    sameSite: 'lax', 
+    maxAge: 24 * 60 * 60 * 1000 
+  },
 }));
 
 // ---- Auth: /api/auth/me (check Better Auth session first, then express-session for email/Microsoft login) ----
@@ -1460,6 +1472,78 @@ app.get('/api/admin/client-uploads', async (req, res) => {
   }
 });
 
+// ---- User: list personal client uploads ----
+app.get('/api/user/my-uploads', requireAuth, async (req, res) => {
+  if (!process.env.PG_DATABASE) {
+    return res.json([]);
+  }
+  try {
+    const email = req.user.email;
+    const q = await pgQuery('SELECT id, project_id, project_title, upload_type, file_count, file_paths, camera_models, capture_date, organization_name, created_at, created_by_email, request_status, rejected_reason, decided_at, decided_by, project_description, category, latitude, longitude, area_coverage, image_metadata, drone_pos_file_path FROM public."ClientUploads" WHERE LOWER(created_by_email) = LOWER($1) ORDER BY created_at DESC', [email]);
+    res.json((q && q.rows) ? q.rows : []);
+  } catch (e) {
+    console.error('GET /api/user/my-uploads', e);
+    res.status(500).json({ error: 'Failed to load user uploads.' });
+  }
+});
+
+// ---- User: delete personal client upload ----
+app.delete('/api/user/my-uploads/:id', requireAuth, async (req, res) => {
+  if (!process.env.PG_DATABASE) {
+    return res.status(500).json({ success: false, message: 'Database not configured.' });
+  }
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) return res.status(400).json({ success: false, message: 'Invalid ID.' });
+
+  try {
+    const email = req.user.email;
+    
+    // 1. Verify ownership and get the project's folder paths
+    const q1 = await pgQuery('SELECT id, file_paths FROM public."ClientUploads" WHERE id = $1 AND LOWER(created_by_email) = LOWER($2)', [id, email]);
+    const row = q1 && q1.rows && q1.rows[0];
+    
+    if (!row) {
+      return res.status(404).json({ success: false, message: 'Project not found or you do not have permission to delete it.' });
+    }
+    
+    // 2. Erase the massive files on the hard drive to free up C: Space
+    const filePaths = parseFilePaths(row.file_paths);
+    const uploadDirResolved = path.resolve(UPLOAD_DIR);
+    
+    let targetDirToDelete = null;
+    if (filePaths.length > 0) {
+      const firstRel = filePaths[0];
+      const normalized = path.normalize(firstRel).replace(/^(\.\.(\/|\\))+/, '').replace(/\\/g, '/');
+      const withoutUploadsPrefix = normalized.replace(/^uploads\/?/, ''); 
+      
+      if (withoutUploadsPrefix.includes('/')) {
+         const projDirName = withoutUploadsPrefix.split('/')[0]; // Extract "project_xyz"
+         const fullProjDir = path.join(uploadDirResolved, projDirName);
+         if (isPathUnderDir(fullProjDir, uploadDirResolved) && fullProjDir !== uploadDirResolved) {
+             targetDirToDelete = fullProjDir;
+         }
+      }
+    }
+    
+    if (targetDirToDelete) {
+      try {
+         await fs.promises.rm(targetDirToDelete, { recursive: true, force: true });
+         console.log(`[delete] Wiped heavy project directory to free up space: ${targetDirToDelete}`);
+      } catch (err) {
+         console.warn(`[delete] Warning: Could not wipe physical directory: ${targetDirToDelete}`, err);
+      }
+    }
+    
+    // 3. Delete from virtual database
+    await pgQuery('DELETE FROM public."ClientUploads" WHERE id = $1', [id]);
+    
+    res.json({ success: true, message: 'Project deleted successfully and hard drive space freed.' });
+  } catch (e) {
+    console.error('DELETE /api/user/my-uploads/:id', e);
+    res.status(500).json({ success: false, message: 'Failed to delete project.' });
+  }
+});
+
 // Parse file_paths from DB: may be array or string (PG array literal or JSON)
 function parseFilePaths(value) {
   if (Array.isArray(value)) return value.filter(Boolean).map(String);
@@ -1580,17 +1664,20 @@ app.post('/api/admin/client-uploads/:id/decision', express.json(), async (req, r
     return res.status(400).json({ success: false, message: 'Valid upload id is required and PostgreSQL must be configured.' });
   }
   const actionLower = String(action).toLowerCase();
-  if (actionLower !== 'accept' && actionLower !== 'reject') {
-    return res.status(400).json({ success: false, message: 'action must be "accept" or "reject".' });
+  
+  const validActions = ['processing', 'completed', 'reject'];
+  if (!validActions.includes(actionLower)) {
+    return res.status(400).json({ success: false, message: 'action must be "processing", "completed", or "reject".' });
   }
   if (actionLower === 'reject' && !reason.trim()) {
     return res.status(400).json({ success: false, message: 'A reason is required when rejecting a request.' });
   }
   const decidedBy = (req.user && req.user.email) ? req.user.email : (req.body && req.body.decided_by) || 'admin';
   try {
+    let finalStatus = actionLower === 'reject' ? 'rejected' : actionLower;
     const r = await pgQuery(
       `UPDATE public."ClientUploads" SET request_status = $1, rejected_reason = $2, decided_at = NOW(), decided_by = $3 WHERE id = $4 RETURNING id, request_status, decided_at`,
-      [actionLower === 'accept' ? 'accepted' : 'rejected', actionLower === 'reject' ? reason.trim() : null, decidedBy, id]
+      [finalStatus, actionLower === 'reject' ? reason.trim() : null, decidedBy, id]
     );
     const row = r && r.rows && r.rows[0];
     if (!row) return res.status(404).json({ success: false, message: 'Client upload not found.' });

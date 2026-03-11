@@ -206,7 +206,7 @@
 
       function statusBadge(status) {
         var s = (status || 'pending').toLowerCase();
-        var label = s === 'accepted' ? 'success' : s === 'rejected' ? 'danger' : 'warning';
+        var label = s === 'completed' ? 'success' : s === 'processing' ? 'primary' : s === 'rejected' ? 'danger' : 'warning';
         return '<span class="badge bg-label-' + label + '">' + escapeHtml(s) + '</span>';
       }
 
@@ -217,14 +217,17 @@
         var detailsBtn = '<button type="button" class="btn btn-sm btn-outline-secondary me-1 details-btn" data-upload-id="' + r.id + '">Details</button>';
         var downloadBtn = '<button type="button" class="btn btn-sm btn-outline-primary me-1 download-btn" data-upload-id="' + r.id + '">Download images</button>';
         if (status === 'pending') {
-          return detailsBtn + downloadBtn + '<button type="button" class="btn btn-sm btn-success me-1 accept-btn" data-upload-id="' + r.id + '">Accept</button>' +
+          return detailsBtn + downloadBtn + '<button type="button" class="btn btn-sm btn-primary me-1 start-processing-btn" data-upload-id="' + r.id + '">Begin Processing</button>' +
             '<button type="button" class="btn btn-sm btn-outline-danger reject-btn" data-upload-id="' + r.id + '">Reject</button>';
+        }
+        if (status === 'processing') {
+          return detailsBtn + downloadBtn + '<button type="button" class="btn btn-sm btn-success mark-completed-btn" data-upload-id="' + r.id + '">Mark as Completed</button>';
         }
         if (status === 'rejected') {
           var reason = r.rejected_reason ? '<br><small class="text-muted">' + escapeHtml(r.rejected_reason) + '</small>' : '';
           return detailsBtn + downloadBtn + '<span class="text-muted">Rejected</span>' + reason;
         }
-        return detailsBtn + downloadBtn + '<button type="button" class="btn btn-sm btn-primary request-process-btn" data-upload-id="' + r.id + '">Process & deliver to client</button>';
+        return detailsBtn + downloadBtn + '<span class="text-success"><i class="bx bx-check"></i> Completed</span>';
       }
 
       var detailsModalUploadId = null;
@@ -306,8 +309,11 @@
               document.body.removeChild(link);
             });
            });
-            tbody.querySelectorAll('.accept-btn').forEach(function (btn) {
-              btn.addEventListener('click', function () { submitDecision(this.getAttribute('data-upload-id'), 'accept', ''); });
+            tbody.querySelectorAll('.start-processing-btn').forEach(function (btn) {
+              btn.addEventListener('click', function () { submitDecision(this.getAttribute('data-upload-id'), 'processing', ''); });
+            });
+            tbody.querySelectorAll('.mark-completed-btn').forEach(function (btn) {
+              btn.addEventListener('click', function () { submitDecision(this.getAttribute('data-upload-id'), 'completed', ''); });
             });
             tbody.querySelectorAll('.reject-btn').forEach(function (btn) {
               btn.addEventListener('click', function () {
@@ -316,31 +322,7 @@
                 if (rejectModal) rejectModal.show();
               });
             });
-            tbody.querySelectorAll('.request-process-btn').forEach(function (btn) {
-              btn.addEventListener('click', function () {
-                var id = this.getAttribute('data-upload-id');
-                this.disabled = true;
-                fetch(API_BASE + '/api/admin/processing-request', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ upload_id: parseInt(id, 10) })
-                })
-                  .then(function (r) { return r.json(); })
-                  .then(function (data) {
-                    if (data.success) {
-                      loadRequests();
-                      var al = document.getElementById('uploadsAlert');
-                      al.textContent = 'Processing request created for upload #' + id + '. Result will be delivered to the client.';
-                      al.classList.remove('d-none', 'alert-danger');
-                      al.classList.add('alert-success');
-                    } else {
-                      alert(data.message || 'Request failed.');
-                    }
-                  })
-                  .catch(function () { alert('Request failed.'); })
-                  .finally(function () { btn.disabled = false; });
-              });
-            });
+            
           })
           .catch(function () {
             document.getElementById('uploadsTableBody').innerHTML = '<tr><td colspan="7" class="text-center text-danger">Failed to load. Ensure the server is running and PostgreSQL is configured.</td></tr>';
@@ -360,7 +342,9 @@
               pendingRejectId = null;
               loadUploads();
               var al = document.getElementById('uploadsAlert');
-              al.textContent = action === 'accept' ? 'Request #' + id + ' accepted.' : 'Request #' + id + ' rejected.';
+              if (action === 'processing') al.textContent = 'Request #' + id + ' changed to Processing.';
+              else if (action === 'completed') al.textContent = 'Request #' + id + ' marked as Completed.';
+              else al.textContent = 'Request #' + id + ' rejected.';
               al.classList.remove('d-none', 'alert-danger');
               al.classList.add('alert-success');
             } else {
