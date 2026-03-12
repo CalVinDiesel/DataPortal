@@ -394,6 +394,146 @@ app.get("/api/auth/me", async (req, res) => {
   res.json({ loggedIn: false });
 });
 
+// ---- Auth: get current user email from Better Auth or express-session (for profile routes) ----
+async function getCurrentUserEmail(req) {
+  try {
+    const betterAuthSession = await auth.api.getSession({ headers: fromNodeHeaders(req.headers) });
+    if (betterAuthSession?.user?.email) return betterAuthSession.user.email;
+  } catch (_) {}
+  if (req.session?.user?.email) return req.session.user.email;
+  return null;
+}
+
+// ---- Auth: GET /api/auth/profile (full profile for logged-in user: email, name, contactNumber, role, provider) ----
+app.get("/api/auth/profile", async (req, res) => {
+  try {
+    const email = await getCurrentUserEmail(req);
+    if (!email) return res.status(401).json({ success: false, message: 'Not logged in.' });
+    const users = await getUsersAsync();
+    const user = users.find(u => (u.email || '').toLowerCase() === email.toLowerCase());
+    if (!user) return res.status(404).json({ success: false, message: 'Profile not found.' });
+    return res.json({
+      success: true,
+      email: user.email,
+      name: user.name || '',
+      contactNumber: user.contactNumber || '',
+      role: user.role || 'client',
+      provider: user.provider || 'local',
+    });
+  } catch (e) {
+    console.error('GET /api/auth/profile', e);
+    return res.status(500).json({ success: false, message: 'Failed to load profile.' });
+  }
+});
+
+// ---- Auth: PUT /api/auth/profile/password (change password; requires current password) ----
+app.put("/api/auth/profile/password", express.json(), async (req, res) => {
+  const email = await getCurrentUserEmail(req);
+  if (!email) return res.status(401).json({ success: false, message: 'Not logged in.' });
+  const { currentPassword, newPassword } = req.body || {};
+  if (!currentPassword || !newPassword) return res.status(400).json({ success: false, message: 'Current password and new password are required.' });
+  if (String(newPassword).length < 8) return res.status(400).json({ success: false, message: 'New password must be at least 8 characters.' });
+  try {
+    const users = await getUsersAsync();
+    const user = users.find(u => (u.email || '').toLowerCase() === email.toLowerCase());
+    if (!user) return res.status(404).json({ success: false, message: 'User not found.' });
+    if (!user.passwordHash) return res.status(400).json({ success: false, message: 'This account uses Google or Microsoft sign-in. Set a password first from the profile page or use social login.' });
+    if (!bcrypt.compareSync(currentPassword, user.passwordHash)) return res.status(401).json({ success: false, message: 'Current password is incorrect.' });
+    const newHash = bcrypt.hashSync(newPassword, 10);
+    if (usePgUsers()) {
+      await pgQuery(
+        `UPDATE public."DataPortalUsers" SET password_hash = $1, updated_at = NOW() WHERE LOWER(email) = LOWER($2)`,
+        [newHash, email]
+      );
+    } else {
+      const idx = users.findIndex(u => (u.email || '').toLowerCase() === email.toLowerCase());
+      if (idx >= 0) {
+        users[idx].passwordHash = newHash;
+        writeUsers(users);
+      }
+    }
+    return res.json({ success: true, message: 'Password updated.' });
+  } catch (e) {
+    console.error('PUT /api/auth/profile/password', e);
+    return res.status(500).json({ success: false, message: 'Failed to update password.' });
+  }
+});
+
+// ---- Auth: PUT /api/auth/profile/contact (change contact number) ----
+app.put("/api/auth/profile/contact", express.json(), async (req, res) => {
+  const email = await getCurrentUserEmail(req);
+  if (!email) return res.status(401).json({ success: false, message: 'Not logged in.' });
+  const raw = (req.body?.contactNumber ?? req.body?.contact ?? '').trim();
+  const contactNumber = raw.length > 0 ? raw : null;
+  const contactRegex = /^[\d+\-\s()]{7,20}$/;
+  if (contactNumber && !contactRegex.test(contactNumber)) return res.status(400).json({ success: false, message: 'Please enter a valid contact number (7–20 digits, + - ( ) and spaces allowed).' });
+  try {
+    if (usePgUsers()) {
+      await pgQuery(
+        `UPDATE public."DataPortalUsers" SET contact_number = $1, updated_at = NOW() WHERE LOWER(email) = LOWER($2)`,
+        [contactNumber, email]
+      );
+    } else {
+      const users = readUsers();
+      const idx = users.findIndex(u => (u.email || '').toLowerCase() === email.toLowerCase());
+      if (idx >= 0) {
+        users[idx].contactNumber = contactNumber || '';
+        writeUsers(users);
+      }
+    }
+    return res.json({ success: true, message: 'Contact number updated.', contactNumber: contactNumber || '' });
+  } catch (e) {
+    console.error('PUT /api/auth/profile/contact', e);
+    return res.status(500).json({ success: false, message: 'Failed to update contact number.' });
+  }
+});
+
+// ---- Auth: PUT /api/auth/profile/email (change email; updates DataPortalUsers, GoogleUsers, MicrosoftUsers; then sign out) ----
+app.put("/api/auth/profile/email", express.json(), async (req, res) => {
+  const currentEmail = await getCurrentUserEmail(req);
+  if (!currentEmail) return res.status(401).json({ success: false, message: 'Not logged in.' });
+  const newEmailRaw = (req.body?.newEmail ?? req.body?.email ?? '').trim();
+  const newEmail = newEmailRaw.toLowerCase();
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!newEmail || !emailRegex.test(newEmail)) return res.status(400).json({ success: false, message: 'Please enter a valid email address.' });
+  if (newEmail === currentEmail.toLowerCase()) return res.json({ success: true, message: 'Email unchanged.' });
+  try {
+    const users = await getUsersAsync();
+    if (users.some(u => (u.email || '').toLowerCase() === newEmail)) return res.status(400).json({ success: false, message: 'This email is already registered in the Data Portal.' });
+    const user = users.find(u => (u.email || '').toLowerCase() === currentEmail.toLowerCase());
+    if (!user) return res.status(404).json({ success: false, message: 'User not found.' });
+    if (usePgUsers()) {
+      await pgQuery(
+        `UPDATE public."DataPortalUsers" SET email = $1, updated_at = NOW() WHERE LOWER(email) = LOWER($2)`,
+        [newEmail, currentEmail]
+      );
+      await pgQuery(
+        `UPDATE public."GoogleUsers" SET email = $1 WHERE LOWER(email) = LOWER($2)`,
+        [newEmail, currentEmail]
+      ).catch(() => {}); // table or column may differ
+      await pgQuery(
+        `UPDATE public."MicrosoftUsers" SET email = $1 WHERE LOWER(email) = LOWER($2)`,
+        [newEmail, currentEmail]
+      ).catch(() => {});
+    } else {
+      const idx = users.findIndex(u => (u.email || '').toLowerCase() === currentEmail.toLowerCase());
+      if (idx >= 0) {
+        users[idx].email = newEmail;
+        writeUsers(users);
+      }
+    }
+    req.session.user = null;
+    req.session.save(() => {});
+    try {
+      await auth.api.signOut({ headers: fromNodeHeaders(req.headers) });
+    } catch (_) {}
+    return res.json({ success: true, message: 'Email updated. Please sign in again with your new email.', requireRelogin: true });
+  } catch (e) {
+    console.error('PUT /api/auth/profile/email', e);
+    return res.status(500).json({ success: false, message: 'Failed to update email.' });
+  }
+});
+
 // ---- Google: start OAuth by calling our Better Auth sign-in endpoint (so cookies are set), then forward redirect to browser ----
 const googleCallbackRegisterUrl = `${baseURL}/api/auth/google-callback-done?flow=register&then=${encodeURIComponent('http://localhost:3000/html/front-pages/register.html')}`;
 app.get("/api/auth/google", async (req, res) => {

@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en" class="layout-navbar-fixed layout-wide" dir="ltr" data-assets-path="../../assets/"
+  data-template="front-pages" data-bs-theme="light">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+  <title>Account Profile | TemaDigital Data Portal</title>
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/x-icon" href="../../assets/img/favicon/favicon.ico">
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Public+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&display=swap"
+    rel="stylesheet">
+
+  <!-- Icons -->
+  <link rel="stylesheet" href="../../assets/vendor/fonts/iconify-icons.css">
+  <link rel="stylesheet" href="../../assets/vendor/fonts/boxicons.css" />
+
+  <!-- Core CSS -->
+  <link rel="stylesheet" href="../../assets/vendor/css/core.css">
+  <link rel="stylesheet" href="../../assets/css/demo.css">
+  <link rel="stylesheet" href="../../assets/vendor/css/pages/front-page.css">
+
+  <script src="../../assets/vendor/js/helpers.js"></script>
+  <script src="../../assets/js/front-config.js"></script>
+
+  <!-- Auth: require any logged-in user (client, subscriber, admin) -->
+  <script>
+    (function () {
+      var AUTH_API = (window.TemaDataPortal_API_BASE || window.location.origin || 'http://localhost:3000');
+      var LANDING_URL = (window.location.origin || 'http://localhost:3000') + '/html/front-pages/landing-page.html';
+      fetch(AUTH_API + '/api/auth/me', { credentials: 'include' }).then(function (r) { return r.json(); }).then(function (d) {
+        if (!d.loggedIn) {
+          window.location.href = '/html/front-pages/login.html?redirect=' + encodeURIComponent(window.location.pathname);
+          return;
+        }
+      }).catch(function () { });
+    })();
+  </script>
+
+  <style>
+    body { background-color: #f8f9fa; }
+    .hero-bg {
+      background: linear-gradient(135deg, rgba(105, 108, 255, 0.05) 0%, rgba(105, 108, 255, 0.01) 100%);
+      padding: 3rem 0;
+      border-bottom: 1px solid #ebedf2;
+    }
+    .profile-card {
+      background: #fff;
+      border: 1px solid #ebedf2;
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+      margin-bottom: 1.5rem;
+    }
+    .profile-card h5 { margin-bottom: 1rem; font-weight: 600; }
+  </style>
+</head>
+
+<body>
+
+  <div class="hero-bg">
+    <div class="container">
+      <a href="landing-page.html" class="btn btn-label-secondary btn-sm mb-4 fw-medium border shadow-sm" style="background: white;">
+        <i class="bx bx-arrow-back me-1"></i> Back
+      </a>
+      <h2 class="h3 fw-bold text-dark mb-2">Account profile</h2>
+      <p class="text-muted mb-0">Manage your account: change password, contact number, or email.</p>
+    </div>
+  </div>
+
+  <div class="container mt-4 mb-5 pb-5">
+    <div id="profileLoadError" class="alert alert-danger d-none" role="alert"></div>
+
+    <!-- Change Password -->
+    <div class="profile-card">
+      <h5><i class="bx bx-lock-alt me-2"></i>Change password</h5>
+      <p class="text-muted small mb-3">If you signed up with email and password, you can set a new password here. Accounts that use only Google or Microsoft sign-in do not have a password; you can still set one for email login.</p>
+      <form id="formPassword" class="row g-3">
+        <div class="col-md-6">
+          <label for="currentPassword" class="form-label">Current password</label>
+          <input type="password" class="form-control" id="currentPassword" name="currentPassword" autocomplete="current-password" required>
+        </div>
+        <div class="col-md-6">
+          <label for="newPassword" class="form-label">New password</label>
+          <input type="password" class="form-control" id="newPassword" name="newPassword" minlength="8" autocomplete="new-password" required>
+        </div>
+        <div class="col-12">
+          <button type="submit" class="btn btn-primary" id="btnPasswordSubmit">Update password</button>
+          <span id="passwordMessage" class="ms-2 small"></span>
+        </div>
+      </form>
+    </div>
+
+    <!-- Change Contact Number -->
+    <div class="profile-card">
+      <h5><i class="bx bx-phone me-2"></i>Contact number</h5>
+      <form id="formContact" class="row g-3">
+        <div class="col-md-6">
+          <label for="contactNumber" class="form-label">Contact number</label>
+          <input type="tel" class="form-control" id="contactNumber" name="contactNumber" placeholder="e.g. +60 12-345 6789" autocomplete="tel">
+        </div>
+        <div class="col-12">
+          <button type="submit" class="btn btn-primary" id="btnContactSubmit">Update contact number</button>
+          <span id="contactMessage" class="ms-2 small"></span>
+        </div>
+      </form>
+    </div>
+
+    <!-- Change Email -->
+    <div class="profile-card">
+      <h5><i class="bx bx-envelope me-2"></i>Email address</h5>
+      <p class="text-muted small mb-3">Changing your email will update it across the Data Portal. If you use Google or Microsoft sign-in, our records will be updated to the new email; you will need to sign in again after the change.</p>
+      <form id="formEmail" class="row g-3">
+        <div class="col-md-6">
+          <label for="currentEmail" class="form-label">Current email</label>
+          <input type="email" class="form-control" id="currentEmail" readonly disabled>
+        </div>
+        <div class="col-md-6">
+          <label for="newEmail" class="form-label">New email address</label>
+          <input type="email" class="form-control" id="newEmail" name="newEmail" placeholder="new@email.com" required>
+        </div>
+        <div class="col-12">
+          <button type="submit" class="btn btn-primary" id="btnEmailSubmit">Update email</button>
+          <span id="emailMessage" class="ms-2 small"></span>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="../../assets/vendor/libs/jquery/jquery.js"></script>
+  <script src="../../assets/vendor/libs/popper/popper.js"></script>
+  <script src="../../assets/vendor/js/bootstrap.js"></script>
+  <script>
+    (function () {
+      var AUTH_API = (window.TemaDataPortal_API_BASE || window.location.origin || 'http://localhost:3000');
+      var LOGIN_URL = (window.location.origin || 'http://localhost:3000') + '/html/front-pages/login.html';
+
+      function showMessage(elId, text, isError) {
+        var el = document.getElementById(elId);
+        if (!el) return;
+        el.textContent = text || '';
+        el.className = 'ms-2 small ' + (isError ? 'text-danger' : 'text-success');
+      }
+
+      function loadProfile() {
+        fetch(AUTH_API + '/api/auth/profile', { credentials: 'include' })
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            if (!data.success) {
+              document.getElementById('profileLoadError').classList.remove('d-none');
+              document.getElementById('profileLoadError').textContent = data.message || 'Failed to load profile.';
+              return;
+            }
+            document.getElementById('currentEmail').value = data.email || '';
+            document.getElementById('contactNumber').value = data.contactNumber || '';
+          })
+          .catch(function () {
+            document.getElementById('profileLoadError').classList.remove('d-none');
+            document.getElementById('profileLoadError').textContent = 'Failed to load profile.';
+          });
+      }
+
+      document.addEventListener('DOMContentLoaded', function () {
+        loadProfile();
+
+        document.getElementById('formPassword').addEventListener('submit', function (e) {
+          e.preventDefault();
+          var btn = document.getElementById('btnPasswordSubmit');
+          var msg = document.getElementById('passwordMessage');
+          btn.disabled = true;
+          msg.textContent = '';
+          fetch(AUTH_API + '/api/auth/profile/password', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+              currentPassword: document.getElementById('currentPassword').value,
+              newPassword: document.getElementById('newPassword').value
+            })
+          })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+              if (data.success) {
+                showMessage('passwordMessage', data.message, false);
+                document.getElementById('formPassword').reset();
+              } else {
+                showMessage('passwordMessage', data.message || 'Update failed.', true);
+              }
+            })
+            .catch(function () { showMessage('passwordMessage', 'Network error.', true); })
+            .finally(function () { btn.disabled = false; });
+        });
+
+        document.getElementById('formContact').addEventListener('submit', function (e) {
+          e.preventDefault();
+          var btn = document.getElementById('btnContactSubmit');
+          var msg = document.getElementById('contactMessage');
+          btn.disabled = true;
+          msg.textContent = '';
+          fetch(AUTH_API + '/api/auth/profile/contact', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ contactNumber: document.getElementById('contactNumber').value.trim() })
+          })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+              if (data.success) {
+                showMessage('contactMessage', data.message || 'Updated.', false);
+              } else {
+                showMessage('contactMessage', data.message || 'Update failed.', true);
+              }
+            })
+            .catch(function () { showMessage('contactMessage', 'Network error.', true); })
+            .finally(function () { btn.disabled = false; });
+        });
+
+        document.getElementById('formEmail').addEventListener('submit', function (e) {
+          e.preventDefault();
+          var btn = document.getElementById('btnEmailSubmit');
+          var msg = document.getElementById('emailMessage');
+          var newEmail = document.getElementById('newEmail').value.trim();
+          if (!newEmail) return;
+          btn.disabled = true;
+          msg.textContent = '';
+          fetch(AUTH_API + '/api/auth/profile/email', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ newEmail: newEmail })
+          })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+              if (data.success) {
+                showMessage('emailMessage', data.message || 'Updated.', false);
+                if (data.requireRelogin) {
+                  setTimeout(function () {
+                    window.location.href = LOGIN_URL + '?message=email_updated';
+                  }, 1500);
+                }
+              } else {
+                showMessage('emailMessage', data.message || 'Update failed.', true);
+                btn.disabled = false;
+              }
+            })
+            .catch(function () {
+              showMessage('emailMessage', 'Network error.', true);
+              btn.disabled = false;
+            });
+        });
+      });
+    })();
+  </script>
+</body>
+</html>

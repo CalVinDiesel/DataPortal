@@ -43,10 +43,13 @@
           window.location.href = LANDING_URL + '?message=subscriber_required';
         }
         
-        // Setup navbar user details
-        document.getElementById('navUserWrap').style.display = 'inline-block';
-        document.getElementById('navLoginWrap').style.display = 'none';
-        document.getElementById('navUserEmail').textContent = d.email || 'User';
+        // Setup navbar user details (if this page has nav elements, e.g. when embedded)
+        var navUserWrap = document.getElementById('navUserWrap');
+        var navLoginWrap = document.getElementById('navLoginWrap');
+        var navUserEmail = document.getElementById('navUserEmail');
+        if (navUserWrap) navUserWrap.style.display = 'inline-block';
+        if (navLoginWrap) navLoginWrap.style.display = 'none';
+        if (navUserEmail) navUserEmail.textContent = d.email || 'User';
         
       }).catch(function () { });
     })();
