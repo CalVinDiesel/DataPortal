@@ -1462,6 +1462,24 @@ app.post('/api/map-data', express.json(), async (req, res) => {
   const updateDateTime = new Date().toISOString();
   try {
     if (process.env.PG_DATABASE) {
+      const dup = await pgQuery(
+        `SELECT "mapDataID", title, "xAxis", "yAxis", "3dTiles"
+         FROM public."MapData"
+         WHERE "mapDataID" = $1
+            OR LOWER(title) = LOWER($2)
+            OR "yAxis" = $3
+            OR "xAxis" = $4
+            OR "3dTiles" = $5
+         LIMIT 1`,
+        [mapDataID, title, yAxis, xAxis, tilesUrl]
+      );
+      if (dup && dup.rows && dup.rows.length > 0) {
+        return res.status(409).json({
+          success: false,
+          message: 'This to be created new 3D model has the same model ID and/or title and/or latitude and/or logitude and/or 3D tiles url with the existing 3D model in the data portal.',
+          code: 'DUPLICATE_MAPDATA',
+        });
+      }
       await pgQuery(
         `INSERT INTO public."MapData" ("mapDataID", title, description, "xAxis", "yAxis", "3dTiles", "thumbNailUrl", "updateDateTime")
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
@@ -1473,6 +1491,28 @@ app.post('/api/map-data', express.json(), async (req, res) => {
     } else {
       const rows = readMapData();
       const idx = rows.findIndex(r => (r.mapDataID || '').toString() === mapDataID);
+      const titleLower = (title || '').toLowerCase();
+      const dupAny = rows.find(r => {
+        const rid = (r.mapDataID || '').toString();
+        const rtitle = (r.title || '').toString().toLowerCase();
+        const rlat = r.yAxis != null ? Number(r.yAxis) : null;
+        const rlon = r.xAxis != null ? Number(r.xAxis) : null;
+        const rtiles = (r['3dTiles'] || '').toString();
+        return (
+          (rid && rid === mapDataID) ||
+          (rtitle && rtitle === titleLower) ||
+          (rlat != null && rlat === yAxis) ||
+          (rlon != null && rlon === xAxis) ||
+          (rtiles && rtiles === tilesUrl)
+        );
+      });
+      if (dupAny) {
+        return res.status(409).json({
+          success: false,
+          message: 'This to be created new 3D model has the same model ID and/or title and/or latitude and/or logitude and/or 3D tiles url with the existing 3D model in the data portal.',
+          code: 'DUPLICATE_MAPDATA',
+        });
+      }
       const row = { mapDataID, title, description, xAxis, yAxis, '3dTiles': tilesUrl, thumbNailUrl: thumbNailUrl || '', updateDateTime };
       if (idx >= 0) rows[idx] = row; else rows.unshift(row);
       if (mapDataDb) {
@@ -1484,6 +1524,51 @@ app.post('/api/map-data', express.json(), async (req, res) => {
         fs.writeFileSync(MAPDATA_FILE, JSON.stringify(rows, null, 2), 'utf8');
       }
     }
+
+    // Keep data/locations.json in sync (DB -> JSON seed file)
+    try {
+      const locationsPath = path.join(PROJECT_ROOT, 'data', 'locations.json');
+      let data = { locations: [] };
+      try {
+        if (fs.existsSync(locationsPath)) {
+          data = JSON.parse(fs.readFileSync(locationsPath, 'utf8')) || { locations: [] };
+        } else {
+          fs.mkdirSync(path.dirname(locationsPath), { recursive: true });
+        }
+      } catch (e) {
+        data = { locations: [] };
+      }
+      if (!Array.isArray(data.locations)) data.locations = [];
+
+      const idxLoc = data.locations.findIndex((l) => (l && (l.id || '')).toString() === mapDataID);
+      const existing = idxLoc >= 0 ? (data.locations[idxLoc] || {}) : {};
+      const next = {
+        ...existing,
+        id: mapDataID,
+        name: title,
+        description: description || existing.description || '',
+        coordinates: {
+          ...(existing.coordinates || {}),
+          latitude: Number(yAxis),
+          longitude: Number(xAxis),
+        },
+        dataPaths: {
+          ...(existing.dataPaths || {}),
+          tileset: tilesUrl,
+        },
+      };
+      // Prefer using the thumbnail URL as previewImage when provided
+      if (thumbNailUrl) next.previewImage = thumbNailUrl;
+
+      if (idxLoc >= 0) data.locations[idxLoc] = next;
+      else data.locations.push(next);
+
+      fs.writeFileSync(locationsPath, JSON.stringify(data, null, 2), 'utf8');
+    } catch (e) {
+      // If the file cannot be updated (permissions, etc.), do not block saving to DB.
+      console.warn('[map-data] Could not update data/locations.json:', e && e.message ? e.message : e);
+    }
+
     res.json({ success: true, mapDataID, message: '3D model saved. It will appear on the overview map.' });
   } catch (e) {
     console.error('POST /api/map-data', e);
@@ -1600,6 +1685,66 @@ app.post('/api/admin/seed-showcase-from-locations', async (req, res) => {
   }
 });
 
+// ---- Admin: export/backfill data/locations.json from DB MapData (DB -> JSON seed file) ----
+app.all('/api/admin/export-locations-json', function (req, res, next) {
+  if (req.method !== 'POST') return res.status(405).json({ success: false, message: 'Method not allowed. Use POST to export.' });
+  next();
+});
+app.post('/api/admin/export-locations-json', async (req, res) => {
+  const locationsPath = path.join(PROJECT_ROOT, 'data', 'locations.json');
+  try {
+    const rows = await getMapDataForApi(); // PG when configured, otherwise falls back to file/SQLite
+
+    let existing = { locations: [] };
+    try {
+      if (fs.existsSync(locationsPath)) {
+        existing = JSON.parse(fs.readFileSync(locationsPath, 'utf8')) || { locations: [] };
+      } else {
+        fs.mkdirSync(path.dirname(locationsPath), { recursive: true });
+      }
+    } catch (e) {
+      existing = { locations: [] };
+    }
+    if (!existing || typeof existing !== 'object') existing = { locations: [] };
+    if (!Array.isArray(existing.locations)) existing.locations = [];
+
+    const byId = new Map(existing.locations.map((l) => [String((l && l.id) || ''), l]).filter((p) => p[0]));
+    let upserted = 0;
+
+    for (const r of (Array.isArray(rows) ? rows : [])) {
+      const id = String((r && (r.mapDataID || r.id)) || '').trim();
+      if (!id) continue;
+      const prev = byId.get(id) || {};
+      const next = {
+        ...prev,
+        id,
+        name: (r.title || id),
+        description: (r.description || prev.description || ''),
+        coordinates: {
+          ...(prev.coordinates || {}),
+          latitude: (r.yAxis != null ? Number(r.yAxis) : (prev.coordinates && prev.coordinates.latitude)),
+          longitude: (r.xAxis != null ? Number(r.xAxis) : (prev.coordinates && prev.coordinates.longitude)),
+        },
+        dataPaths: {
+          ...(prev.dataPaths || {}),
+          tileset: (r['3dTiles'] || (prev.dataPaths && prev.dataPaths.tileset) || ''),
+        },
+      };
+      const thumb = (r.thumbNailUrl || '').toString().trim();
+      if (thumb) next.previewImage = thumb;
+      byId.set(id, next);
+      upserted++;
+    }
+
+    const out = { ...existing, locations: Array.from(byId.values()) };
+    fs.writeFileSync(locationsPath, JSON.stringify(out, null, 2), 'utf8');
+    return res.json({ success: true, upserted, message: 'Exported ' + upserted + ' MapData rows into data/locations.json.' });
+  } catch (e) {
+    console.error('POST /api/admin/export-locations-json', e);
+    return res.status(500).json({ success: false, message: e.message || 'Failed to export locations.json.' });
+  }
+});
+
 // ---- Admin: renumber all showcase display_order to 0, 1, 2, ... (fix duplicates or 1-based data). ----
 app.post('/api/admin/showcase-renumber', async (req, res) => {
   if (!process.env.PG_DATABASE) return res.status(501).json({ success: false, message: 'PostgreSQL required.' });
@@ -1651,6 +1796,14 @@ app.post('/api/showcase', express.json(), async (req, res) => {
   const display_order = req.body.display_order != null ? parseInt(req.body.display_order, 10) : 0;
   if (!map_data_id) return res.status(400).json({ success: false, message: 'map_data_id is required.' });
   try {
+    const exists = await pgQuery('SELECT 1 FROM public."Showcase" WHERE map_data_id = $1 LIMIT 1', [map_data_id]);
+    if (exists && exists.rows && exists.rows.length > 0) {
+      return res.status(409).json({
+        success: false,
+        message: 'This specific 3D model showcase has been added into the showcase already, cannot add duplicate 3D model in showcase section.',
+        code: 'DUPLICATE_SHOWCASE',
+      });
+    }
     const r = await pgQuery(
       'INSERT INTO public."Showcase" (map_data_id, display_order) VALUES ($1, $2) RETURNING id, map_data_id, display_order, created_at',
       [map_data_id, isNaN(display_order) ? 0 : display_order]

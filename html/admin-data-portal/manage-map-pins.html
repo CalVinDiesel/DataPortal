@@ -78,6 +78,7 @@
           <div class="navbar-nav-right d-flex align-items-center ms-auto">
           <div class="navbar-nav-right d-flex align-items-center">
             <button type="button" class="btn btn-sm btn-outline-secondary me-2" id="syncFromJsonBtn">Sync from locations.json</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary me-2" id="exportToJsonBtn" title="Backfill data/locations.json from current database map pins">Export to locations.json</button>
             <a href="add-3d-model.html" class="btn btn-sm btn-primary me-2">Add new pin</a>
             <a href="index.html" class="btn btn-sm btn-outline-primary">Back to Dashboard</a>
           </div>
@@ -291,6 +292,24 @@
               if (alertEl) { alertEl.textContent = data.message || 'Synced.'; alertEl.className = 'alert alert-success'; alertEl.classList.remove('d-none'); setTimeout(function () { alertEl.classList.add('d-none'); }, 5000); }
             } else {
               alert(data.message || 'Sync failed.');
+            }
+          })
+          .catch(function () { alert('Request failed.'); })
+          .finally(function () { btn.disabled = false; });
+      });
+
+      var exportBtn = document.getElementById('exportToJsonBtn');
+      if (exportBtn) exportBtn.addEventListener('click', function () {
+        var btn = this;
+        btn.disabled = true;
+        fetch(API_BASE + '/api/admin/export-locations-json', { method: 'POST' })
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            if (data && data.success) {
+              var alertEl = document.getElementById('pinsAlert');
+              if (alertEl) { alertEl.textContent = data.message || 'Exported.'; alertEl.className = 'alert alert-success'; alertEl.classList.remove('d-none'); setTimeout(function () { alertEl.classList.add('d-none'); }, 5000); }
+            } else {
+              alert((data && data.message) || 'Export failed.');
             }
           })
           .catch(function () { alert('Request failed.'); })

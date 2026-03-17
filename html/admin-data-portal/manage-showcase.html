@@ -42,6 +42,7 @@
           <div class="navbar-nav-right d-flex align-items-center ms-auto">
             <div class="navbar-nav-right d-flex align-items-center">
             <button type="button" class="btn btn-sm btn-outline-secondary me-2" id="syncShowcaseFromJsonBtn">Sync from locations.json</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary me-2" id="exportLocationsJsonBtn" title="Backfill data/locations.json from current database map pins">Export to locations.json</button>
             <button type="button" class="btn btn-sm btn-outline-secondary me-2" id="renumberOrdersBtn" title="Fix order numbers to 0, 1, 2, …">Renumber orders</button>
             <button type="button" class="btn btn-sm btn-primary me-2" id="addToShowcaseBtn">Add to showcase</button>
             <a href="index.html" class="btn btn-sm btn-outline-primary">Back to Dashboard</a>
@@ -113,6 +114,7 @@
     (function () {
       var API_BASE = (typeof window !== 'undefined' && window.TemaDataPortal_API_BASE) || (window.location && window.location.origin) || 'http://localhost:3000';
       var pendingDeleteId = null;
+      var existingShowcaseMapIds = new Set();
 
       function escapeHtml(s) { if (!s) return ''; var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
       function showAlert(msg, type) {
@@ -124,6 +126,7 @@
       function loadShowcase() {
         fetch(API_BASE + '/api/showcase').then(function (r) { return r.json(); }).then(function (rows) {
           var tbody = document.getElementById('showcaseTableBody');
+          existingShowcaseMapIds = new Set((Array.isArray(rows) ? rows : []).map(function (r) { return (r && r.map_data_id) ? String(r.map_data_id) : ''; }).filter(Boolean));
           if (!Array.isArray(rows) || rows.length === 0) {
             tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">No showcase items yet. Add map pins from <a href="manage-map-pins.html">Manage Map Pins</a>, then add them here.</td></tr>';
             return;
@@ -180,6 +183,23 @@
           .finally(function () { btn.disabled = false; });
       });
 
+      var exportLocationsBtn = document.getElementById('exportLocationsJsonBtn');
+      if (exportLocationsBtn) exportLocationsBtn.addEventListener('click', function () {
+        var btn = this;
+        btn.disabled = true;
+        fetch(API_BASE + '/api/admin/export-locations-json', { method: 'POST' })
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            if (data && data.success) {
+              showAlert(data.message || 'Exported to locations.json.', 'success');
+            } else {
+              alert((data && data.message) || 'Export failed.');
+            }
+          })
+          .catch(function () { alert('Request failed.'); })
+          .finally(function () { btn.disabled = false; });
+      });
+
       document.getElementById('addToShowcaseBtn').addEventListener('click', function () {
         fetch(API_BASE + '/api/map-data').then(function (r) { return r.json(); }).then(function (mapRows) {
           var select = document.getElementById('addMapDataId');
@@ -195,6 +215,10 @@
         var mapDataId = document.getElementById('addMapDataId').value.trim();
         var order = parseInt(document.getElementById('addDisplayOrder').value, 10); if (isNaN(order)) order = 0;
         if (!mapDataId) { alert('Select a location.'); return; }
+        if (existingShowcaseMapIds && existingShowcaseMapIds.has(mapDataId)) {
+          alert('This specific 3D model showcase has been added into the showcase already, cannot add duplicate 3D model in showcase section.');
+          return;
+        }
         fetch(API_BASE + '/api/showcase', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ map_data_id: mapDataId, display_order: order }) })
           .then(function (r) { return r.json(); }).then(function (data) {
             if (data.success) { bootstrap.Modal.getInstance(document.getElementById('addModal')).hide(); loadShowcase(); showAlert('Added to showcase.', 'success'); }

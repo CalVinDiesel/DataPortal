@@ -15,8 +15,15 @@
       "area": "Kota Kinabalu area",
       "resolution": "3D Tiles",
       "price": "",
-      "formats": ["Cesium 3D Tiles"],
-      "tags": ["3d-tiles", "geosabah", "sabah", "kota-kinabalu"],
+      "formats": [
+        "Cesium 3D Tiles"
+      ],
+      "tags": [
+        "3d-tiles",
+        "geosabah",
+        "sabah",
+        "kota-kinabalu"
+      ],
       "previewImage": "/assets/img/front-pages/locations/kkOsprey_pin_image.jpg",
       "dataPaths": {
         "tileset": "https://3dhub.geosabah.my/3dmodel/KK_OSPREY/tileset.json"
@@ -84,6 +91,19 @@
       "dataPaths": {
         "tileset": "https://3dhub.geosabah.my/3dmodel/ppns_ys/tileset.json"
       }
+    },
+    {
+      "id": "Keningau-Sabah-2026",
+      "name": "Keningau Sabah",
+      "description": "the city of Keningau Sabah",
+      "coordinates": {
+        "latitude": 5.3555,
+        "longitude": 116.1649
+      },
+      "dataPaths": {
+        "tileset": "https://example.com/tileset.json"
+      },
+      "previewImage": "http://localhost:3000/uploads/map-thumbnails/pin_1773715260553.png"
     }
   ]
 }

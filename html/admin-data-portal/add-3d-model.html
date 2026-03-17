@@ -121,6 +121,7 @@
                       <input type="url" class="form-control" id="thumbNailUrl" name="thumbNailUrl" placeholder="Optional: image URL if not uploading" />
                     </div>
                     <div class="col-12">
+                      <button type="button" class="btn btn-outline-secondary me-2" id="clearBtn">Clear Filled Box</button>
                       <button type="submit" class="btn btn-primary" id="submitBtn">Save 3D Model</button>
                       <span id="formMessage" class="ms-3"></span>
                     </div>
@@ -139,6 +140,17 @@
       var form = document.getElementById('addModelForm');
       var submitBtn = document.getElementById('submitBtn');
       var formMessage = document.getElementById('formMessage');
+      var clearBtn = document.getElementById('clearBtn');
+      var thumbnailFile = document.getElementById('thumbnailFile');
+
+      if (clearBtn) clearBtn.addEventListener('click', function () {
+        if (form) form.reset();
+        if (thumbnailFile) thumbnailFile.value = '';
+        if (formMessage) {
+          formMessage.textContent = '';
+          formMessage.className = 'ms-3';
+        }
+      });
 
       document.getElementById('mapDataID').addEventListener('input', function () {
         var v = this.value.replace(/[^a-zA-Z0-9_-]/g, '-');
@@ -156,7 +168,6 @@
           return;
         }
         var thumbNailUrl = document.getElementById('thumbNailUrl').value.trim();
-        var thumbnailFile = document.getElementById('thumbnailFile');
         var file = thumbnailFile && thumbnailFile.files && thumbnailFile.files[0];
         var payload = {
           mapDataID: mapDataID,
@@ -173,6 +184,38 @@
           return;
         }
         submitBtn.disabled = true;
+        function normalizeStr(s) { return (s || '').toString().trim(); }
+        function normalizeLower(s) { return normalizeStr(s).toLowerCase(); }
+        function checkDuplicates() {
+          // Check against existing pins; if ANY of the 5 fields match, block creation.
+          return fetch(API_BASE + '/api/map-data')
+            .then(function (r) { return r.json(); })
+            .then(function (rows) {
+              rows = Array.isArray(rows) ? rows : [];
+              var newId = normalizeStr(mapDataID);
+              var newTitle = normalizeLower(document.getElementById('title').value.trim() || mapDataID);
+              var newLat = String(parseFloat(document.getElementById('yAxis').value));
+              var newLon = String(parseFloat(document.getElementById('xAxis').value));
+              var newTiles = normalizeStr(document.getElementById('tilesetUrl').value.trim());
+
+              var dup = { id: false, title: false, lat: false, lon: false, tiles: false };
+              for (var i = 0; i < rows.length; i++) {
+                var r0 = rows[i] || {};
+                var rid = normalizeStr(r0.mapDataID || r0.id || '');
+                var rtitle = normalizeLower(r0.title || '');
+                var rlat = (r0.yAxis != null && r0.yAxis !== '') ? String(Number(r0.yAxis)) : '';
+                var rlon = (r0.xAxis != null && r0.xAxis !== '') ? String(Number(r0.xAxis)) : '';
+                var rtiles = normalizeStr(r0['3dTiles'] || r0.tilesetUrl || r0.tileset || '');
+                if (rid && rid === newId) dup.id = true;
+                if (rtitle && rtitle === newTitle) dup.title = true;
+                if (rlat && rlat === newLat) dup.lat = true;
+                if (rlon && rlon === newLon) dup.lon = true;
+                if (rtiles && rtiles === newTiles) dup.tiles = true;
+                if (dup.id || dup.title || dup.lat || dup.lon || dup.tiles) break;
+              }
+              return dup;
+            });
+        }
         function saveMapData(finalThumbUrl) {
           var payload = {
             mapDataID: mapDataID,
@@ -204,26 +247,40 @@
           var fd = new FormData();
           fd.append('thumbnail', file);
           fd.append('mapDataID', mapDataID);
-          fetch(API_BASE + '/api/admin/upload-map-thumbnail', { method: 'POST', body: fd })
-            .then(function (r) { return r.json().then(function (j) { return { status: r.status, body: j }; }); })
-            .then(function (up) {
-              if (up.status === 200 && up.body.success && up.body.url) {
-                var fullUrl = (up.body.url.indexOf('http') === 0) ? up.body.url : (API_BASE + up.body.url);
-                return saveMapData(fullUrl).then(done);
-              }
-              formMessage.textContent = up.body.message || 'Thumbnail upload failed.';
-              formMessage.classList.add('text-danger');
-            })
-            .catch(function (err) {
-              formMessage.textContent = 'Thumbnail upload failed: ' + (err.message || 'check server');
-              formMessage.classList.add('text-danger');
-            })
-            .finally(function () { submitBtn.disabled = false; });
+          checkDuplicates().then(function (dup) {
+            if (dup && (dup.id || dup.title || dup.lat || dup.lon || dup.tiles)) {
+              alert('This to be created new 3D model has the same model ID and/or title and/or latitude and/or logitude and/or 3D tiles url with the existing 3D model in the data portal.');
+              submitBtn.disabled = false;
+              return;
+            }
+            fetch(API_BASE + '/api/admin/upload-map-thumbnail', { method: 'POST', body: fd })
+              .then(function (r) { return r.json().then(function (j) { return { status: r.status, body: j }; }); })
+              .then(function (up) {
+                if (up.status === 200 && up.body.success && up.body.url) {
+                  var fullUrl = (up.body.url.indexOf('http') === 0) ? up.body.url : (API_BASE + up.body.url);
+                  return saveMapData(fullUrl).then(done);
+                }
+                formMessage.textContent = up.body.message || 'Thumbnail upload failed.';
+                formMessage.classList.add('text-danger');
+              })
+              .catch(function (err) {
+                formMessage.textContent = 'Thumbnail upload failed: ' + (err.message || 'check server');
+                formMessage.classList.add('text-danger');
+              })
+              .finally(function () { submitBtn.disabled = false; });
+          }).catch(function () { submitBtn.disabled = false; });
         } else {
-          saveMapData(thumbNailUrl).then(done).catch(function (err) {
-            formMessage.textContent = 'Request failed: ' + (err.message || 'check server');
-            formMessage.classList.add('text-danger');
-          }).finally(function () { submitBtn.disabled = false; });
+          checkDuplicates().then(function (dup) {
+            if (dup && (dup.id || dup.title || dup.lat || dup.lon || dup.tiles)) {
+              alert('This to be created new 3D model has the same model ID and/or title and/or latitude and/or logitude and/or 3D tiles url with the existing 3D model in the data portal.');
+              submitBtn.disabled = false;
+              return;
+            }
+            saveMapData(thumbNailUrl).then(done).catch(function (err) {
+              formMessage.textContent = 'Request failed: ' + (err.message || 'check server');
+              formMessage.classList.add('text-danger');
+            }).finally(function () { submitBtn.disabled = false; });
+          }).catch(function () { submitBtn.disabled = false; });
         }
       });
     })();
