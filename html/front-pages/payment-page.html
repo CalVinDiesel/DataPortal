@@ -466,6 +466,7 @@
     (function () {
       var API = window.TemaDataPortal_API_BASE || (window.location.protocol + '//' + window.location.host);
       var LANDING_URL = (window.location.origin || 'http://localhost:3000') + '/html/front-pages/landing-page.html';
+  
       document.addEventListener('DOMContentLoaded', function () {
         var logoutBtn = document.getElementById('navLogoutBtn');
         if (logoutBtn) logoutBtn.addEventListener('click', function () {
@@ -475,11 +476,13 @@
             .catch(function () { window.location.href = LANDING_URL; });
         });
       });
+  
       var rate = 2;
       var currentClientSecret = null;
       var stripe = null;
       var elements = null;
-
+      var paymentElement = null; // ✅ Track the individual element separately
+  
       function showError(msg) {
         var el = document.getElementById('token-topup-error');
         if (el) { el.textContent = msg || ''; el.classList.remove('d-none'); }
@@ -494,13 +497,12 @@
         document.getElementById('token-topup-error').classList.add('d-none');
         document.getElementById('token-topup-success').classList.add('d-none');
       }
-
+  
       function updateMyr() {
         var n = parseInt(document.getElementById('topup-tokens').value, 10) || 0;
-        var myr = (n * rate).toFixed(2);
-        document.getElementById('topup-myr').textContent = myr;
+        document.getElementById('topup-myr').textContent = (n * rate).toFixed(2);
       }
-
+  
       function loadWallet() {
         fetch(API + '/api/token/wallet', { credentials: 'include' })
           .then(function (r) { return r.json(); })
@@ -517,9 +519,9 @@
           })
           .catch(function () { document.getElementById('wallet-balance').textContent = '0.00 tokens'; });
       }
-
+  
       document.getElementById('topup-tokens').addEventListener('input', updateMyr);
-
+  
       document.getElementById('topup-proceed-btn').addEventListener('click', function () {
         var tokens = parseInt(document.getElementById('topup-tokens').value, 10);
         if (!tokens || tokens < 1) { showError('Enter at least 1 token.'); return; }
@@ -539,55 +541,77 @@
             if (!stripe || !d.clientSecret) { showError('Stripe is not configured. Please set STRIPE_PUBLISHABLE_KEY and STRIPE_SECRET_KEY on the server.'); return; }
             currentClientSecret = d.clientSecret;
             document.getElementById('pay-amount').textContent = (d.amountMyr || (tokens * rate)).toFixed(2);
+  
             var wrap = document.getElementById('payment-element-wrap');
             wrap.classList.remove('d-none');
             document.getElementById('topup-proceed-btn').classList.add('d-none');
+  
+            // ✅ Destroy previous payment element (not elements object) before re-creating
+            if (paymentElement) {
+              paymentElement.destroy();
+              paymentElement = null;
+            }
+  
             var appearance = { theme: 'stripe' };
-            if (elements) elements.destroy();
             elements = stripe.elements({ clientSecret: d.clientSecret, appearance: appearance });
-            var paymentElement = elements.create('payment');
-            var container = document.getElementById('payment-element');
-            container.innerHTML = '';
+            paymentElement = elements.create('payment');
+            document.getElementById('payment-element').innerHTML = '';
             paymentElement.mount('#payment-element');
           })
           .catch(function (e) { btn.disabled = false; showError(e.message || 'Network error.'); });
       });
-
+  
       document.getElementById('pay-cancel-btn').addEventListener('click', function () {
         document.getElementById('payment-element-wrap').classList.add('d-none');
         document.getElementById('topup-proceed-btn').classList.remove('d-none');
         document.getElementById('payment-element').innerHTML = '';
         currentClientSecret = null;
-        if (elements) { elements.destroy(); elements = null; }
+  
+        // ✅ Destroy the individual payment element, not the elements object
+        if (paymentElement) {
+          paymentElement.destroy();
+          paymentElement = null;
+        }
+        elements = null;
       });
-
-      document.getElementById('pay-btn').addEventListener('click', function () {
+  
+      document.getElementById('pay-btn').addEventListener('click', async function () {
         if (!currentClientSecret || !stripe || !elements) return;
         var btn = this;
         btn.disabled = true;
-        stripe.confirmPayment({
+  
+        // ✅ Step 1: Call elements.submit() FIRST before confirmPayment
+        var submitResult = await elements.submit();
+        if (submitResult.error) {
+          showError(submitResult.error.message || 'Validation failed.');
+          btn.disabled = false;
+          return;
+        }
+  
+        // ✅ Step 2: Now confirm the payment
+        var result = await stripe.confirmPayment({
           elements: elements,
           clientSecret: currentClientSecret,
           confirmParams: {
             return_url: window.location.origin + '/html/front-pages/payment-page.html?success=1'
           }
-        }).then(function (r) {
-          btn.disabled = false;
-          if (r.error) showError(r.error.message || 'Payment failed.');
         });
+  
+        btn.disabled = false;
+        if (result.error) {
+          showError(result.error.message || 'Payment failed.');
+        }
       });
-
+  
       if (window.location.search.indexOf('success=1') !== -1) {
         showSuccess('Payment successful. Your balance will update shortly.');
         window.history.replaceState({}, '', window.location.pathname);
         loadWallet();
       }
-
+  
       loadWallet();
     })();
   </script>
-    
-  
 
 
   
