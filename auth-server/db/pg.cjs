@@ -17,7 +17,9 @@ function getPool() {
     password: process.env.PG_PASSWORD || '',
     database: db,
     max: 10,
-    idleTimeoutMillis: 30000
+    idleTimeoutMillis: 30000,
+    // ✅ SSL: required for Neon cloud, ignored for local
+    ssl: process.env.PG_SSL === 'true' ? { rejectUnauthorized: false } : false
   });
   pool.on('error', (err) => console.error('PG pool error:', err));
   return pool;

@@ -35,6 +35,8 @@ function getAuthPool() {
     database: db,
     max: 5,
     idleTimeoutMillis: 30000,
+    // ✅ SSL required for Neon cloud
+    ssl: process.env.PG_SSL === 'true' ? { rejectUnauthorized: false } : false
   });
 }
 
