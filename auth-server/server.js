@@ -19,8 +19,8 @@ import { toNodeHandler, fromNodeHeaders } from "better-auth/node";
 import Stripe from "stripe";
 import { auth, baseURL, frontEndUrl, googleClientId, googleClientSecret } from "./auth.config.js";
 import { getMicrosoftAuthUrl, handleMicrosoftCallback } from "./microsoftAuth.js";
-import { Upload } from '@aws-sdk/lib-storage';
 import SftpClient from 'ssh2-sftp-client';
+import { v2 as cloudinary } from 'cloudinary';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.join(__dirname, ".env"), override: true });
@@ -54,6 +54,18 @@ if (process.env.STRIPE_SECRET_KEY) {
   }
 } else {
   console.log('[startup] Stripe not configured (STRIPE_SECRET_KEY not set) – token top-ups disabled until configured.');
+}
+
+// ---- Cloudinary setup (for map thumbnail uploads) ----
+if (process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET) {
+  cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET,
+  });
+  console.log('[startup] Cloudinary initialized for thumbnail uploads.');
+} else {
+  console.log('[startup] Cloudinary not configured – thumbnail uploads will use local storage fallback.');
 }
 
 const remoteSftpConfig = {
@@ -1635,36 +1647,67 @@ app.post('/api/admin/users/promote', express.json(), async (req, res) => {
   }
 });
 
-// ---- Admin: upload thumbnail image for a map pin (overview map + showcase). Returns URL to store in MapData.thumbNailUrl. ----
+// ---- Admin: upload thumbnail image (Cloudinary if configured, local fallback) ----
 fs.mkdirSync(MAP_THUMBNAIL_DIR, { recursive: true });
-const mapThumbStorage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, MAP_THUMBNAIL_DIR),
-  filename: (req, file, cb) => {
-    const id = (req.body && req.body.mapDataID || '').trim().replace(/[^a-zA-Z0-9_-]/g, '-') || 'pin';
-    const ext = (path.extname(file.originalname) || '').toLowerCase() || '.jpg';
-    const safeExt = ['.jpg', '.jpeg', '.png', '.gif', '.webp'].includes(ext) ? ext : '.jpg';
-    cb(null, id + '_' + Date.now() + safeExt);
-  }
+
+// Use memory storage so we can upload to Cloudinary
+const uploadMapThumb = multer({ 
+  storage: multer.memoryStorage(), 
+  limits: { fileSize: 5 * 1024 * 1024 } // 5MB
 });
-const uploadMapThumb = multer({ storage: mapThumbStorage, limits: { fileSize: 5 * 1024 * 1024 } }); // 5MB
+
 app.post('/api/admin/upload-map-thumbnail', (req, res, next) => {
   uploadMapThumb.single('thumbnail')(req, res, (err) => {
     if (err) {
       if (err.code === 'LIMIT_FILE_SIZE') return res.status(400).json({ success: false, message: 'File too large. Maximum size is 5MB.' });
       if (err.code === 'LIMIT_UNEXPECTED_FILE') return res.status(400).json({ success: false, message: 'Use the thumbnail file field.' });
       console.error('upload-map-thumbnail multer error:', err.code || err.message, err.stack || '');
-      const msg = err.code === 'ENOENT' ? 'Upload folder missing.' : err.code === 'EACCES' ? 'Permission denied writing thumbnail.' : (err.message || 'Thumbnail upload failed.');
-      return res.status(400).json({ success: false, message: msg });
+      return res.status(400).json({ success: false, message: err.message || 'Thumbnail upload failed.' });
     }
     next();
   });
-}, (req, res) => {
+}, async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ success: false, message: 'No thumbnail file uploaded.' });
-    const url = '/uploads/map-thumbnails/' + req.file.filename;
-    res.json({ success: true, url, message: 'Thumbnail uploaded.' });
+
+    // ✅ Upload to Cloudinary if configured
+    if (process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET) {
+      const uploadResult = await new Promise((resolve, reject) => {
+        const uploadStream = cloudinary.uploader.upload_stream(
+          {
+            folder: '3dhub-map-thumbnails',
+            resource_type: 'image',
+            public_id: (req.body && req.body.mapDataID ? req.body.mapDataID.replace(/[^a-zA-Z0-9_-]/g, '-') : 'pin') + '_' + Date.now(),
+          },
+          (error, result) => {
+            if (error) reject(error);
+            else resolve(result);
+          }
+        );
+        uploadStream.end(req.file.buffer);
+      });
+
+      console.log('[cloudinary] Thumbnail uploaded:', uploadResult.secure_url);
+      return res.json({ 
+        success: true, 
+        url: uploadResult.secure_url, // ✅ Public HTTPS URL stored in DB
+        message: 'Thumbnail uploaded to Cloudinary.' 
+      });
+    }
+
+    // ⚠️ Fallback: save locally if Cloudinary not configured
+    const id = (req.body && req.body.mapDataID || '').trim().replace(/[^a-zA-Z0-9_-]/g, '-') || 'pin';
+    const ext = (path.extname(req.file.originalname) || '').toLowerCase() || '.jpg';
+    const safeExt = ['.jpg', '.jpeg', '.png', '.gif', '.webp'].includes(ext) ? ext : '.jpg';
+    const filename = id + '_' + Date.now() + safeExt;
+    const localPath = path.join(MAP_THUMBNAIL_DIR, filename);
+    fs.writeFileSync(localPath, req.file.buffer);
+    const url = '/uploads/map-thumbnails/' + filename;
+    console.log('[local] Thumbnail saved locally:', url);
+    return res.json({ success: true, url, message: 'Thumbnail uploaded locally (Cloudinary not configured).' });
+
   } catch (e) {
-    console.error('upload-map-thumbnail handler error:', e);
+    console.error('upload-map-thumbnail error:', e);
     res.status(500).json({ success: false, message: e.message || 'Thumbnail upload failed.' });
   }
 });
