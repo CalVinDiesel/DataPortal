@@ -1443,6 +1443,8 @@ function DiscoveryPage({ locationData, modelId, stateSiteTitle }: {
                     <span>Back to Showcases</span>
                 </a>
                 <h1 className="discovery-title">{siteTitle} - Data Discovery</h1>
+                {/* TEMPORARILY HIDDEN - Purchase button and price display
+                    To re-enable in the future, uncomment the block below
                 <div className="discovery-header-right">
                     <span className="discovery-price">
                         {locationData.purchase_price_tokens != null && locationData.purchase_price_tokens > 0
@@ -1460,6 +1462,7 @@ function DiscoveryPage({ locationData, modelId, stateSiteTitle }: {
                         Purchase
                     </a>
                 </div>
+                */}
             </header>
 
             <div className="discovery-content">
