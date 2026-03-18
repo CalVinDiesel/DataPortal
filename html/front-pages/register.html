@@ -408,23 +408,28 @@
         .then(function(x) {
           if (x.body.success) {
             msgEl.className = 'small mt-2 mb-0 text-center text-success';
-            // Show SFTP credentials if created
             if (x.body.sftpUsername && x.body.sftpPassword) {
               msgEl.innerHTML =
-                'Account created! Your SFTP credentials:<br>' +
-                '<strong>Username:</strong> ' + x.body.sftpUsername + '<br>' +
-                '<strong>Password:</strong> ' + x.body.sftpPassword + '<br>' +
-                '<span class="text-warning">⚠️ Save these credentials now! Redirecting in 10 seconds…</span>';
-              setTimeout(function() {
-                window.location.href = 'login.html?registered=1';
-              }, 10000); // 10 seconds so user can save credentials
-            } else {
-              msgEl.textContent = 'Account created! Redirecting to login…';
-              setTimeout(function() {
-                window.location.href = 'login.html?registered=1';
-              }, 1200);
-            }
-         } else {
+               '<div class="alert alert-success text-start mt-3" role="alert">' +
+                '<h6 class="fw-bold mb-2">✅ Account created successfully!</h6>' +
+                '<p class="mb-2">Your <strong>SFTP account</strong> has also been automatically set up for you.</p>' +
+                '<p class="mb-2 text-muted small">SFTP (Secure File Transfer Protocol) is used to <strong>securely upload your raw drone/image data</strong> to our server for 3D model processing. You will need these credentials when uploading files.</p>' +
+                '<hr>' +
+                '<p class="mb-1"><strong>SFTP Username:</strong> <code>' + x.body.sftpUsername + '</code></p>' +
+                '<p class="mb-2"><strong>SFTP Password:</strong> <code>' + x.body.sftpPassword + '</code></p>' +
+                '<p class="mb-0 text-muted small">💡 You can also view and manage your SFTP credentials anytime from your <strong>Account Profile</strong> page after logging in.</p>' +
+               '</div>' +
+               '<p class="text-muted small mt-2">Redirecting to login in 15 seconds…</p>';
+            setTimeout(function() {
+               window.location.href = 'login.html?registered=1';
+            }, 15000);
+          } else {
+            msgEl.textContent = 'Account created! Redirecting to login…';
+            setTimeout(function() {
+              window.location.href = 'login.html?registered=1';
+            }, 1200);
+          }
+        } else {
             msgEl.className = 'small mt-2 mb-0 text-center text-danger';
             msgEl.textContent = x.body.message || 'Registration failed.';
             btn.disabled = false;
@@ -564,14 +569,20 @@
             msg.className = 'small mt-2 mb-0 text-center text-success';
             if (x.body.sftpUsername && x.body.sftpPassword) {
               msg.innerHTML =
-                'Account created! Your SFTP credentials:<br>' +
-                '<strong>Username:</strong> ' + x.body.sftpUsername + '<br>' +
-                '<strong>Password:</strong> ' + x.body.sftpPassword + '<br>' +
-                '<span class="text-warning">⚠️ Save these credentials now! Redirecting in 10 seconds…</span>';
+                '<div class="alert alert-success text-start mt-3" role="alert">' +
+                 '<h6 class="fw-bold mb-2">✅ Account created successfully!</h6>' +
+                 '<p class="mb-2">Your <strong>SFTP account</strong> has also been automatically set up for you.</p>' +
+                 '<p class="mb-2 text-muted small">SFTP (Secure File Transfer Protocol) is used to <strong>securely upload your raw drone/image data</strong> to our server for 3D model processing. You will need these credentials when uploading files.</p>' +
+                 '<hr>' +
+                 '<p class="mb-1"><strong>SFTP Username:</strong> <code>' + x.body.sftpUsername + '</code></p>' +
+                 '<p class="mb-2"><strong>SFTP Password:</strong> <code>' + x.body.sftpPassword + '</code></p>' +
+                 '<p class="mb-0 text-muted small">💡 You can also view and manage your SFTP credentials anytime from your <strong>Account Profile</strong> page after logging in.</p>' +
+                '</div>' +
+                '<p class="text-muted small mt-2">Redirecting in 15 seconds…</p>';
               sessionStorage.removeItem('registerFlow');
               setTimeout(function() {
                 window.location.href = 'landing-page.html?logged_in=1&email=' + encodeURIComponent(emailVal);
-              }, 10000);
+              }, 15000);
             } else {
               msg.textContent = 'Account created! Redirecting…';
               sessionStorage.removeItem('registerFlow');

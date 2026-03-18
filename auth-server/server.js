@@ -1022,6 +1022,79 @@ app.put("/api/auth/profile/name", express.json(), async (req, res) => {
   }
 });
 
+// ---- GET /api/auth/profile/sftp - get SFTP credentials for logged-in user ----
+app.get("/api/auth/profile/sftp", async (req, res) => {
+  const email = await getCurrentUserEmail(req);
+  if (!email) return res.status(401).json({ success: false, message: 'Not logged in.' });
+  try {
+    if (usePgUsers()) {
+      const r = await pgQuery(
+        `SELECT sftp_username, sftp_password FROM public."DataPortalUsers" WHERE LOWER(email) = LOWER($1) LIMIT 1`,
+        [email]
+      );
+      const row = r?.rows?.[0];
+      return res.json({
+        success: true,
+        sftpUsername: row?.sftp_username || null,
+        sftpPassword: row?.sftp_password || null,
+      });
+    }
+    return res.json({ success: true, sftpUsername: null, sftpPassword: null });
+  } catch (e) {
+    console.error('GET /api/auth/profile/sftp', e);
+    return res.status(500).json({ success: false, message: 'Failed to load SFTP credentials.' });
+  }
+});
+
+// ---- PUT /api/auth/profile/sftp-password - change SFTP password ----
+app.put("/api/auth/profile/sftp-password", express.json(), async (req, res) => {
+  const email = await getCurrentUserEmail(req);
+  if (!email) return res.status(401).json({ success: false, message: 'Not logged in.' });
+  const { newPassword } = req.body || {};
+  if (!newPassword || String(newPassword).length < 8) {
+    return res.status(400).json({ success: false, message: 'New SFTP password must be at least 8 characters.' });
+  }
+  try {
+    // Step 1: Get SFTP token
+    const accessToken = await getSftpToken();
+
+    // Step 2: Get current SFTP username from DB
+    const r = await pgQuery(
+      `SELECT sftp_username FROM public."DataPortalUsers" WHERE LOWER(email) = LOWER($1) LIMIT 1`,
+      [email]
+    );
+    const sftpUsername = r?.rows?.[0]?.sftp_username;
+    if (!sftpUsername) {
+      return res.status(404).json({ success: false, message: 'No SFTP account found for this user.' });
+    }
+
+    // Step 3: Update password in SFTPGo
+    const updateResponse = await fetch(`${SFTP_API_BASE}/users/${sftpUsername}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ password: newPassword })
+    });
+    if (!updateResponse.ok) {
+      const errText = await updateResponse.text();
+      throw new Error(`SFTPGo update failed: ${updateResponse.status} - ${errText}`);
+    }
+
+    // Step 4: Update password in our DB
+    await pgQuery(
+      `UPDATE public."DataPortalUsers" SET sftp_password = $1, updated_at = NOW() WHERE LOWER(email) = LOWER($2)`,
+      [newPassword, email]
+    );
+
+    return res.json({ success: true, message: 'SFTP password updated successfully.' });
+  } catch (e) {
+    console.error('PUT /api/auth/profile/sftp-password', e);
+    return res.status(500).json({ success: false, message: e.message || 'Failed to update SFTP password.' });
+  }
+});
+
 // ---- Auth: PUT /api/auth/profile/email (change email; updates DataPortalUsers, GoogleUsers, MicrosoftUsers; then sign out) ----
 app.put("/api/auth/profile/email", express.json(), async (req, res) => {
   const currentEmail = await getCurrentUserEmail(req);

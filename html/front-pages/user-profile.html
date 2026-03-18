@@ -190,6 +190,46 @@
         <span class="profile-value" id="profile-provider">—</span>
       </div>
     </div>
+
+    <!-- SFTP Credentials Card -->
+    <div class="profile-card">
+      <h5><i class="bx bx-server me-2"></i>SFTP credentials</h5>
+      <p class="text-muted small mb-4">
+        Your SFTP (Secure File Transfer Protocol) credentials are used to securely upload raw drone/image data to our server for 3D model processing.
+        Use these credentials in any SFTP client (e.g. FileZilla, WinSCP) to connect and upload your files.
+      </p>
+
+      <!-- SFTP Username (read-only) -->
+      <div class="profile-row">
+        <span class="profile-label">SFTP Username</span>
+        <span class="profile-value" id="profile-sftp-username">—</span>
+      </div>
+
+      <!-- SFTP Password -->
+      <div class="profile-row">
+        <span class="profile-label">SFTP Password</span>
+        <span class="profile-value" id="profile-sftp-password">••••••••</span>
+        <span class="profile-actions">
+          <button type="button" class="btn btn-sm btn-outline-secondary me-1" id="btnToggleSftpPassword">Show</button>
+          <button type="button" class="btn btn-sm btn-outline-primary" id="btnChangeSftpPassword">Change password</button>
+        </span>
+      </div>
+      <div id="inlineFormSftpPassword" class="profile-inline-form d-none">
+        <label class="form-label small">New SFTP password</label>
+        <input type="password" class="form-control form-control-sm" id="newSftpPassword" placeholder="At least 8 characters" minlength="8">
+        <label class="form-label small mt-2">Confirm new SFTP password</label>
+        <input type="password" class="form-control form-control-sm" id="confirmSftpPassword" placeholder="Repeat new password">
+        <button type="button" class="btn btn-sm btn-primary mt-2" id="btnSftpPasswordSubmit">Update SFTP password</button>
+        <button type="button" class="btn btn-sm btn-outline-secondary mt-2" id="btnSftpPasswordCancel">Cancel</button>
+        <span id="sftpPasswordMessage" class="small ms-2"></span>
+      </div>
+
+      <!-- SFTP not set warning -->
+      <div id="sftpNotSetAlert" class="alert alert-warning mt-3 d-none" role="alert">
+        <i class="bx bx-info-circle me-1"></i>
+        Your SFTP account has not been set up yet. Please contact the administrator.
+      </div>
+    </div>
   </div>
 
   <script src="../../assets/vendor/libs/jquery/jquery.js"></script>
@@ -212,6 +252,7 @@
         document.getElementById('inlineFormPassword').classList.add('d-none');
         document.getElementById('inlineFormContact').classList.add('d-none');
         document.getElementById('inlineFormEmail').classList.add('d-none');
+        document.getElementById('inlineFormSftpPassword').classList.add('d-none');
       }
 
       function loadProfile() {
@@ -410,6 +451,92 @@
               btn.disabled = false;
             });
         });
+
+// ---- SFTP Credentials ----
+var sftpPasswordVisible = false;
+        var actualSftpPassword = '';
+
+        // Load SFTP credentials
+        fetch(AUTH_API + '/api/auth/profile/sftp', { credentials: 'include' })
+          .then(function(r) { return r.json(); })
+          .then(function(data) {
+            if (data.success) {
+              if (data.sftpUsername) {
+                document.getElementById('profile-sftp-username').textContent = data.sftpUsername;
+                actualSftpPassword = data.sftpPassword || '';
+                document.getElementById('profile-sftp-password').textContent = '••••••••';
+                document.getElementById('sftpNotSetAlert').classList.add('d-none');
+              } else {
+                document.getElementById('profile-sftp-username').textContent = 'Not set';
+                document.getElementById('profile-sftp-password').textContent = 'Not set';
+                document.getElementById('sftpNotSetAlert').classList.remove('d-none');
+                document.getElementById('btnChangeSftpPassword').disabled = true;
+                document.getElementById('btnToggleSftpPassword').disabled = true;
+              }
+            }
+          })
+          .catch(function() {});
+
+        // Toggle show/hide SFTP password
+        document.getElementById('btnToggleSftpPassword').addEventListener('click', function() {
+          sftpPasswordVisible = !sftpPasswordVisible;
+          document.getElementById('profile-sftp-password').textContent = sftpPasswordVisible ? (actualSftpPassword || '—') : '••••••••';
+          this.textContent = sftpPasswordVisible ? 'Hide' : 'Show';
+        });
+
+        // Show change SFTP password form
+        document.getElementById('btnChangeSftpPassword').addEventListener('click', function() {
+          hideInlineForms();
+          document.getElementById('inlineFormSftpPassword').classList.remove('d-none');
+          document.getElementById('newSftpPassword').value = '';
+          document.getElementById('confirmSftpPassword').value = '';
+          showMessage('sftpPasswordMessage', '');
+        });
+
+        document.getElementById('btnSftpPasswordCancel').addEventListener('click', function() {
+          document.getElementById('inlineFormSftpPassword').classList.add('d-none');
+          showMessage('sftpPasswordMessage', '');
+        });
+
+        // Submit new SFTP password
+        document.getElementById('btnSftpPasswordSubmit').addEventListener('click', function() {
+          var btn = this;
+          var newPw = document.getElementById('newSftpPassword').value;
+          var confirmPw = document.getElementById('confirmSftpPassword').value;
+
+          if (!newPw || newPw.length < 8) {
+            showMessage('sftpPasswordMessage', 'Password must be at least 8 characters.', true);
+            return;
+          }
+          if (newPw !== confirmPw) {
+            showMessage('sftpPasswordMessage', 'Passwords do not match.', true);
+            return;
+          }
+
+          btn.disabled = true;
+          showMessage('sftpPasswordMessage', 'Updating…');
+
+          fetch(AUTH_API + '/api/auth/profile/sftp-password', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ newPassword: newPw })
+          })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+              if (data.success) {
+                showMessage('sftpPasswordMessage', data.message || 'SFTP password updated.', false);
+                actualSftpPassword = newPw;
+                document.getElementById('profile-sftp-password').textContent = sftpPasswordVisible ? newPw : '••••••••';
+                document.getElementById('inlineFormSftpPassword').classList.add('d-none');
+              } else {
+                showMessage('sftpPasswordMessage', data.message || 'Update failed.', true);
+              }
+            })
+            .catch(function() { showMessage('sftpPasswordMessage', 'Network error.', true); })
+            .finally(function() { btn.disabled = false; });
+        });
+
       });
     })();
   </script>
