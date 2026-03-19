@@ -525,7 +525,12 @@
               statusHtml = `
                 <span class="badge bg-label-info"><i class="bx bx-check me-1"></i> Accepted</span>
                 <div class="text-muted mt-1" style="font-size: 0.7rem;">Admin will process</div>
-              `;
+  `            ;
+            } else if (statusVal === 'review') {
+              statusHtml = `
+                <span class="badge bg-label-secondary"><i class="bx bx-search-alt me-1"></i> Under Review</span>
+                <div class="text-muted mt-1" style="font-size: 0.7rem;">Admin is reviewing your files</div>
+  `            ;
             } else if (statusVal === 'processing') {
               processingJobs++;
               statusHtml = `

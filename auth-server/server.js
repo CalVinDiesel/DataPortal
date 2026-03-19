@@ -2847,6 +2847,7 @@ app.get('/api/admin/client-uploads/:id/download', async (req, res) => {
     // Local disk storage
     const uploadDirResolved = path.resolve(UPLOAD_DIR);
     const projectRootResolved = path.resolve(PROJECT_ROOT);
+    let sftp = null;
     for (const rel of filePaths) {
       const normalized = path.normalize(rel).replace(/^(\.\.(\/|\\))+/, '').replace(/\\/g, '/');
       const withoutUploadsPrefix = normalized.replace(/^uploads\/?/, '');
@@ -2872,18 +2873,18 @@ app.get('/api/admin/client-uploads/:id/download', async (req, res) => {
           if (sftp) {
             const remoteBase = process.env.REMOTE_SFTP_BASE_PATH || '';
             const remoteFull = path.posix.join(remoteBase, withoutUploadsPrefix);
+            console.log(`[admin-download-relay] Trying SFTP path: ${remoteFull}`);
             const exists = await sftp.exists(remoteFull);
+            console.log(`[admin-download-relay] Exists check: ${exists} for ${remoteFull}`);
             if (exists === '-') {
-              const remoteStream = await sftp.get(remoteFull);
-              await new Promise((resolve, reject) => {
-                remoteStream.on('error', reject);
-                archive.append(remoteStream, { name: path.basename(remoteFull) });
-                remoteStream.on('end', resolve);
-              });
+              const buf = await sftp.get(remoteFull);
+              archive.append(buf, { name: path.basename(remoteFull) });
+            } else {
+              console.warn(`[admin-download-relay] File not found on SFTP: ${remoteFull}`);
             }
           }
         } catch (err) {
-          console.warn(`[admin-download-relay] SFTP fetch failed:`, err.message);
+          console.warn(`[admin-download-relay] SFTP fetch failed for ${rel}:`, err.message);
         }
       }
     }
@@ -2906,16 +2907,19 @@ app.post('/api/admin/client-uploads/:id/decision', express.json(), async (req, r
   }
   const actionLower = String(action).toLowerCase();
   
-  const validActions = ['accept', 'processing', 'reject'];
+  const validActions = ['accept', 'review', 'processing', 'reject'];
   if (!validActions.includes(actionLower)) {
-    return res.status(400).json({ success: false, message: 'action must be "accept", "processing", or "reject".' });
+    return res.status(400).json({ success: false, message: 'action must be "accept", "review", "processing", or "reject".' });
   }
   if (actionLower === 'reject' && !reason.trim()) {
     return res.status(400).json({ success: false, message: 'A reason is required when rejecting a request.' });
   }
   const decidedBy = (req.user && req.user.email) ? req.user.email : (req.body && req.body.decided_by) || 'admin';
   try {
-    const finalStatus = actionLower === 'reject' ? 'rejected' : (actionLower === 'accept' ? 'accepted' : 'processing');
+    const finalStatus = actionLower === 'reject' ? 'rejected'
+      : actionLower === 'accept' ? 'review'
+      : actionLower === 'review' ? 'review'
+      : 'processing';
     const r = await pgQuery(
       `UPDATE public."ClientUploads" SET request_status = $1, rejected_reason = $2, decided_at = NOW(), decided_by = $3 WHERE id = $4 RETURNING id, request_status, decided_at`,
       [finalStatus, actionLower === 'reject' ? reason.trim() : null, decidedBy, id]
@@ -2924,10 +2928,15 @@ app.post('/api/admin/client-uploads/:id/decision', express.json(), async (req, r
     if (!row) return res.status(404).json({ success: false, message: 'Client upload not found.' });
     if (actionLower === 'processing') {
       try {
+        // Delete any stale/incomplete previous request first, then insert fresh
+        await pgQuery(
+          `DELETE FROM public."ProcessingRequests" 
+           WHERE upload_id = $1 AND status NOT IN ('completed')`,
+          [id]
+        );
         await pgQuery(
           `INSERT INTO public."ProcessingRequests" (upload_id, status, requested_by)
-           SELECT $1, 'processing', $2
-           WHERE NOT EXISTS (SELECT 1 FROM public."ProcessingRequests" WHERE upload_id = $1)`,
+           VALUES ($1, 'processing', $2)`,
           [id, decidedBy]
         );
       } catch (prErr) {

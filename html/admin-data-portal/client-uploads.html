@@ -81,7 +81,19 @@
         <div class="content-wrapper">
           <div class="container-xxl flex-grow-1 container-p-y">
             <h4 class="fw-bold mb-4">Client Uploads</h4>
-            <p class="text-muted mb-4">Clients submit their own drone-captured images via the <a href="../front-pages/upload-data.html" target="_blank">Upload Data</a> page to request <strong>custom image-to-3D processing</strong>. Accept or reject each request (with a reason if rejecting). Process accepted requests and deliver the 3D model back to the client (paid service; not added to the overview map).</p>
+            <p class="text-muted mb-4">Clients submit their own drone-captured images via the <a href="../front-pages/upload-data.html" target="_blank">Upload Data</a> page to request <strong>custom image-to-3D processing</strong>. Accept or reject each request (with a reason if rejecting). Review accepted requests, then begin processing and deliver the 3D model back to the client (paid service; not added to the overview map).</p>
+
+            <!-- Status flow indicator -->
+            <div class="d-flex align-items-center gap-2 mb-4 flex-wrap">
+              <span class="badge bg-label-warning px-3 py-2">Pending</span>
+              <i class="bx bx-chevron-right text-muted"></i>
+              <span class="badge bg-label-secondary px-3 py-2">Review</span>
+              <i class="bx bx-chevron-right text-muted"></i>
+              <span class="badge bg-label-primary px-3 py-2">Processing</span>
+              <i class="bx bx-chevron-right text-muted"></i>
+              <span class="badge bg-label-success px-3 py-2">Completed</span>
+            </div>
+
             <div id="uploadsAlert" class="alert alert-info d-none"></div>
             <!-- Reject reason modal -->
             <div class="modal fade" id="rejectModal" tabindex="-1" aria-labelledby="rejectModalLabel" aria-hidden="true">
@@ -236,38 +248,68 @@
 
       function statusBadge(status) {
         var s = (status || 'pending').toLowerCase();
-        var label = s === 'completed' ? 'success' : s === 'sent' ? 'info' : s === 'processing' ? 'primary' : s === 'accepted' ? 'info' : s === 'rejected' ? 'danger' : 'warning';
-        var display = s === 'sent' ? 'Sent' : s === 'rejected' ? 'Rejected' : s.charAt(0).toUpperCase() + s.slice(1);
-        return '<span class="badge bg-label-' + label + '">' + escapeHtml(display) + '</span>';
+        var map = {
+          'completed': { color: 'success',   label: 'Completed'  },
+          'sent':      { color: 'info',      label: 'Sent'       },
+          'processing':{ color: 'primary',   label: 'Processing' },
+          'review':    { color: 'secondary', label: 'Review'     },
+          'accepted':  { color: 'info',      label: 'Accepted'   }, // legacy fallback
+          'rejected':  { color: 'danger',    label: 'Rejected'   },
+          'pending':   { color: 'warning',   label: 'Pending'    },
+        };
+        var entry = map[s] || { color: 'warning', label: s.charAt(0).toUpperCase() + s.slice(1) };
+        return '<span class="badge bg-label-' + entry.color + '">' + escapeHtml(entry.label) + '</span>';
       }
 
       var uploadsRowsById = {};
 
       function actionCells(r) {
         var status = (r.request_status || 'pending').toLowerCase();
-        var detailsBtn = '<button type="button" class="btn btn-sm btn-outline-secondary me-1 details-btn" data-upload-id="' + r.id + '">Details</button>';
-        var downloadBtn = '<button type="button" class="btn btn-sm btn-outline-primary me-1 download-btn" data-upload-id="' + r.id + '">Download images</button>';
+        var detailsBtn   = '<button type="button" class="btn btn-sm btn-outline-secondary me-1 details-btn" data-upload-id="' + r.id + '">Details</button>';
+        var downloadBtn  = '<button type="button" class="btn btn-sm btn-outline-primary me-1 download-btn" data-upload-id="' + r.id + '">Download images</button>';
+        var rejectBtn    = '<button type="button" class="btn btn-sm btn-outline-danger reject-btn" data-upload-id="' + r.id + '">Reject</button>';
+
         if (status === 'pending') {
-          return detailsBtn + downloadBtn + '<button type="button" class="btn btn-sm btn-success me-1 accept-btn" data-upload-id="' + r.id + '">Accept</button>' +
-            '<button type="button" class="btn btn-sm btn-outline-danger reject-btn" data-upload-id="' + r.id + '">Reject</button>';
+          // Admin can accept (→ review) or reject
+          return detailsBtn + downloadBtn +
+            '<button type="button" class="btn btn-sm btn-success me-1 accept-btn" data-upload-id="' + r.id + '">Accept</button>' +
+            rejectBtn;
         }
+
+        if (status === 'review') {
+          // Admin is reviewing the raw files; can begin processing or still reject
+          return detailsBtn + downloadBtn +
+            '<button type="button" class="btn btn-sm btn-primary me-1 start-processing-btn" data-upload-id="' + r.id + '">Start Processing</button>' +
+            rejectBtn;
+        }
+
         if (status === 'accepted') {
-          return detailsBtn + downloadBtn + '<button type="button" class="btn btn-sm btn-primary me-1 start-processing-btn" data-upload-id="' + r.id + '">Begin Processing</button>' +
-            '<button type="button" class="btn btn-sm btn-outline-danger reject-btn" data-upload-id="' + r.id + '">Reject</button>';
+          // Legacy "accepted" state — treat same as review so old records still work
+          return detailsBtn + downloadBtn +
+            '<button type="button" class="btn btn-sm btn-primary me-1 start-processing-btn" data-upload-id="' + r.id + '">Start Processing</button>' +
+            rejectBtn;
         }
+
         if (status === 'processing') {
-          return detailsBtn + downloadBtn + '<span class="text-muted">Upload 3D result in Processing Requests below</span>';
+          return detailsBtn + downloadBtn +
+            '<span class="text-muted small">Upload 3D result in Processing Requests below</span>';
         }
+
         if (status === 'rejected') {
-          var reason = r.rejected_reason ? '<br><small class="text-muted">' + escapeHtml(r.rejected_reason) + '</small>' : '';
+          var reason = r.rejected_reason
+            ? '<br><small class="text-muted">' + escapeHtml(r.rejected_reason) + '</small>'
+            : '';
           return detailsBtn + downloadBtn + '<span class="text-muted">Rejected</span>' + reason;
         }
+
         if (status === 'sent') {
           return detailsBtn + downloadBtn + '<span class="text-info">Sent – waiting for subscriber to confirm</span>';
         }
+
         if (status === 'completed') {
           return detailsBtn + downloadBtn + '<span class="text-success"><i class="bx bx-check"></i> Completed</span>';
         }
+
         return detailsBtn + downloadBtn;
       }
 
@@ -339,23 +381,33 @@
                 if (uploadsRowsById[id]) showDetailsModal(uploadsRowsById[id]);
               });
             });
+
             tbody.querySelectorAll('.download-btn').forEach(function (btn) {
               btn.addEventListener('click', function () {
-              var id = this.getAttribute('data-upload-id');
-              var link = document.createElement('a');
-              link.href = API_BASE + '/api/admin/client-uploads/' + id + '/download';
-              link.download = 'upload-' + id + '.zip';
-              document.body.appendChild(link);
-              link.click();
-              document.body.removeChild(link);
+                var id = this.getAttribute('data-upload-id');
+                var link = document.createElement('a');
+                link.href = API_BASE + '/api/admin/client-uploads/' + id + '/download';
+                link.download = 'upload-' + id + '.zip';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+              });
             });
-           });
+
+            // Accept → sets status to 'review'
             tbody.querySelectorAll('.accept-btn').forEach(function (btn) {
-              btn.addEventListener('click', function () { submitDecision(this.getAttribute('data-upload-id'), 'accept', ''); });
+              btn.addEventListener('click', function () {
+                submitDecision(this.getAttribute('data-upload-id'), 'review', '');
+              });
             });
+
+            // Start Processing → sets status to 'processing'
             tbody.querySelectorAll('.start-processing-btn').forEach(function (btn) {
-              btn.addEventListener('click', function () { submitDecision(this.getAttribute('data-upload-id'), 'processing', ''); });
+              btn.addEventListener('click', function () {
+                submitDecision(this.getAttribute('data-upload-id'), 'processing', '');
+              });
             });
+
             tbody.querySelectorAll('.reject-btn').forEach(function (btn) {
               btn.addEventListener('click', function () {
                 pendingRejectId = this.getAttribute('data-upload-id');
@@ -363,7 +415,6 @@
                 if (rejectModal) rejectModal.show();
               });
             });
-            
           })
           .catch(function () {
             document.getElementById('uploadsTableBody').innerHTML = '<tr><td colspan="7" class="text-center text-danger">Failed to load. Ensure the server is running and PostgreSQL is configured.</td></tr>';
@@ -382,11 +433,14 @@
               if (rejectModal) rejectModal.hide();
               pendingRejectId = null;
               loadUploads();
+              loadRequests();
               var al = document.getElementById('uploadsAlert');
-              if (action === 'accept') al.textContent = 'Request #' + id + ' accepted. You can now Begin Processing.';
-              else if (action === 'processing') al.textContent = 'Request #' + id + ' changed to Processing. Upload the 3D result below, then Mark as delivered.';
-              else al.textContent = 'Request #' + id + ' rejected.';
-              al.classList.remove('d-none', 'alert-danger');
+              var msg = '';
+              if (action === 'review')      msg = 'Request #' + id + ' accepted and moved to Review. Download the images, review them, then click "Start Processing" when ready.';
+              else if (action === 'processing') msg = 'Request #' + id + ' moved to Processing. Upload the 3D result in the Processing Requests table below.';
+              else                          msg = 'Request #' + id + ' rejected.';
+              al.textContent = msg;
+              al.classList.remove('d-none', 'alert-danger', 'alert-info');
               al.classList.add('alert-success');
             } else {
               alert(data.message || 'Failed.');
@@ -424,8 +478,14 @@
             }
             tbody.innerHTML = rows.map(function (r) {
               var requested = r.requested_at ? new Date(r.requested_at).toLocaleString() : '–';
-              var result = r.result_tileset_url ? ((r.result_tileset_url.indexOf('http') === 0) ? '<a href="' + escapeHtml(r.result_tileset_url) + '" target="_blank">View</a>' : '<span class="text-success">File uploaded</span>') : '–';
-              var delivered = r.delivered_at ? new Date(r.delivered_at).toLocaleString() + (r.delivery_notes ? '<br><small class="text-muted">' + escapeHtml(r.delivery_notes) + '</small>' : '') : '–';
+              var result = r.result_tileset_url
+                ? ((r.result_tileset_url.indexOf('http') === 0)
+                    ? '<a href="' + escapeHtml(r.result_tileset_url) + '" target="_blank">View</a>'
+                    : '<span class="text-success">File uploaded</span>')
+                : '–';
+              var delivered = r.delivered_at
+                ? new Date(r.delivered_at).toLocaleString() + (r.delivery_notes ? '<br><small class="text-muted">' + escapeHtml(r.delivery_notes) + '</small>' : '')
+                : '–';
               var actionBtn = '–';
               if (r.delivered_at) actionBtn = '<span class="text-success">Delivered</span>';
               else if (r.status === 'completed' && !r.delivered_at) actionBtn = '<button type="button" class="btn btn-sm btn-outline-success mark-delivered-btn" data-request-id="' + r.id + '">Mark as delivered</button>';
@@ -438,7 +498,6 @@
                 var requestId = btn.getAttribute('data-request-id');
                 if (!requestId) return;
                 var modal = document.getElementById('uploadResultModal');
-                var form = document.getElementById('uploadResultForm');
                 var requestIdInput = document.getElementById('uploadResultRequestId');
                 var fileInput = document.getElementById('uploadResultFile');
                 var urlInput = document.getElementById('uploadResultUrl');
@@ -451,6 +510,7 @@
                 }
               });
             });
+
             tbody.querySelectorAll('.mark-delivered-btn').forEach(function (btn) {
               btn.addEventListener('click', function () {
                 var requestId = btn.getAttribute('data-request-id');
