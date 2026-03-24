@@ -85,16 +85,16 @@
         filter: brightness(4.2) contrast(1.35) drop-shadow(0 0 2px rgba(255,255,255,0.95)) drop-shadow(0 0 6px rgba(255,255,255,0.6));
       }
       /* Upload nav: hidden for everyone by default; only JS reveals for registered/trusted/admin */
-      .nav-upload-subscriber-only {
+      .nav-upload-visible {
         display: none !important;
       }
       @media (min-width: 992px) {
-        .nav-upload-subscriber-only.nav-upload-visible.d-lg-block {
+        .nav-upload-visible.d-lg-block {
           display: block !important;
         }
       }
       @media (max-width: 991.98px) {
-        li.nav-upload-subscriber-only.nav-upload-visible.d-lg-none {
+        li.nav-upload-visible.d-lg-none {
           display: list-item !important;
         }
       }
@@ -172,7 +172,7 @@
           <li class="nav-item">
             <a class="nav-link fw-medium" href="landing-page.html#landingShowCase">ShowCase</a>
           </li>
-          <li class="nav-item dropdown d-none d-lg-block nav-upload-subscriber-only" id="navUpload">
+          <li class="nav-item dropdown d-none d-lg-block" id="navUpload">
             <a href="javascript:void(0);" class="nav-link dropdown-toggle fw-medium" aria-expanded="false" data-bs-toggle="dropdown" data-trigger="hover">
               Upload
             </a>
@@ -183,7 +183,7 @@
             </ul>
           </li>
           <!-- Upload box for collapsed navbar: same as full page – parent "Upload" with New Upload / My Uploads inside -->
-          <li class="nav-item d-lg-none navUpload-mobile nav-upload-subscriber-only">
+          <li class="nav-item d-lg-none navUpload-mobile">
             <a class="nav-link fw-medium dropdown-toggle" href="javascript:void(0);" data-bs-toggle="collapse" data-bs-target="#navUploadCollapse" aria-expanded="false" aria-controls="navUploadCollapse" id="navUploadMobileToggle">
               Upload
             </a>
@@ -256,7 +256,7 @@
         </li>
         <li id="navUserWrap" style="display:none;">
           <a href="user-profile.html" class="navbar-text text-body me-2 d-none d-md-inline text-decoration-none fw-medium" id="navUserEmail"></a>
-          <a href="subscriber-login.html" id="navSubscriberBtn" class="btn btn-outline-primary me-2" style="display:none;"><span class="d-none d-md-inline">Subscribe</span><span class="d-md-none">Subscribe</span></a>
+          <a href="register.html" id="navSubscriberBtn" class="btn btn-outline-primary me-2" style="display:none;"><span class="d-none d-md-inline">Register</span><span class="d-md-none">Register</span></a>
           <button type="button" id="navLogoutBtn" class="btn btn-outline-secondary"><span class="tf-icons icon-base bx bx-log-out me-1"></span><span class="d-none d-md-inline">Log out</span></button>
         </li>
         <!-- navbar button: End -->
@@ -705,7 +705,7 @@
               <div class="card-header">
                 <div class="text-center">
                   <img src="../../assets/img/front-pages/icons/plane.png" alt="plane icon" class="mb-8 pb-2" />
-                  <h4 class="mb-0">Subscriber/Upload Raw Data</h4>
+                  <h4 class="mb-0">Upload Raw Data</h4>
                   <div class="d-flex align-items-center justify-content-center">
                     <span class="price-monthly h2 text-primary fw-extrabold mb-0">0 Token Required</span>
                     <sub class="h6 text-body-secondary mb-n1 ms-1"></sub>
@@ -1028,7 +1028,7 @@
           window.location.href = LOGIN_URL + '?error=' + encodeURIComponent(authError);
           return;
         }
-        // Upload nav is hidden by CSS for everyone; only subscriber/admin get it visible via class.
+        // Upload nav is hidden by CSS for everyone; only registered/trusted/admin get it visible via class.
         function setUploadNavVisible(visible) {
           var navUpload = document.getElementById('navUpload');
           var navUploadMobile = document.querySelectorAll('.navUpload-mobile');

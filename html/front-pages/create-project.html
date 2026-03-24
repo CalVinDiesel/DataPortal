@@ -21,9 +21,11 @@
           window.location.href = '/html/front-pages/login.html?redirect=' + encodeURIComponent(window.location.pathname);
           return;
         }
-        if (d.role !== 'trusted' && d.role !== 'admin') {
-          window.location.href = (window.location.origin || 'http://localhost:3000') + '/html/front-pages/landing-page.html?message=trusted_required';
+        if (d.role !== 'registered' && d.role !== 'trusted' && d.role !== 'admin') {
+          window.location.href = (window.location.origin || 'http://localhost:3000') + '/html/front-pages/landing-page.html?message=login_required';
         }
+        // Store user role for SFTP access check
+        window.userRole = d.role;
       }).catch(function () { });
     })();
   </script>
@@ -88,7 +90,7 @@
 
         <!-- SFTP Option -->
         <div class="col-md-5">
-          <div class="card selection-card text-center p-8" onclick="window.location.href='upload-sftp.html'">
+          <div class="card selection-card text-center p-8" id="sftpCard">
             <div class="card-body">
               <h3 class="fw-bold mb-4">Create Project using SFTP</h3>
               <p class="text-muted mb-6">Provision a dedicated SFTP drop-folder on our secure server. Use an SFTP client to comfortably upload massive datasets without internet browser limits.</p>
@@ -103,5 +105,14 @@
   <script src="../../assets/vendor/libs/jquery/jquery.js"></script>
   <script src="../../assets/vendor/libs/popper/popper.js"></script>
   <script src="../../assets/vendor/js/bootstrap.js"></script>
+  <script>
+    document.getElementById('sftpCard').addEventListener('click', function() {
+      if (window.userRole === 'registered') {
+        alert('Create project using SFTP is only available for trusted users. Please proceed with using Data Portal to create your project.');
+      } else {
+        window.location.href = 'upload-sftp.html';
+      }
+    });
+  </script>
 </body>
 </html>
