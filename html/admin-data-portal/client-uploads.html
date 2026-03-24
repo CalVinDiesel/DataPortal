@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en" dir="ltr" data-assets-path="../../assets/" data-template="admin-data-portal" data-bs-theme="light">
+
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -12,13 +13,16 @@
   <script src="../../assets/vendor/js/helpers.js"></script>
   <script src="../../assets/vendor/js/bootstrap.js"></script>
 </head>
+
 <body>
   <div class="layout-wrapper layout-content-navbar">
     <div class="layout-container">
       <aside id="layout-menu" class="layout-menu menu-vertical menu bg-menu-theme">
         <div class="app-brand demo py-4">
           <a href="index.html" class="app-brand-link d-flex align-items-center">
-            <span class="app-brand-logo demo me-2"><img src="../../assets/img/front-pages/landing-page/3DHub logo1.png" alt="3DHub" style="height: 56px; width: auto; max-height: 56px; object-fit: contain; display: block;" /></span>
+            <span class="app-brand-logo demo me-2"><img src="../../assets/img/front-pages/landing-page/3DHub logo1.png"
+                alt="3DHub"
+                style="height: 56px; width: auto; max-height: 56px; object-fit: contain; display: block;" /></span>
             <span class="app-brand-text demo menu-text fw-bold">3DHub Admin</span>
           </a>
         </div>
@@ -70,9 +74,11 @@
       </aside>
 
       <div class="layout-page">
-        <nav class="layout-navbar container-xxl navbar navbar-expand-xl navbar-detached align-items-center bg-navbar-theme">
+        <nav
+          class="layout-navbar container-xxl navbar navbar-expand-xl navbar-detached align-items-center bg-navbar-theme">
           <div class="navbar-brand demo d-flex align-items-center py-0 me-3">
-            <button class="admin-menu-toggle btn btn-icon d-xl-none me-2 border-0 bg-transparent p-0" type="button" aria-label="Toggle menu"><i class="bx bx-menu icon-lg"></i></button>
+            <button class="admin-menu-toggle btn btn-icon d-xl-none me-2 border-0 bg-transparent p-0" type="button"
+              aria-label="Toggle menu"><i class="bx bx-menu icon-lg"></i></button>
           </div>
           <div class="navbar-nav-right d-flex align-items-center ms-auto">
             <a href="index.html" class="btn btn-sm btn-outline-primary">Back to Dashboard</a>
@@ -82,7 +88,9 @@
         <div class="content-wrapper">
           <div class="container-xxl flex-grow-1 container-p-y">
             <h4 class="fw-bold mb-2">Client Uploads</h4>
-            <p class="text-muted mb-3">Clients submit drone-captured images via SFTP or the Data Portal for <strong>custom image-to-3D processing</strong>. Manage request status here. All file transfers happen through WinSCP / SFTPGo — use this page only to update status at each step.</p>
+            <p class="text-muted mb-3">Clients submit drone-captured images via SFTP or the Data Portal for
+              <strong>custom image-to-3D processing</strong>. Manage request status here. All file transfers happen
+              through WinSCP / SFTPGo — use this page only to update status at each step.</p>
 
             <!-- Status Flow Indicator -->
             <div class="d-flex align-items-center gap-2 mb-4 flex-wrap">
@@ -102,8 +110,10 @@
                 <strong>Admin SFTP Workflow:</strong>
                 <ol class="mb-0 mt-1 ps-3">
                   <li>Client uploads raw images → files arrive in your <strong>WinSCP / SFTPGo</strong> folder</li>
-                  <li>Click <strong>Accept</strong> → status becomes Review. Open WinSCP, download the raw files to your processing machine</li>
-                  <li>Click <strong>Start Processing</strong> → status becomes Processing. Run your 3D processing software</li>
+                  <li>Click <strong>Accept</strong> → status becomes Review. Open WinSCP, download the raw files to your
+                    processing machine</li>
+                  <li>Click <strong>Start Processing</strong> → status becomes Processing. Run your 3D processing
+                    software</li>
                   <li>When done, put the processed result back into the client's SFTP folder via WinSCP</li>
                   <li>Click <strong>Mark as Delivered</strong> → client is notified and can download their 3D model</li>
                 </ol>
@@ -113,7 +123,8 @@
             <div id="uploadsAlert" class="alert d-none"></div>
 
             <!-- Reject reason modal -->
-            <div class="modal fade" id="rejectModal" tabindex="-1" aria-labelledby="rejectModalLabel" aria-hidden="true">
+            <div class="modal fade" id="rejectModal" tabindex="-1" aria-labelledby="rejectModalLabel"
+              aria-hidden="true">
               <div class="modal-dialog">
                 <div class="modal-content">
                   <div class="modal-header">
@@ -122,7 +133,8 @@
                   </div>
                   <div class="modal-body">
                     <p class="text-muted small">Give a reason for the client (required). They will see this message.</p>
-                    <textarea id="rejectReasonInput" class="form-control" rows="3" placeholder="e.g. Image quality insufficient for processing"></textarea>
+                    <textarea id="rejectReasonInput" class="form-control" rows="3"
+                      placeholder="e.g. Image quality insufficient for processing"></textarea>
                   </div>
                   <div class="modal-footer">
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -133,7 +145,8 @@
             </div>
 
             <!-- Upload details modal -->
-            <div class="modal fade" id="detailsModal" tabindex="-1" aria-labelledby="detailsModalLabel" aria-hidden="true">
+            <div class="modal fade" id="detailsModal" tabindex="-1" aria-labelledby="detailsModalLabel"
+              aria-hidden="true">
               <div class="modal-dialog modal-lg">
                 <div class="modal-content">
                   <div class="modal-header">
@@ -146,8 +159,10 @@
                       <div class="fw-bold mb-1"><i class="bx bx-server me-1"></i> SFTP File Location</div>
                       <div class="small text-muted mb-1">Find the raw files at this path on your SFTP Server:</div>
                       <div class="d-flex align-items-center gap-2">
-                        <code id="detailSftpPath" class="d-block p-2 bg-white border rounded flex-grow-1" style="font-size:0.85rem; word-break:break-all;">–</code>
-                        <button type="button" id="copySftpPathBtn" class="btn btn-sm btn-outline-secondary flex-shrink-0" onclick="
+                        <code id="detailSftpPath" class="d-block p-2 bg-white border rounded flex-grow-1"
+                          style="font-size:0.85rem; word-break:break-all;">–</code>
+                        <button type="button" id="copySftpPathBtn"
+                          class="btn btn-sm btn-outline-secondary flex-shrink-0" onclick="
                           var path = document.getElementById('detailSftpPath').textContent;
                           navigator.clipboard.writeText(path).then(function() {
                             var btn = document.getElementById('copySftpPathBtn');
@@ -179,6 +194,38 @@
                       <div class="col-12 mb-2"><span class="text-muted">Submitted:</span> <span id="detailCreatedAt">–</span></div>
                       <div class="col-12 mb-2"><span class="text-muted">Submitted by:</span> <span id="detailCreatedBy">–</span></div>
                       <div class="col-12 mb-2"><span class="text-muted">Status:</span> <span id="detailStatus">–</span></div>
+                      <div class="col-md-6 mb-2"><span class="text-muted">ID:</span> <span id="detailProjectId">–</span>
+                      </div>
+                      <div class="col-md-6 mb-2"><span class="text-muted">Title:</span> <span
+                          id="detailProjectTitle">–</span></div>
+                      <div class="col-12 mb-2"><span class="text-muted">Description:</span> <span
+                          id="detailProjectDescription">–</span></div>
+                      <div class="col-12 mb-2"><span class="text-muted">Category:</span> <span
+                          id="detailCategory">–</span></div>
+                      <div class="col-md-6 mb-2"><span class="text-muted">Latitude:</span> <span
+                          id="detailLatitude">–</span></div>
+                      <div class="col-md-6 mb-2"><span class="text-muted">Longitude:</span> <span
+                          id="detailLongitude">–</span></div>
+                      <div class="col-12 mb-2"><span class="text-muted">Area coverage:</span> <span
+                          id="detailAreaCoverage">–</span></div>
+                      <div class="col-12 mb-2"><span class="text-muted">Sensor / image metadata:</span> <span
+                          id="detailImageMetadata">–</span></div>
+                      <div class="col-12 mb-2"><span class="text-muted">Organization:</span> <span
+                          id="detailOrganization">–</span></div>
+                      <div class="col-md-6 mb-2"><span class="text-muted">Camera models:</span> <span
+                          id="detailCameraModels">–</span></div>
+                      <div class="col-md-6 mb-2"><span class="text-muted">Capture date:</span> <span
+                          id="detailCaptureDate">–</span></div>
+                      <div class="col-12 mb-2"><span class="text-muted">Upload type:</span> <span
+                          id="detailUploadType">–</span></div>
+                      <div class="col-12 mb-2"><span class="text-muted">File count:</span> <span
+                          id="detailFileCount">–</span></div>
+                      <div class="col-12 mb-2"><span class="text-muted">Submitted:</span> <span
+                          id="detailCreatedAt">–</span></div>
+                      <div class="col-12 mb-2"><span class="text-muted">Submitted by:</span> <span
+                          id="detailCreatedBy">–</span></div>
+                      <div class="col-12 mb-2"><span class="text-muted">Status:</span> <span id="detailStatus">–</span>
+                      </div>
                     </div>
                   </div>
                   <div class="modal-footer">
@@ -189,7 +236,8 @@
             </div>
 
             <!-- Mark as Delivered modal -->
-            <div class="modal fade" id="deliverModal" tabindex="-1" aria-labelledby="deliverModalLabel" aria-hidden="true">
+            <div class="modal fade" id="deliverModal" tabindex="-1" aria-labelledby="deliverModalLabel"
+              aria-hidden="true">
               <div class="modal-dialog">
                 <div class="modal-content">
                   <div class="modal-header">
@@ -199,14 +247,18 @@
                   <div class="modal-body">
                     <div class="alert alert-info small mb-3">
                       <i class="bx bx-info-circle me-1"></i>
-                      Make sure you have already placed the processed 3D model result into the client's SFTP folder via WinSCP before confirming delivery.
+                      Make sure you have already placed the processed 3D model result into the client's SFTP folder via
+                      WinSCP before confirming delivery.
                     </div>
-                    <p class="text-muted small">Optional: add a delivery note for the client (e.g. which folder the result is in, or any instructions).</p>
-                    <textarea id="deliverNotesInput" class="form-control" rows="3" placeholder="e.g. Processed result placed in your SFTP folder under /results/"></textarea>
+                    <p class="text-muted small">Optional: add a delivery note for the client (e.g. which folder the
+                      result is in, or any instructions).</p>
+                    <textarea id="deliverNotesInput" class="form-control" rows="3"
+                      placeholder="e.g. Processed result placed in your SFTP folder under /results/"></textarea>
                   </div>
                   <div class="modal-footer">
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-success" id="deliverConfirmBtn"><i class="bx bx-check me-1"></i> Confirm Delivered</button>
+                    <button type="button" class="btn btn-success" id="deliverConfirmBtn"><i
+                        class="bx bx-check me-1"></i> Confirm Delivered</button>
                   </div>
                 </div>
               </div>
@@ -217,9 +269,11 @@
               <div class="card-header d-flex align-items-center justify-content-between">
                 <div>
                   <h5 class="mb-0 fw-bold">Client Upload Requests</h5>
-                  <p class="text-muted small mb-0">All file transfers are managed through WinSCP / SFTPGo. Use the buttons below only to update the status.</p>
+                  <p class="text-muted small mb-0">All file transfers are managed through WinSCP / SFTPGo. Use the
+                    buttons below only to update the status.</p>
                 </div>
-                <button class="btn btn-sm btn-outline-secondary" onclick="loadUploads()"><i class="bx bx-refresh me-1"></i> Refresh</button>
+                <button class="btn btn-sm btn-outline-secondary" onclick="loadUploads()"><i
+                    class="bx bx-refresh me-1"></i> Refresh</button>
               </div>
               <div class="card-body">
                 <div class="table-responsive">
@@ -237,7 +291,9 @@
                       </tr>
                     </thead>
                     <tbody id="uploadsTableBody">
-                      <tr><td colspan="8" class="text-center text-muted">Loading…</td></tr>
+                      <tr>
+                        <td colspan="8" class="text-center text-muted">Loading…</td>
+                      </tr>
                     </tbody>
                   </table>
                 </div>
@@ -249,9 +305,11 @@
               <div class="card-header d-flex align-items-center justify-content-between">
                 <div>
                   <h5 class="mb-0 fw-bold">Processing Requests</h5>
-                  <p class="text-muted small mb-0">After processing is done, place the result in the client's SFTP folder via WinSCP, then click <strong>Mark as Delivered</strong>.</p>
+                  <p class="text-muted small mb-0">After processing is done, place the result in the client's SFTP
+                    folder via WinSCP, then click <strong>Mark as Delivered</strong>.</p>
                 </div>
-                <button class="btn btn-sm btn-outline-secondary" onclick="loadRequests()"><i class="bx bx-refresh me-1"></i> Refresh</button>
+                <button class="btn btn-sm btn-outline-secondary" onclick="loadRequests()"><i
+                    class="bx bx-refresh me-1"></i> Refresh</button>
               </div>
               <div class="card-body">
                 <div class="table-responsive">
@@ -269,7 +327,9 @@
                       </tr>
                     </thead>
                     <tbody id="requestsTableBody">
-                      <tr><td colspan="8" class="text-center text-muted">Loading…</td></tr>
+                      <tr>
+                        <td colspan="8" class="text-center text-muted">Loading…</td>
+                      </tr>
                     </tbody>
                   </table>
                 </div>
@@ -306,13 +366,13 @@
       function statusBadge(status) {
         var s = (status || 'pending').toLowerCase();
         var map = {
-          'completed':  { color: 'success',   label: 'Completed',   icon: 'bx-check-circle' },
-          'sent':       { color: 'info',       label: 'Sent',        icon: 'bx-package' },
-          'processing': { color: 'primary',    label: 'Processing',  icon: 'bx-loader-alt' },
-          'review':     { color: 'secondary',  label: 'Review',      icon: 'bx-search-alt' },
-          'accepted':   { color: 'info',       label: 'Accepted',    icon: 'bx-check' },
-          'rejected':   { color: 'danger',     label: 'Rejected',    icon: 'bx-x-circle' },
-          'pending':    { color: 'warning',    label: 'Pending',     icon: 'bx-time-five' },
+          'completed': { color: 'success', label: 'Completed', icon: 'bx-check-circle' },
+          'sent': { color: 'info', label: 'Sent', icon: 'bx-package' },
+          'processing': { color: 'primary', label: 'Processing', icon: 'bx-loader-alt' },
+          'review': { color: 'secondary', label: 'Review', icon: 'bx-search-alt' },
+          'accepted': { color: 'info', label: 'Accepted', icon: 'bx-check' },
+          'rejected': { color: 'danger', label: 'Rejected', icon: 'bx-x-circle' },
+          'pending': { color: 'warning', label: 'Pending', icon: 'bx-time-five' },
         };
         var e = map[s] || { color: 'warning', label: s.charAt(0).toUpperCase() + s.slice(1), icon: 'bx-circle' };
         return '<span class="badge bg-label-' + e.color + '"><i class="bx ' + e.icon + ' me-1"></i>' + escapeHtml(e.label) + '</span>';
@@ -339,7 +399,7 @@
       function actionCells(r) {
         var status = (r.request_status || 'pending').toLowerCase();
         var detailsBtn = '<button type="button" class="btn btn-sm btn-outline-secondary me-1 details-btn" data-upload-id="' + r.id + '"><i class="bx bx-info-circle me-1"></i>Details</button>';
-        var rejectBtn  = '<button type="button" class="btn btn-sm btn-outline-danger reject-btn" data-upload-id="' + r.id + '">Reject</button>';
+        var rejectBtn = '<button type="button" class="btn btn-sm btn-outline-danger reject-btn" data-upload-id="' + r.id + '">Reject</button>';
 
         if (status === 'pending') {
           return detailsBtn +
@@ -375,14 +435,34 @@
 
       function showDetailsModal(row) {
         function text(v) { return (v != null && v !== '') ? escapeHtml(String(v)) : '–'; }
-        function num(v)  { return (v != null && v !== '' && !isNaN(Number(v))) ? String(v) : '–'; }
+        function num(v) { return (v != null && v !== '' && !isNaN(Number(v))) ? String(v) : '–'; }
 
         // SFTP path
         document.getElementById('detailSftpPath').textContent = buildSftpPath(row);
 
-        document.getElementById('detailProjectId').textContent          = text(row.project_id);
-        document.getElementById('detailProjectTitle').textContent       = text(row.project_title);
+        document.getElementById('detailProjectId').textContent = text(row.project_id);
+        document.getElementById('detailProjectTitle').textContent = text(row.project_title);
         document.getElementById('detailProjectDescription').textContent = text(row.project_description);
+        document.getElementById('detailCategory').textContent = text(row.category);
+        document.getElementById('detailLatitude').textContent = num(row.latitude);
+        document.getElementById('detailLongitude').textContent = num(row.longitude);
+        document.getElementById('detailAreaCoverage').textContent = text(row.area_coverage);
+        document.getElementById('detailImageMetadata').textContent = text(row.image_metadata);
+        document.getElementById('detailOrganization').textContent = text(row.organization_name);
+        document.getElementById('detailCameraModels').textContent = text(row.camera_models);
+        document.getElementById('detailCaptureDate').textContent = text(row.capture_date);
+        var typeDisplay = row.upload_type || '–';
+        if (typeDisplay === 'sftp_single') typeDisplay = 'SFTP (Single-Lens)';
+        else if (typeDisplay === 'sftp_multiple') typeDisplay = 'SFTP (Multi-Lens)';
+        else if (typeDisplay === 'sftp') typeDisplay = 'SFTP';
+        else if (typeDisplay === 'multiple' || typeDisplay === 'multilens') typeDisplay = 'Web (Multi-Lens)';
+        else if (typeDisplay === 'single') typeDisplay = 'Web (Single-Lens)';
+
+        document.getElementById('detailUploadType').textContent = typeDisplay;
+        document.getElementById('detailFileCount').textContent = text(row.file_count);
+        document.getElementById('detailCreatedAt').textContent = row.created_at ? new Date(row.created_at).toLocaleString() : '–';
+        document.getElementById('detailCreatedBy').textContent = text(row.created_by_email);
+        document.getElementById('detailStatus').innerHTML = statusBadge(row.request_status);
         document.getElementById('detailCategory').textContent           = text(row.category);
         document.getElementById('detailLatitude').textContent           = num(row.latitude);
         document.getElementById('detailLongitude').textContent          = num(row.longitude);
@@ -434,11 +514,18 @@
               uploadsRowsById[r.id] = r;
               uploadMetaById[r.id] = r;
               var created = r.created_at ? new Date(r.created_at).toLocaleString() : '–';
+              var typeDisplay = r.upload_type || '–';
+              if (typeDisplay === 'sftp_single') typeDisplay = '<span class="text-info">SFTP (Single)</span>';
+              else if (typeDisplay === 'sftp_multiple') typeDisplay = '<span class="text-info">SFTP (Multi)</span>';
+              else if (typeDisplay === 'sftp') typeDisplay = '<span class="text-info">SFTP</span>';
+              else if (typeDisplay === 'multiple' || typeDisplay === 'multilens') typeDisplay = 'Web (Multi)';
+              else if (typeDisplay === 'single') typeDisplay = 'Web (Single)';
+
               return '<tr>' +
                 '<td>' + r.id + '</td>' +
                 '<td><strong>' + escapeHtml(r.project_title || r.project_id || '–') + '</strong></td>' +
                 '<td><small class="text-muted">' + escapeHtml(r.created_by_email || '–') + '</small></td>' +
-                '<td>' + escapeHtml(r.upload_type || '–') + '</td>' +
+                '<td>' + typeDisplay + '</td>' +
                 '<td>' + (r.file_count || 0) + '</td>' +
                 '<td><small>' + created + '</small></td>' +
                 '<td>' + statusBadge(r.request_status) + '</td>' +
@@ -490,7 +577,7 @@
               loadRequests();
               var al = document.getElementById('uploadsAlert');
               var msg = '';
-              if (action === 'accept')      msg = 'Request #' + id + ' accepted → status is now Review. Open WinSCP to download the raw files to your processing machine.';
+              if (action === 'accept') msg = 'Request #' + id + ' accepted → status is now Review. Open WinSCP to download the raw files to your processing machine.';
               else if (action === 'processing') msg = 'Request #' + id + ' moved to Processing. A processing request has been created below. Run your 3D processing software, then Mark as Delivered when done.';
               else msg = 'Request #' + id + ' rejected.';
               al.textContent = msg;
@@ -569,7 +656,7 @@
               // Enrich with upload metadata
               var meta = uploadMetaById[r.upload_id] || {};
               var projectTitle = escapeHtml(meta.project_title || meta.project_id || '–');
-              var clientEmail  = escapeHtml(meta.created_by_email || '–');
+              var clientEmail = escapeHtml(meta.created_by_email || '–');
 
               // SFTP path hint for result placement
               var sftpPath = meta.id ? buildSftpPath(meta) : '–';
@@ -620,4 +707,5 @@
   </script>
   <script src="../../assets/js/admin-responsive.js"></script>
 </body>
+
 </html>

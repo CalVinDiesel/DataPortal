@@ -555,10 +555,12 @@
 
             // Configurations UI
             let configHtml = '';
-            if (item.upload_type === 'sftp') {
-              configHtml = `<span class="badge bg-label-info mb-1"><i class="bx bx-server me-1"></i> SFTP Source</span>`;
+            if (item.upload_type === 'sftp' || (item.upload_type && item.upload_type.startsWith('sftp_'))) {
+              configHtml = `<span class="badge bg-label-info mb-1"><i class="bx bx-server me-1"></i> SFTP Source</span><br>`;
+              const isMulti = (item.upload_type === 'sftp_multiple');
+              configHtml += `<span class="badge bg-label-secondary mb-1">${isMulti ? 'Multi-Lens' : 'Single-Lens'}</span>`;
             } else {
-              const isMultiLens = (item.upload_type === 'multilens');
+              const isMultiLens = (item.upload_type === 'multilens' || item.upload_type === 'multiple');
               const hasPos = item.drone_pos_file_path ? true : false;
               configHtml = `<span class="badge bg-label-secondary mb-1">${isMultiLens ? 'Multi-Lens' : 'Single-Lens'}</span><br>`;
               if (hasPos) configHtml += `<span class="badge bg-label-dark"><i class="bx bx-target-lock me-1"></i> POS Attached</span>`;
@@ -716,9 +718,14 @@
       document.getElementById('detailModalTitle').textContent = project.project_title || project.project_id;
       document.getElementById('detailDescription').textContent = project.project_description || 'No description provided.';
       document.getElementById('detailCategory').textContent = project.category || 'Environmental';
-      document.getElementById('detailCoordinates').textContent = `${parseFloat(project.latitude).toFixed(4)}, ${parseFloat(project.longitude).toFixed(4)}`;
-      document.getElementById('detailConfig').textContent = project.upload_type === 'multilens' ? 'Multi-Lens' : 'Single-Lens';
-      document.getElementById('detailModels').textContent = project.camera_models || (project.upload_type === 'multilens' ? 'Multiple' : 'Standard');
+      const coords = (project.latitude != null && project.longitude != null) 
+        ? `${parseFloat(project.latitude).toFixed(4)}, ${parseFloat(project.longitude).toFixed(4)}`
+        : 'Pending (SFTP Scan)';
+      document.getElementById('detailCoordinates').textContent = coords;
+      
+      const isMulti = project.upload_type === 'multilens' || project.upload_type === 'multiple' || project.upload_type === 'sftp_multiple';
+      document.getElementById('detailConfig').textContent = isMulti ? 'Multi-Lens' : 'Single-Lens';
+      document.getElementById('detailModels').textContent = project.camera_models || (isMulti ? 'Multiple' : 'Standard');
       document.getElementById('detailDate').textContent = formatDate(project.created_at);
 
       const modal = new bootstrap.Modal(document.getElementById('projectDetailsModal'));

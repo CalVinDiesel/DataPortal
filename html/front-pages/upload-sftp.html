@@ -263,6 +263,13 @@
             <textarea id="projectDescription" class="form-control" rows="3" placeholder="Describe the survey area or purpose..."></textarea>
           </div>
           <div class="mb-3">
+            <label class="form-label" for="lensType">Lens Configuration <span class="text-danger">*</span></label>
+            <select class="form-select" id="lensType" name="lensType" required>
+              <option value="single">Single-Lens</option>
+              <option value="multiple">Multi-Lens</option>
+            </select>
+          </div>
+          <div class="mb-3">
             <label class="form-label" for="category">Category <span class="text-danger">*</span></label>
             <select class="form-select" id="category" name="category" required
               onchange="toggleOtherInput('category', 'categoryOtherDiv', 'categoryOther')">
@@ -326,6 +333,7 @@
         type: 'sftp',
         projectTitle: document.getElementById('projectTitle').value,
         projectDescription: document.getElementById('projectDescription').value,
+        lensType: document.getElementById('lensType').value,
         category: categoryVal
       };
 

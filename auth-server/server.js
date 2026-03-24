@@ -77,10 +77,10 @@ const remoteSftpConfig = {
 async function getRemoteSftpClient() {
   if (!remoteSftpConfig.host) return null;
   const sftp = new SftpClient();
-  
+
   // Attach an empty error listener to override the default "Global error listener" spam 
   // that happens when the SSH socket drops automatically (ECONNRESET)
-  sftp.on('error', () => {});
+  sftp.on('error', () => { });
 
   try {
     await sftp.connect(remoteSftpConfig);
@@ -270,7 +270,7 @@ async function applyTokenDelta(email, amount, type, options = {}) {
     const txId = ins?.rows?.[0]?.id;
     return { transactionId: txId, balance: newBalance };
   } catch (e) {
-    try { await pgQuery('ROLLBACK'); } catch (_) {}
+    try { await pgQuery('ROLLBACK'); } catch (_) { }
     throw e;
   }
 }
@@ -487,12 +487,12 @@ async function requireAuth(req, res, next) {
   try {
     let userEmail = null;
     let userName = null;
-    
+
     // 1. Try express-session first (legacy local login)
     if (req.session?.user && (req.session.user.email || req.session.user.id)) {
       userEmail = req.session.user.email;
       userName = req.session.user.name;
-    } 
+    }
     // 2. Try better-auth session
     else {
       try {
@@ -634,10 +634,10 @@ app.use(session({
   secret: process.env.SESSION_SECRET || "temadataportal-auth-secret-change-in-production",
   resave: false,
   saveUninitialized: false,
-  cookie: { 
-    secure: process.env.NODE_ENV === 'production', 
-    sameSite: 'lax', 
-    maxAge: 24 * 60 * 60 * 1000 
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: 24 * 60 * 60 * 1000
   },
 }));
 
@@ -673,7 +673,7 @@ async function getCurrentUserEmail(req) {
   try {
     const betterAuthSession = await auth.api.getSession({ headers: fromNodeHeaders(req.headers) });
     if (betterAuthSession?.user?.email) return betterAuthSession.user.email;
-  } catch (_) {}
+  } catch (_) { }
   if (req.session?.user?.email) return req.session.user.email;
   return null;
 }
@@ -1128,11 +1128,11 @@ app.put("/api/auth/profile/email", express.json(), async (req, res) => {
       await pgQuery(
         `UPDATE public."GoogleUsers" SET email = $1 WHERE LOWER(email) = LOWER($2)`,
         [newEmail, currentEmail]
-      ).catch(() => {}); // table or column may differ
+      ).catch(() => { }); // table or column may differ
       await pgQuery(
         `UPDATE public."MicrosoftUsers" SET email = $1 WHERE LOWER(email) = LOWER($2)`,
         [newEmail, currentEmail]
-      ).catch(() => {});
+      ).catch(() => { });
     } else {
       const idx = users.findIndex(u => (u.email || '').toLowerCase() === currentEmail.toLowerCase());
       if (idx >= 0) {
@@ -1141,10 +1141,10 @@ app.put("/api/auth/profile/email", express.json(), async (req, res) => {
       }
     }
     req.session.user = null;
-    req.session.save(() => {});
+    req.session.save(() => { });
     try {
       await auth.api.signOut({ headers: fromNodeHeaders(req.headers) });
-    } catch (_) {}
+    } catch (_) { }
     return res.json({ success: true, message: 'Email updated. Please sign in again with your new email.', requireRelogin: true });
   } catch (e) {
     console.error('PUT /api/auth/profile/email', e);
@@ -1655,8 +1655,8 @@ app.post('/api/admin/users/promote', express.json(), async (req, res) => {
 fs.mkdirSync(MAP_THUMBNAIL_DIR, { recursive: true });
 
 // Use memory storage so we can upload to Cloudinary
-const uploadMapThumb = multer({ 
-  storage: multer.memoryStorage(), 
+const uploadMapThumb = multer({
+  storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 } // 5MB
 });
 
@@ -1692,10 +1692,10 @@ app.post('/api/admin/upload-map-thumbnail', (req, res, next) => {
       });
 
       console.log('[cloudinary] Thumbnail uploaded:', uploadResult.secure_url);
-      return res.json({ 
-        success: true, 
+      return res.json({
+        success: true,
         url: uploadResult.secure_url, // ✅ Public HTTPS URL stored in DB
-        message: 'Thumbnail uploaded to Cloudinary.' 
+        message: 'Thumbnail uploaded to Cloudinary.'
       });
     }
 
@@ -2353,23 +2353,50 @@ app.post('/api/upload/finalize', requireAuth, express.json(), async (req, res) =
     }
 
     // ---- NEW: SFTP Relay Push (Background) ----
-    if (remoteSftpConfig.host) {
+    if (process.env.REMOTE_SFTP_HOST) {
       // Run the SFTP push in the background so the frontend doesn't hang at 100%
       setImmediate(async () => {
         let sftp;
         try {
-          console.log(`[sfpt-relay] Connecting to remote host ${remoteSftpConfig.host}...`);
-          sftp = await getRemoteSftpClient();
+          // Fetch dynamic user-specific SFTP credentials for the relay push (Supervisor's request: "don't hardcode")
+          const email = (req.user.email || '').toLowerCase().trim();
+          const userRes = await pgQuery(
+            `SELECT sftp_username, sftp_password FROM public."DataPortalUsers" WHERE LOWER(email) = $1 LIMIT 1`,
+            [email]
+          );
+          const userSftpUser = userRes.rows[0]?.sftp_username;
+          const userSftpPass = userRes.rows[0]?.sftp_password;
+
+          const sftpConfig = {
+            host: process.env.REMOTE_SFTP_HOST,
+            port: parseInt(process.env.REMOTE_SFTP_PORT || '22', 10),
+            username: userSftpUser || process.env.REMOTE_SFTP_USER,
+            password: userSftpPass || process.env.REMOTE_SFTP_PASS
+          };
+
+          if (!sftpConfig.username) {
+            console.error('[sftp-relay] No SFTP credentials available for relay push.');
+            return;
+          }
+
+          console.log(`[sfpt-relay] Connecting to remote host ${sftpConfig.host} as user ${sftpConfig.username}...`);
+          sftp = new SftpClient();
+          sftp.on('error', () => { });
+          await sftp.connect(sftpConfig);
+
           if (sftp) {
             const remoteBase = process.env.REMOTE_SFTP_BASE_PATH || '';
-            const remoteDir = path.posix.join(remoteBase, finalSubdir);
+            // supervisor requested a subfolder named "upload"
+            const remoteDir = path.posix.join(remoteBase, finalSubdir, 'upload');
             console.log(`[sfpt-relay] Creating remote directory: ${remoteDir}`);
             await sftp.mkdir(remoteDir, true);
-            
+            await sftp.mkdir(path.posix.join(remoteBase, finalSubdir, 'download'), true);
+            await sftp.mkdir(path.posix.join(remoteBase, finalSubdir, 'view'), true);
+
             console.log(`[sfpt-relay] Uploading project folder ${finalDir} to SFTP (Background)...`);
             await sftp.uploadDir(finalDir, remoteDir);
             console.log(`[sfpt-relay] Successfully pushed to remote SFTP. Cleaning up local copy...`);
-            
+
             // After successful push, clean up local final project folder
             try { await fsPromises.rm(finalDir, { recursive: true, force: true }); } catch (e) { /* ignore */ }
           }
@@ -2389,11 +2416,11 @@ app.post('/api/upload/finalize', requireAuth, express.json(), async (req, res) =
     }
 
     console.log(`[upload] Local upload saved: ${actualFileCount} files at ${finalDir}`);
-    return res.json({ 
-      success: true, 
-      message: remoteSftpConfig.host ? 'Upload assembled and is being pushed to remote server in the background.' : 'Upload successfully assembled and saved.', 
-      projectId: metadata.projectID, 
-      fileCount: actualFileCount 
+    return res.json({
+      success: true,
+      message: remoteSftpConfig.host ? 'Upload assembled and is being pushed to remote server in the background.' : 'Upload successfully assembled and saved.',
+      projectId: metadata.projectID,
+      fileCount: actualFileCount
     });
   } catch (e) {
     console.error('POST /api/upload/finalize', e);
@@ -2405,9 +2432,9 @@ app.post('/api/upload/finalize', requireAuth, express.json(), async (req, res) =
 app.post('/api/upload/test-sftp', requireAuth, express.json(), async (req, res) => {
   const { host, port, username, password } = req.body;
   if (!host || !username) return res.status(400).json({ success: false, message: 'Missing host/user' });
-  
+
   const sftp = new SftpClient();
-  sftp.on('error', () => {}); // Suppress global error spam
+  sftp.on('error', () => { }); // Suppress global error spam
   try {
     await sftp.connect({ host, port: parseInt(port) || 22, username, password });
     await sftp.end();
@@ -2432,19 +2459,19 @@ app.get('/api/upload/sftp-credentials', requireAuth, async (req, res) => {
       username: userRes.rows[0]?.sftp_username || 'Pending Generation',
       password: userRes.rows[0]?.sftp_password || 'Pending Generation'
     });
-  } catch(e) {
+  } catch (e) {
     res.json({ success: false });
   }
 });
 
 app.post('/api/upload/sftp-project', requireAuth, express.json(), async (req, res) => {
   if (!process.env.PG_DATABASE) return res.status(500).json({ success: false, message: 'DB not configured' });
-  
+
   try {
-    const { projectTitle, projectDescription, category, sftpDetails } = req.body;
-    const projectID = `sftp_${Date.now()}`;
+    const { projectTitle, projectDescription, category, sftpDetails, lensType } = req.body;
+    const projectID = `project_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     const email = (req.user.email || '').toLowerCase().trim();
-    
+
     // Fetch the client's actual SFTP credentials from their user profile
     const userRes = await pgQuery(
       `SELECT sftp_username, sftp_password FROM public."DataPortalUsers" WHERE LOWER(email) = $1 LIMIT 1`,
@@ -2457,7 +2484,8 @@ app.post('/api/upload/sftp-project', requireAuth, express.json(), async (req, re
     }
 
     // Build the target path dynamically based on the project ID (like data portal uploads)
-    const targetPath = `/${projectID}`;
+    // supervisor requested a subfolder named "upload"
+    const targetPath = `/${projectID}/upload`;
 
     // Construct the actual connection details
     const actualSftpDetails = {
@@ -2471,7 +2499,7 @@ app.post('/api/upload/sftp-project', requireAuth, express.json(), async (req, re
     // Create the logical directory
     if (actualSftpDetails.host) {
       const sftp = new SftpClient();
-      sftp.on('error', () => {}); // Suppress global error spam
+      sftp.on('error', () => { }); // Suppress global error spam
       try {
         await sftp.connect({
           host: actualSftpDetails.host,
@@ -2480,6 +2508,8 @@ app.post('/api/upload/sftp-project', requireAuth, express.json(), async (req, re
           password: actualSftpDetails.password
         });
         await sftp.mkdir(actualSftpDetails.remotePath, true);
+        await sftp.mkdir(`/${projectID}/download`, true);
+        await sftp.mkdir(`/${projectID}/view`, true);
       } catch (e) {
         console.error('[sftp provision] Could not make remote dir', e);
       } finally {
@@ -2491,7 +2521,7 @@ app.post('/api/upload/sftp-project', requireAuth, express.json(), async (req, re
       `INSERT INTO public."ClientUploads" (project_id, project_title, upload_type, created_by_email, project_description, category, latitude, longitude, image_metadata)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
       [
-        projectID, projectTitle, 'sftp', email, projectDescription, category,
+        projectID, projectTitle, (lensType === 'multiple' ? 'sftp_multiple' : 'sftp_single'), email, projectDescription, category,
         null, null, JSON.stringify({ sftp: actualSftpDetails })
       ]
     );
@@ -2632,11 +2662,11 @@ app.get('/api/user/my-uploads/:id/download', requireAuth, async (req, res) => {
   }
   try {
     const email = req.user.email;
-    
+
     // 1. Verify ownership and get file paths
     const q = await pgQuery('SELECT id, project_id, project_title, COALESCE(to_json(file_paths), \'[]\'::json) AS file_paths FROM public."ClientUploads" WHERE id = $1 AND LOWER(created_by_email) = LOWER($2)', [id, email]);
     const row = q && q.rows && q.rows[0];
-    
+
     if (!row) return res.status(404).json({ success: false, message: 'Project not found or you do not have permission to download it.' });
 
     const filePaths = parseFilePaths(row.file_paths);
@@ -2670,7 +2700,7 @@ app.get('/api/user/my-uploads/:id/download', requireAuth, async (req, res) => {
       const normalized = path.normalize(rel).replace(/^(\.\.(\/|\\))+/, '').replace(/\\/g, '/');
       const withoutUploadsPrefix = normalized.replace(/^uploads\/?/, '');
       const localFull = path.join(uploadDirResolved, withoutUploadsPrefix);
-      
+
       try {
         const stat = await fs.promises.stat(localFull);
         if (stat.isFile()) {
@@ -2679,17 +2709,57 @@ app.get('/api/user/my-uploads/:id/download', requireAuth, async (req, res) => {
         }
       } catch (e) {
         // Not local, check SFTP relay
-        if (remoteSftpConfig.host) {
+        if (process.env.REMOTE_SFTP_HOST) {
           try {
-            if (!sftp) sftp = await getRemoteSftpClient();
+            if (!sftp) {
+              const email = (req.user.email || '').toLowerCase().trim();
+              const userRes = await pgQuery(
+                `SELECT sftp_username, sftp_password FROM public."DataPortalUsers" WHERE LOWER(email) = $1 LIMIT 1`,
+                [email]
+              );
+              const userSftpUser = userRes.rows[0]?.sftp_username;
+              const userSftpPass = userRes.rows[0]?.sftp_password;
+
+              const sftpConfig = {
+                host: process.env.REMOTE_SFTP_HOST,
+                port: parseInt(process.env.REMOTE_SFTP_PORT || '22', 10),
+                username: userSftpUser || process.env.REMOTE_SFTP_USER,
+                password: userSftpPass || process.env.REMOTE_SFTP_PASS
+              };
+
+              if (sftpConfig.username) {
+                sftp = new SftpClient();
+                sftp.on('error', () => { });
+                await sftp.connect(sftpConfig);
+              }
+            }
+
             if (sftp) {
               const remoteBase = process.env.REMOTE_SFTP_BASE_PATH || '';
-              const remoteFull = path.posix.join(remoteBase, withoutUploadsPrefix);
-              const exists = await sftp.exists(remoteFull);
+              // Try direct path first (legacy)
+              let remoteFull = path.posix.join(remoteBase, withoutUploadsPrefix);
+              let exists = await sftp.exists(remoteFull);
+
+              // If not found, try adding '/upload' subfolder (new relay logic)
+              if (exists !== '-') {
+                const slashIdx = withoutUploadsPrefix.indexOf('/');
+                if (slashIdx > 0) {
+                  const projIdPart = withoutUploadsPrefix.substring(0, slashIdx);
+                  const filePart = withoutUploadsPrefix.substring(slashIdx + 1);
+                  const relayPath = path.posix.join(remoteBase, projIdPart, 'upload', filePart);
+                  console.log(`[download-relay] Checking relay path: ${relayPath}`);
+                  const relayExists = await sftp.exists(relayPath);
+                  if (relayExists === '-') {
+                    remoteFull = relayPath;
+                    exists = '-';
+                  }
+                }
+              }
+
               if (exists === '-') {
                 console.log(`[download-relay] Fetching: ${remoteFull}`);
                 const remoteStream = await sftp.get(remoteFull);
-                
+
                 await new Promise((resolve, reject) => {
                   remoteStream.on('error', reject);
                   archive.append(remoteStream, { name: path.basename(remoteFull) });
@@ -2722,46 +2792,46 @@ app.delete('/api/user/my-uploads/:id', requireAuth, async (req, res) => {
 
   try {
     const email = req.user.email;
-    
+
     // 1. Verify ownership and get the project's folder paths
     const q1 = await pgQuery('SELECT id, file_paths FROM public."ClientUploads" WHERE id = $1 AND LOWER(created_by_email) = LOWER($2)', [id, email]);
     const row = q1 && q1.rows && q1.rows[0];
-    
+
     if (!row) {
       return res.status(404).json({ success: false, message: 'Project not found or you do not have permission to delete it.' });
     }
-    
+
     // 2. Erase the massive files on the hard drive to free up C: Space
     const filePaths = parseFilePaths(row.file_paths);
     const uploadDirResolved = path.resolve(UPLOAD_DIR);
-    
+
     let targetDirToDelete = null;
     if (filePaths.length > 0) {
       const firstRel = filePaths[0];
       const normalized = path.normalize(firstRel).replace(/^(\.\.(\/|\\))+/, '').replace(/\\/g, '/');
-      const withoutUploadsPrefix = normalized.replace(/^uploads\/?/, ''); 
-      
+      const withoutUploadsPrefix = normalized.replace(/^uploads\/?/, '');
+
       if (withoutUploadsPrefix.includes('/')) {
-         const projDirName = withoutUploadsPrefix.split('/')[0]; // Extract "project_xyz"
-         const fullProjDir = path.join(uploadDirResolved, projDirName);
-         if (isPathUnderDir(fullProjDir, uploadDirResolved) && fullProjDir !== uploadDirResolved) {
-             targetDirToDelete = fullProjDir;
-         }
+        const projDirName = withoutUploadsPrefix.split('/')[0]; // Extract "project_xyz"
+        const fullProjDir = path.join(uploadDirResolved, projDirName);
+        if (isPathUnderDir(fullProjDir, uploadDirResolved) && fullProjDir !== uploadDirResolved) {
+          targetDirToDelete = fullProjDir;
+        }
       }
     }
-    
+
     if (targetDirToDelete) {
       try {
-         await fs.promises.rm(targetDirToDelete, { recursive: true, force: true });
-         console.log(`[delete] Wiped heavy project directory to free up space: ${targetDirToDelete}`);
+        await fs.promises.rm(targetDirToDelete, { recursive: true, force: true });
+        console.log(`[delete] Wiped heavy project directory to free up space: ${targetDirToDelete}`);
       } catch (err) {
-         console.warn(`[delete] Warning: Could not wipe physical directory: ${targetDirToDelete}`, err);
+        console.warn(`[delete] Warning: Could not wipe physical directory: ${targetDirToDelete}`, err);
       }
     }
-    
+
     // 3. Delete from virtual database
     await pgQuery('DELETE FROM public."ClientUploads" WHERE id = $1', [id]);
-    
+
     res.json({ success: true, message: 'Project deleted successfully and hard drive space freed.' });
   } catch (e) {
     console.error('DELETE /api/user/my-uploads/:id', e);
@@ -2799,6 +2869,112 @@ function isPathUnderDir(fullPath, allowedDir) {
   return full === dir || full.startsWith(dirWithSep);
 }
 
+// ---- Admin: download all uploaded files for a client upload (ZIP) ----
+app.get('/api/admin/client-uploads/:id/download', async (req, res) => {
+  const id = req.params.id && parseInt(req.params.id, 10);
+  if (!id || isNaN(id) || !process.env.PG_DATABASE) {
+    return res.status(400).json({ success: false, message: 'Valid upload id is required.' });
+  }
+  try {
+    const q = await pgQuery('SELECT id, project_id, project_title, COALESCE(to_json(file_paths), \'[]\'::json) AS file_paths, drone_pos_file_path FROM public."ClientUploads" WHERE id = $1', [id]);
+    const row = q && q.rows && q.rows[0];
+    if (!row) return res.status(404).json({ success: false, message: 'Client upload not found.' });
+
+    const filePaths = parseFilePaths(row.file_paths);
+    const dronePath = (row.drone_pos_file_path || '').trim();
+    if (dronePath) filePaths.push(dronePath);
+
+    if (filePaths.length === 0) {
+      return res.status(404).json({ success: false, message: 'No files found for this upload.' });
+    }
+
+    let archiver;
+    try {
+      archiver = (await import('archiver')).default;
+    } catch (e) {
+      return res.status(503).json({ success: false, message: 'Download requires the archiver package. Run: npm install archiver' });
+    }
+
+    const zipName = 'upload-' + id + '-' + (row.project_id || 'files').replace(/[^a-zA-Z0-9_-]/g, '_') + '.zip';
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', 'attachment; filename="' + zipName + '"');
+
+    const archive = archiver('zip', { zlib: { level: 6 } });
+    archive.on('error', (e) => {
+      console.error('archiver error', e);
+      if (!res.headersSent) res.status(500).end();
+    });
+    archive.pipe(res);
+
+    // Local disk storage
+    const uploadDirResolved = path.resolve(UPLOAD_DIR);
+    const projectRootResolved = path.resolve(PROJECT_ROOT);
+    for (const rel of filePaths) {
+      const normalized = path.normalize(rel).replace(/^(\.\.(\/|\\))+/, '').replace(/\\/g, '/');
+      const withoutUploadsPrefix = normalized.replace(/^uploads\/?/, '');
+      const candidates = [
+        path.join(projectRootResolved, normalized),
+        path.join(uploadDirResolved, withoutUploadsPrefix),
+      ];
+      let foundLocally = false;
+      for (const full of candidates) {
+        try {
+          const stat = await fs.promises.stat(full);
+          if (stat.isFile()) {
+            archive.file(full, { name: path.basename(full) });
+            foundLocally = true;
+            break;
+          }
+        } catch (e) { /* try next */ }
+      }
+
+      if (!foundLocally && process.env.REMOTE_SFTP_HOST) {
+        try {
+          if (!sftp) sftp = await getRemoteSftpClient();
+          if (sftp) {
+            const remoteBase = process.env.REMOTE_SFTP_BASE_PATH || '';
+            // Try direct path first
+            let remoteFull = path.posix.join(remoteBase, withoutUploadsPrefix);
+            let exists = await sftp.exists(remoteFull);
+
+            // Fallback to relay '/upload' subfolder
+            if (exists !== '-') {
+              const slashIdx = withoutUploadsPrefix.indexOf('/');
+              if (slashIdx > 0) {
+                const projIdPart = withoutUploadsPrefix.substring(0, slashIdx);
+                const filePart = withoutUploadsPrefix.substring(slashIdx + 1);
+                const relayPath = path.posix.join(remoteBase, projIdPart, 'upload', filePart);
+                const relayExists = await sftp.exists(relayPath);
+                if (relayExists === '-') {
+                  remoteFull = relayPath;
+                  exists = '-';
+                }
+              }
+            }
+
+            if (exists === '-') {
+              const remoteStream = await sftp.get(remoteFull);
+              await new Promise((resolve, reject) => {
+                remoteStream.on('error', reject);
+                archive.append(remoteStream, { name: path.basename(remoteFull) });
+                remoteStream.on('end', resolve);
+              });
+            }
+          }
+        } catch (err) {
+          console.warn(`[admin-download-relay] SFTP fetch failed:`, err.message);
+        }
+      }
+    }
+    if (sftp) await sftp.end();
+
+    await archive.finalize();
+  } catch (e) {
+    console.error('GET /api/admin/client-uploads/:id/download', e);
+    if (!res.headersSent) res.status(500).json({ success: false, message: e.message || 'Download failed.' });
+  }
+});
+
 // ---- Admin: accept or reject a client upload request ----
 app.post('/api/admin/client-uploads/:id/decision', express.json(), async (req, res) => {
   const id = req.params.id && parseInt(req.params.id, 10);
@@ -2808,7 +2984,7 @@ app.post('/api/admin/client-uploads/:id/decision', express.json(), async (req, r
     return res.status(400).json({ success: false, message: 'Valid upload id is required and PostgreSQL must be configured.' });
   }
   const actionLower = String(action).toLowerCase();
-  
+
   const validActions = ['accept', 'review', 'processing', 'reject'];
   if (!validActions.includes(actionLower)) {
     return res.status(400).json({ success: false, message: 'action must be "accept", "review", "processing", or "reject".' });
@@ -2820,8 +2996,8 @@ app.post('/api/admin/client-uploads/:id/decision', express.json(), async (req, r
   try {
     const finalStatus = actionLower === 'reject' ? 'rejected'
       : actionLower === 'accept' ? 'review'
-      : actionLower === 'review' ? 'review'
-      : 'processing';
+        : actionLower === 'review' ? 'review'
+          : 'processing';
     const r = await pgQuery(
       `UPDATE public."ClientUploads" SET request_status = $1, rejected_reason = $2, decided_at = NOW(), decided_by = $3 WHERE id = $4 RETURNING id, request_status, decided_at`,
       [finalStatus, actionLower === 'reject' ? reason.trim() : null, decidedBy, id]
@@ -2962,7 +3138,7 @@ async function runProcessingPulse() {
         if (!entry.isDirectory() || entry.name === 'map-thumbnails' || entry.name.startsWith('temp_')) continue;
         const resultsPath = path.join(uploadDirResolved, entry.name, '1');
         if (fs.existsSync(resultsPath) && fs.statSync(resultsPath).isDirectory()) {
-          await updateProjectCompletion(entry.name, `uploads/${entry.name}/1`);
+          // await updateProjectCompletion(entry.name, `uploads/${entry.name}/1`);
         }
       }
     }
@@ -2976,14 +3152,14 @@ async function runProcessingPulse() {
       if (sftp) {
         const remoteBase = process.env.REMOTE_SFTP_BASE_PATH || '';
         const remoteDirs = await sftp.list(remoteBase);
-        
+
         for (const entry of remoteDirs) {
           if (entry.type !== 'd' || entry.name === 'map-thumbnails' || entry.name.startsWith('temp_')) continue;
-          
+
           const remoteResultsPath = path.posix.join(remoteBase, entry.name, '1');
           const exists = await sftp.exists(remoteResultsPath);
           if (exists === 'd') {
-            await updateProjectCompletion(entry.name, `uploads/${entry.name}/1`);
+            // await updateProjectCompletion(entry.name, `uploads/${entry.name}/1`);
           }
         }
       }
@@ -3006,34 +3182,42 @@ async function runProcessingPulse() {
         let authConfig = null;
         let targetPath = null;
 
-        if (project.upload_type === 'sftp') {
-          if (!project.sftp_username || !project.sftp_password) continue;
+        // Determine if this is an SFTP-provisioned project or a Web-Relay project
+        const isSftpProject = (project.upload_type === 'sftp' || (project.upload_type && project.upload_type.startsWith('sftp_')));
+
+        if (isSftpProject) {
+          if (!project.sftp_username || !project.sftp_password) {
+            // console.warn(`[pulse-sync] Skipping ${project.project_id}: No SFTP credentials found in DB.`);
+            continue;
+          }
           authConfig = {
             host: process.env.REMOTE_SFTP_HOST,
             port: parseInt(process.env.REMOTE_SFTP_PORT) || 22,
             username: project.sftp_username,
             password: project.sftp_password
           };
-          targetPath = `/${project.project_id}`;
+          targetPath = `/${project.project_id}/upload`;
         } else {
-          // Relayed web uploads reside in the admin SFTP base directory
-          let pathsStr = project.file_paths || '';
-          if (typeof pathsStr !== 'string') pathsStr = String(pathsStr);
+          // Relayed web uploads reside in the admin SFTP base directory or user's home (we use admin credentials to scan all)
+          let pathsStr = (project.file_paths || '').toString();
           const match = pathsStr.match(/(project_[0-9]+_[a-zA-Z0-9]+)/);
-          if (!match) continue;
-          const folderName = match[1];
-          
-          Object.assign(authConfig = {}, {
+
+          // Fallback: if file_paths is empty/missing, try to use project_id directly if it looks like a web upload folder
+          const folderName = match ? match[1] : (project.project_id.startsWith('project_') ? project.project_id : null);
+
+          if (!folderName) continue;
+
+          authConfig = {
             host: process.env.REMOTE_SFTP_HOST,
             port: parseInt(process.env.REMOTE_SFTP_PORT) || 22,
-            username: process.env.REMOTE_SFTP_USER,
-            password: process.env.REMOTE_SFTP_PASS
-          });
-          targetPath = path.posix.join(process.env.REMOTE_SFTP_BASE_PATH || '', folderName);
+            username: project.sftp_username || process.env.REMOTE_SFTP_USER,
+            password: project.sftp_password || process.env.REMOTE_SFTP_PASS
+          };
+          targetPath = path.posix.join(process.env.REMOTE_SFTP_BASE_PATH || '', folderName, 'upload');
         }
-        
+
         const sftpClient = new SftpClient();
-        sftpClient.on('error', () => {}); 
+        sftpClient.on('error', () => { });
         try {
           await sftpClient.connect(authConfig);
 
@@ -3072,7 +3256,7 @@ async function runProcessingPulse() {
         } catch (err) {
           console.error(`[pulse-sync] Error scanning ${project.project_id}:`, err.message);
         } finally {
-          try { await sftpClient.end(); } catch(e) {}
+          try { await sftpClient.end(); } catch (e) { }
         }
       }
     } catch (err) {
@@ -3131,7 +3315,7 @@ function startServer() {
       }
     }
     if (!googleClientId || !googleClientSecret) console.log('  (Google not configured – set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in .env)');
-    
+
     // Start background scanner
     startProcessingPulse();
   });
