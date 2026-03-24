@@ -138,7 +138,7 @@ async function getRoleForEmailAsync(email) {
       const role = r?.rows?.[0]?.role;
       if (role !== undefined && role !== null) {
         if (role === 'admin') return 'admin';
-        if (role === 'subscriber') return 'subscriber';
+        if (role === 'trusted') return 'trusted';
         return 'client';
       }
     } catch (e) {
@@ -151,7 +151,7 @@ async function getRoleForEmailAsync(email) {
     const u = users.find(x => (x.email || '').toLowerCase() === emailNorm);
     if (u) {
       if (u.role === 'admin') return 'admin';
-      if (u.role === 'subscriber') return 'subscriber';
+      if (u.role === 'trusted') return 'trusted';
     }
     return 'client';
   } catch (e) {
@@ -167,7 +167,7 @@ function getRoleForEmail(email) {
   const u = users.find(x => (x.email || '').toLowerCase() === String(email).toLowerCase());
   if (!u) return 'client';
   if (u.role === 'admin') return 'admin';
-  if (u.role === 'subscriber') return 'subscriber';
+  if (u.role === 'trusted') return 'trusted';
   return 'client';
 }
 
@@ -857,7 +857,7 @@ app.post('/api/token/purchase-map-data', requireAuth, express.json(), async (req
   try {
     ensurePgForWallet();
     const role = req.user.role || 'client';
-    if (role !== 'subscriber' && role !== 'admin') {
+    if (role !== 'trusted' && role !== 'admin') {
       return res.status(403).json({ success: false, message: 'Only subscribers (or admins) can purchase 3D models.' });
     }
     const mapDataID = String(req.body?.mapDataID || '').trim();
@@ -1237,8 +1237,13 @@ app.post("/api/auth/register", express.json(), async (req, res) => {
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(rawEmail)) {
     return res.status(400).json({ success: false, message: 'Please enter a valid email address.' });
   }
-  if (!password || typeof password !== 'string' || password.length < 8) {
-    return res.status(400).json({ success: false, message: 'Password must be at least 8 characters.' });
+  const providerVal = (req.body.provider || 'local').toLowerCase();
+  const isOAuthUser = providerVal === 'google' || providerVal === 'microsoft';
+
+  if (!isOAuthUser) {
+    if (!password || typeof password !== 'string' || password.length < 8) {
+      return res.status(400).json({ success: false, message: 'Password must be at least 8 characters.' });
+    }
   }
 
   const users = await getUsersAsync();
@@ -1267,7 +1272,7 @@ app.post("/api/auth/register", express.json(), async (req, res) => {
     role = 'admin';
   }
 
-  const passwordHash = bcrypt.hashSync(password, 10);
+  const passwordHash = (!isOAuthUser && password) ? bcrypt.hashSync(password, 10) : null;
   const newUser = {
     email,
     username: rawUsername,
@@ -1378,10 +1383,10 @@ app.post("/api/auth/upgrade-to-subscriber", express.json(), async (req, res) => 
     const u = users.find(x => (x.email || '').toLowerCase() === email);
     if (!u) return res.status(400).json({ success: false, message: 'No account found with this email. Create a client account first.' });
     if (u.role === 'admin') return res.status(400).json({ success: false, message: 'Admins do not need to upgrade to subscriber.' });
-    if (u.role === 'subscriber') return res.json({ success: true, message: 'You are already a subscriber.' });
-    const updated = await updateUserRolePG(email, 'subscriber');
+    if (u.role === 'trusted') return res.json({ success: true, message: 'You are already a trusted user.' });
+    const updated = await updateUserRolePG(email, 'trusted');
     if (!updated) return res.status(500).json({ success: false, message: 'Upgrade failed.' });
-    return res.json({ success: true, message: 'You are now a subscriber. You can upload raw data and purchase 3D models.' });
+    return res.json({ success: true, message: 'You are now a trusted user. You can upload via SFTP and purchase 3D models.' });
   } catch (e) {
     console.error('upgrade-to-subscriber', e);
     return res.status(500).json({ success: false, message: 'Upgrade failed.' });
@@ -1945,7 +1950,8 @@ app.post('/api/admin/seed-showcase-from-locations', async (req, res) => {
       existingIds.add(mapDataId);
       added++;
     }
-    return res.json({ success: true, added, message: 'Synced ' + added + ' locations from data/locations.json into the showcase.' });
+    const total = locations.length;
+    return res.json({ success: true, added, message: added > 0 ? 'Synced ' + added + ' new locations into the showcase.' : 'All ' + total + ' locations are already in the showcase. Nothing new to add.' });
   } catch (e) {
     console.error('POST /api/admin/seed-showcase-from-locations', e);
     return res.status(500).json({ success: false, message: e.message || 'Failed to sync showcase.' });
@@ -2504,7 +2510,7 @@ app.get('/api/admin/client-uploads', async (req, res) => {
     return res.json([]);
   }
   try {
-    const q = await pgQuery('SELECT id, project_id, project_title, upload_type, file_count, file_paths, camera_models, capture_date, organization_name, created_at, created_by_email, request_status, rejected_reason, decided_at, decided_by, project_description, category, latitude, longitude, area_coverage, image_metadata, drone_pos_file_path, total_size_bytes, tokens_charged FROM public."ClientUploads" ORDER BY created_at DESC');
+    const q = await pgQuery('SELECT id, project_id, project_title, upload_type, file_count, file_paths, camera_models, capture_date, created_at, created_by_email, request_status, rejected_reason, decided_at, decided_by, project_description, category, latitude, longitude, image_metadata, drone_pos_file_path, total_size_bytes, tokens_charged FROM public."ClientUploads" ORDER BY created_at DESC');
     res.json((q && q.rows) ? q.rows : []);
   } catch (e) {
     console.error('GET /api/admin/client-uploads', e);

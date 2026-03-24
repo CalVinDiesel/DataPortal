@@ -186,47 +186,6 @@
                     <div class="invalid-feedback">Please enter a valid contact number.</div>
                   </div>
 
-                  <div class="mb-3">
-                    <label class="form-label" for="regPassword">Password <span class="text-danger">*</span></label>
-                    <div class="position-relative">
-                      <input type="password" class="form-control pe-5" id="regPassword" name="password" placeholder="At least 8 characters" autocomplete="new-password">
-                      <button type="button" class="btn btn-link position-absolute end-0 top-50 translate-middle-y text-body p-0 pe-2 password-toggle-btn" data-target="regPassword" aria-label="Show password" title="Show password">
-                        <i class="bx bx-show-alt icon-lg"></i>
-                      </button>
-                    </div>
-                    <div class="invalid-feedback">Password must be at least 8 characters.</div>
-                  </div>
-
-                  <div class="mb-3">
-                    <label class="form-label" for="regConfirm">Confirm password <span class="text-danger">*</span></label>
-                    <div class="position-relative">
-                      <input type="password" class="form-control pe-5" id="regConfirm" name="confirm" placeholder="Repeat password" autocomplete="new-password">
-                      <button type="button" class="btn btn-link position-absolute end-0 top-50 translate-middle-y text-body p-0 pe-2 password-toggle-btn" data-target="regConfirm" aria-label="Show password" title="Show password">
-                        <i class="bx bx-show-alt icon-lg"></i>
-                      </button>
-                    </div>
-                    <div class="invalid-feedback">Passwords do not match.</div>
-                  </div>
-
-                  <div class="mb-3">
-                    <label class="form-label" for="regRole">Sign up as <span class="text-danger">*</span></label>
-                    <select class="form-select" id="regRole" name="role" aria-label="Client or Admin">
-                      <option value="client" selected>Client</option>
-                      <option value="admin">Admin (requires approval code)</option>
-                    </select>
-                  </div>
-                  <div class="mb-3" id="adminCodeWrap" style="display:none;">
-                    <label class="form-label" for="regAdminCode">Admin approval code <span class="text-danger">*</span></label>
-                    <div class="position-relative">
-                      <input type="password" class="form-control pe-5" id="regAdminCode" name="adminCode" placeholder="Enter the code provided by an administrator" autocomplete="off">
-                      <button type="button" class="btn btn-link position-absolute end-0 top-50 translate-middle-y text-body p-0 pe-2 password-toggle-btn" data-target="regAdminCode" aria-label="Show password" title="Show password">
-                        <i class="bx bx-show-alt icon-lg"></i>
-                      </button>
-                    </div>
-                    <div class="form-text">Only users with a valid approval code can register as admin.</div>
-                    <div class="invalid-feedback">Invalid admin approval code.</div>
-                  </div>
-
                   <div class="d-grid gap-2 mt-3">
                     <button type="submit" class="btn btn-primary">Create account</button>
                   </div>
@@ -486,14 +445,6 @@
       });
     });
 
-    // ── Show/hide admin approval code when role is Admin ──────────────────────
-    document.getElementById('regRole').addEventListener('change', function() {
-      var wrap = document.getElementById('adminCodeWrap');
-      wrap.style.display = this.value === 'admin' ? 'block' : 'none';
-      document.getElementById('regAdminCode').value = '';
-      document.getElementById('regAdminCode').classList.remove('is-invalid');
-    });
-
     // ── Step 2: Registration form submit ──────────────────────────────────────
     document.getElementById('registerForm').addEventListener('submit', function(e) {
       e.preventDefault();
@@ -501,10 +452,6 @@
       var nameEl    = document.getElementById('regName');
       var contactEl = document.getElementById('regContact');
       var emailEl   = document.getElementById('regEmail');
-      var password  = document.getElementById('regPassword');
-      var confirm   = document.getElementById('regConfirm');
-      var roleEl    = document.getElementById('regRole');
-      var adminCodeEl = document.getElementById('regAdminCode');
       var msg       = document.getElementById('registerMessage');
 
       msg.textContent = '';
@@ -529,17 +476,6 @@
       markInvalid(nameEl,     !nameVal);
       markInvalid(contactEl,  !/^[0-9+\-\s()]{7,20}$/.test(contactVal));
 
-      password.classList.toggle('is-invalid', password.value.length < 8);
-      if (password.value.length < 8) ok = false;
-      confirm.classList.toggle('is-invalid', password.value !== confirm.value);
-      if (password.value !== confirm.value) ok = false;
-
-      var roleVal = roleEl.value || 'client';
-      if (roleVal === 'admin') {
-        var codeVal = (adminCodeEl.value || '').trim();
-        adminCodeEl.classList.toggle('is-invalid', !codeVal);
-        if (!codeVal) ok = false;
-      }
       if (!ok) return;
 
       var btn = this.querySelector('button[type="submit"]');
@@ -551,10 +487,9 @@
         contactNumber: contactVal,
         username:      usernameVal,
         email:         emailVal.toLowerCase(),
-        password:      password.value,
+        password:      '',
         provider:      providerVal,
-        role:          roleVal,
-        adminCode:     roleVal === 'admin' ? (document.getElementById('regAdminCode').value || '').trim() : ''
+        role:          client,
       };
 
       fetch(AUTH_API + '/api/auth/register', {

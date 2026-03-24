@@ -37,8 +37,8 @@
           window.location.href = '/html/front-pages/login.html?redirect=' + encodeURIComponent(window.location.pathname);
           return;
         }
-        if (d.role !== 'subscriber' && d.role !== 'admin') {
-          window.location.href = (window.location.origin || 'http://localhost:3000') + '/html/front-pages/landing-page.html?message=subscriber_required';
+        if (d.role !== 'registered' && d.role !== 'trusted' && d.role !== 'admin') {
+          window.location.href = (window.location.origin || 'http://localhost:3000') + '/html/front-pages/landing-page.html?message=login_required';
         }
       }).catch(function () { });
     })();

@@ -171,9 +171,7 @@
                       <div class="col-12 mb-2"><span class="text-muted">Category:</span> <span id="detailCategory">–</span></div>
                       <div class="col-md-6 mb-2"><span class="text-muted">Latitude:</span> <span id="detailLatitude">–</span></div>
                       <div class="col-md-6 mb-2"><span class="text-muted">Longitude:</span> <span id="detailLongitude">–</span></div>
-                      <div class="col-12 mb-2"><span class="text-muted">Area coverage:</span> <span id="detailAreaCoverage">–</span></div>
                       <div class="col-12 mb-2"><span class="text-muted">Sensor / image metadata:</span> <span id="detailImageMetadata">–</span></div>
-                      <div class="col-12 mb-2"><span class="text-muted">Organization:</span> <span id="detailOrganization">–</span></div>
                       <div class="col-md-6 mb-2"><span class="text-muted">Camera models:</span> <span id="detailCameraModels">–</span></div>
                       <div class="col-md-6 mb-2"><span class="text-muted">Capture date:</span> <span id="detailCaptureDate">–</span></div>
                       <div class="col-12 mb-2"><span class="text-muted">Upload type:</span> <span id="detailUploadType">–</span></div>
@@ -388,9 +386,25 @@
         document.getElementById('detailCategory').textContent           = text(row.category);
         document.getElementById('detailLatitude').textContent           = num(row.latitude);
         document.getElementById('detailLongitude').textContent          = num(row.longitude);
-        document.getElementById('detailAreaCoverage').textContent       = text(row.area_coverage);
-        document.getElementById('detailImageMetadata').textContent      = text(row.image_metadata);
-        document.getElementById('detailOrganization').textContent       = text(row.organization_name);
+        // Clean display of image metadata depending on upload type
+        var metaEl = document.getElementById('detailImageMetadata');
+        if (row.upload_type === 'sftp') {
+          metaEl.textContent = 'Uploaded via SFTP software (FileZilla / WinSCP)';
+        } else {
+          // Try to parse JSON in case it slipped in, otherwise show as-is
+          var rawMeta = row.image_metadata || '–';
+          try {
+            var parsed = JSON.parse(rawMeta);
+            // If it's a JSON object (sftp details leaked in), show clean message
+            if (typeof parsed === 'object' && parsed !== null) {
+              metaEl.textContent = 'Uploaded via SFTP software (FileZilla / WinSCP)';
+            } else {
+              metaEl.textContent = rawMeta;
+            }
+          } catch (e) {
+            metaEl.textContent = rawMeta;
+          }
+        }
         document.getElementById('detailCameraModels').textContent       = text(row.camera_models);
         document.getElementById('detailCaptureDate').textContent        = text(row.capture_date);
         document.getElementById('detailUploadType').textContent         = text(row.upload_type);
