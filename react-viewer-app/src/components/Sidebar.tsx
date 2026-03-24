@@ -55,9 +55,9 @@ interface SidebarProps {
 
 interface LayerState {
     '3DModel': boolean;
-    'DSM': boolean;
-    'DOM': boolean;
-    'Modeling area': boolean;
+    // 'DSM': boolean;
+    // 'DOM': boolean;
+    // 'Modeling area': boolean;
 }
 
 interface AnnotationState {
@@ -165,9 +165,9 @@ function Sidebar({ isOpen, onToggle, viewer, siteTitle = 'SITE', tilesetUrl, dra
 
     const [layers, setLayers] = useState<LayerState>({
         '3DModel': true,
-        'DSM': false,
-        'DOM': false,
-        'Modeling area': false,
+        // 'DSM': false,
+        // 'DOM': false,
+        // 'Modeling area': false,
     });
 
     const [annotationStates, setAnnotationStates] = useState<AnnotationState>({

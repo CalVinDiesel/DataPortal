@@ -585,7 +585,7 @@ function DiscoveryPage({ locationData, modelId, stateSiteTitle }: {
                 enableCompass: true,
                 enableZoomControls: false,
                 enableDistanceLegend: false,
-                enableCompassOuterRing: false,
+                enableCompassOuterRing: true,
             });
 
             // Move the generated compass into the navigation container
@@ -593,6 +593,12 @@ function DiscoveryPage({ locationData, modelId, stateSiteTitle }: {
                 const compass = document.querySelector('.compass');
                 const navigationContainer = document.querySelector('.navigation-container');
                 if (compass && navigationContainer) {
+                    // Disable double-click to prevent view reset
+                    compass.addEventListener('dblclick', (e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                    }, true);
+                    
                     navigationContainer.appendChild(compass);
                 }
             }, 100);
