@@ -360,11 +360,18 @@
         var paths = r.file_paths;
         var pathsArr = Array.isArray(paths) ? paths : (typeof paths === 'string' && paths ? [paths] : []);
         if (pathsArr.length > 0) {
-          // Extract folder name from first file path: uploads/project_xxx/filename → project_xxx
+          // Extract full folder path from first file path: uploads/project_xxx/subfolder/filename → project_xxx/subfolder
           var first = pathsArr[0].replace(/\\/g, '/').replace(/^uploads\/?/, '');
           var parts = first.split('/');
-          if (parts.length >= 2) {
-            return (base ? base + '/' : '/') + parts[0];
+          if (parts.length >= 1) {
+            // Remove the filename (last part) to get the folder path
+            var folderPath = parts.slice(0, -1).join('/');
+            if (folderPath) {
+              return (base ? base + '/' : '/') + folderPath;
+            } else {
+              // If only filename, return just the first folder
+              return (base ? base + '/' : '/') + parts[0];
+            }
           }
         }
         // SFTP project upload: use project_id as folder
