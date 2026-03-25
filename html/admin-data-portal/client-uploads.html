@@ -360,22 +360,18 @@
         var paths = r.file_paths;
         var pathsArr = Array.isArray(paths) ? paths : (typeof paths === 'string' && paths ? [paths] : []);
         if (pathsArr.length > 0) {
-          // Extract full folder path from first file path: uploads/project_xxx/subfolder/filename → project_xxx/subfolder
+          // Extract folder path from first file path: uploads/project_xxx/filename → project_xxx/upload
           var first = pathsArr[0].replace(/\\/g, '/').replace(/^uploads\/?/, '');
           var parts = first.split('/');
           if (parts.length >= 1) {
-            // Remove the filename (last part) to get the folder path
-            var folderPath = parts.slice(0, -1).join('/');
-            if (folderPath) {
-              return (base ? base + '/' : '/') + folderPath;
-            } else {
-              // If only filename, return just the first folder
-              return (base ? base + '/' : '/') + parts[0];
-            }
+            // Get the project folder (first part) and add /upload subfolder
+            var projectFolder = parts[0];
+            var fullPath = projectFolder + '/upload';
+            return (base ? base + '/' : '/') + fullPath;
           }
         }
-        // SFTP project upload: use project_id as folder
-        if (r.project_id) return (base ? base + '/' : '/') + r.project_id;
+        // SFTP project upload: use project_id as folder with /upload subfolder
+        if (r.project_id) return (base ? base + '/' : '/') + r.project_id + '/upload';
         return '– (not available)';
       }
 
