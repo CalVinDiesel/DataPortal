@@ -7,6 +7,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
   <title>Account Profile | 3DHub Data Portal</title>
 
+  <script src="../../assets/js/theme-init.js"></script>
+
   <!-- Favicon -->
   <link rel="icon" type="image/x-icon" href="../../assets/img/favicon/favicon.ico">
 
@@ -67,63 +69,98 @@
     })();
   </script>
 
-  <style>
-    body { background-color: #f8f9fa; }
-    .hero-bg {
-      background: linear-gradient(135deg, rgba(105, 108, 255, 0.05) 0%, rgba(105, 108, 255, 0.01) 100%);
-      padding: 3rem 0;
-      border-bottom: 1px solid #ebedf2;
-    }
-    .profile-card {
-      background: #fff;
-      border: 1px solid #ebedf2;
-      border-radius: 12px;
-      padding: 1.5rem;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.03);
-      margin-bottom: 1.5rem;
-    }
-    .profile-card h5 { margin-bottom: 1rem; font-weight: 600; }
-    .profile-row {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: baseline;
-      gap: 0.5rem 1rem;
-      padding: 0.75rem 0;
-      border-bottom: 1px solid #f0f0f0;
-    }
-    .profile-row:last-child { border-bottom: none; }
-    .profile-label {
-      font-weight: 500;
-      color: #566a7f;
-      min-width: 140px;
-    }
-    .profile-value {
-      color: #333;
-      flex: 1;
-      min-width: 0;
-    }
-    .profile-actions { flex-shrink: 0; }
-    .profile-inline-form {
-      margin-top: 0.5rem;
-      padding: 0.75rem;
-      background: #f8f9fa;
-      border-radius: 8px;
-      max-width: 400px;
-    }
-    .profile-inline-form .form-control { margin-bottom: 0.5rem; }
-    .profile-inline-form .btn { margin-right: 0.5rem; margin-top: 0.25rem; }
-    .back-btn:hover { color: #696cff !important; background-color: #f8f9fa !important; }
-    .back-btn:hover i { color: inherit !important; }
-  </style>
+<style>
+  body { background-color: var(--bs-body-bg); }
+  .hero-bg {
+    background: linear-gradient(135deg, rgba(105, 108, 255, 0.05) 0%, rgba(105, 108, 255, 0.01) 100%);
+    padding: 3rem 0;
+    border-bottom: 1px solid var(--bs-border-color);
+  }
+  .profile-card {
+    background: var(--bs-card-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+    margin-bottom: 1.5rem;
+  }
+  .profile-card h5 { margin-bottom: 1rem; font-weight: 600; }
+  .profile-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.5rem 1rem;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid var(--bs-border-color);
+  }
+  .profile-row:last-child { border-bottom: none; }
+  .profile-label {
+    font-weight: 500;
+    color: var(--bs-secondary-color);
+    min-width: 140px;
+  }
+  .profile-value {
+    color: var(--bs-body-color);
+    flex: 1;
+    min-width: 0;
+  }
+  .profile-actions { flex-shrink: 0; }
+  .profile-inline-form {
+    margin-top: 0.5rem;
+    padding: 0.75rem;
+    background: var(--bs-tertiary-bg);
+    border-radius: 8px;
+    max-width: 400px;
+  }
+  .profile-inline-form .form-control { margin-bottom: 0.5rem; }
+  .profile-inline-form .btn { margin-right: 0.5rem; margin-top: 0.25rem; }
+  .back-btn {
+    background: var(--bs-card-bg) !important;
+    color: var(--bs-secondary-color) !important;
+  }
+  .back-btn:hover { color: #696cff !important; background-color: var(--bs-tertiary-bg) !important; }
+  .back-btn:hover i { color: inherit !important; }
+
+  /* heading inside hero always uses body color */
+  .hero-bg h2 { color: var(--bs-heading-color); }
+</style>
 </head>
 
 <body>
 
   <div class="hero-bg">
     <div class="container">
-      <a href="landing-page.html" class="btn btn-label-secondary btn-sm mb-4 fw-medium border shadow-sm back-btn" style="background: white; color: #566a7f;">
-        <i class="bx bx-arrow-back me-1"></i> Back
-      </a>
+      <div class="d-flex align-items-center justify-content-between mb-4">
+        <a href="landing-page.html" class="btn btn-label-secondary btn-sm fw-medium border shadow-sm back-btn" style="background: white; color: #566a7f;">
+          <i class="bx bx-arrow-back me-1"></i> Back
+        </a>
+        <!-- Style Switcher -->
+        <ul class="navbar-nav flex-row align-items-center mb-0">
+          <li class="nav-item dropdown-style-switcher dropdown">
+            <a class="nav-link dropdown-toggle hide-arrow" id="nav-theme" href="javascript:void(0);" data-bs-toggle="dropdown">
+              <i class="icon-base bx bx-sun icon-lg theme-icon-active"></i>
+            </a>
+            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="nav-theme-text">
+              <li>
+                <button type="button" class="dropdown-item align-items-center" data-bs-theme-value="light">
+                  <span><i class="icon-base bx bx-sun icon-md me-3"></i>Light</span>
+                </button>
+              </li>
+              <li>
+                <button type="button" class="dropdown-item align-items-center" data-bs-theme-value="dark">
+                  <span><i class="icon-base bx bx-moon icon-md me-3"></i>Dark</span>
+                </button>
+              </li>
+              <li>
+                <button type="button" class="dropdown-item align-items-center" data-bs-theme-value="system">
+                  <span><i class="icon-base bx bx-desktop icon-md me-3"></i>System</span>
+                </button>
+              </li>
+            </ul>
+          </li>
+        </ul>
+        <!-- / Style Switcher -->
+      </div>
       <h2 class="h3 fw-bold text-dark mb-2">Account profile</h2>
       <p class="text-muted mb-0">View and manage your personal details. You can change your name, password, contact number, or email from the options beside each field.</p>
     </div>
@@ -256,9 +293,9 @@
     </div>
   </div>
 
-  <script src="../../assets/vendor/libs/jquery/jquery.js"></script>
   <script src="../../assets/vendor/libs/popper/popper.js"></script>
   <script src="../../assets/vendor/js/bootstrap.js"></script>
+  <script src="../../assets/js/theme-switcher.js"></script>
   <script>
     (function () {
       var AUTH_API = (window.TemaDataPortal_API_BASE || window.location.origin || 'http://localhost:3000');

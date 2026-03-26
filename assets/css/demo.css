@@ -111,3 +111,8 @@
   text-align: center;
   margin-top: 1rem;
 }
+
+/* ── Logo: auto-brighten in dark mode so it stays visible ── */
+[data-bs-theme="dark"] .app-brand-logo img {
+  filter: brightness(3.5) contrast(1.2) drop-shadow(0 0 2px rgba(255,255,255,0.95)) drop-shadow(0 0 6px rgba(255,255,255,0.6));
+}
