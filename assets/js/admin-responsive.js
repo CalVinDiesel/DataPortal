@@ -32,11 +32,9 @@
         if (window.innerWidth < 1200) closeMenu();
       });
     });
-    /* When user resizes screen larger (>= 1200px), close overlay so normal sidebar shows and X is not needed */
     window.addEventListener('resize', function () {
       if (window.innerWidth >= 1200) closeMenu();
     });
-    /* Add close (X) button at top-right of sidebar – like landing page */
     var closeBtn = menu.querySelector('.admin-menu-close');
     if (!closeBtn) {
       closeBtn = document.createElement('button');
@@ -52,5 +50,38 @@
     document.addEventListener('DOMContentLoaded', init);
   } else {
     init();
+  }
+})();
+
+// ─── Auto-inject theme switcher into every admin page navbar ───────────────
+(function () {
+  function injectThemeSwitcher() {
+    var navRight = document.querySelector('.navbar-nav-right.d-flex.align-items-center.ms-auto');
+    if (!navRight || document.querySelector('.dropdown-style-switcher')) return;
+
+    var switcher = document.createElement('ul');
+    switcher.className = 'navbar-nav flex-row align-items-center';
+    switcher.innerHTML =
+      '<li class="nav-item dropdown-style-switcher dropdown">' +
+        '<a class="nav-link dropdown-toggle hide-arrow" id="nav-theme" href="javascript:void(0);" data-bs-toggle="dropdown">' +
+          '<i class="icon-base bx bx-sun icon-lg theme-icon-active"></i>' +
+        '</a>' +
+        '<ul class="dropdown-menu dropdown-menu-end">' +
+          '<li><button type="button" class="dropdown-item align-items-center" data-bs-theme-value="light">' +
+            '<span><i class="icon-base bx bx-sun icon-md me-3"></i>Light</span></button></li>' +
+          '<li><button type="button" class="dropdown-item align-items-center" data-bs-theme-value="dark">' +
+            '<span><i class="icon-base bx bx-moon icon-md me-3"></i>Dark</span></button></li>' +
+          '<li><button type="button" class="dropdown-item align-items-center" data-bs-theme-value="system">' +
+            '<span><i class="icon-base bx bx-desktop icon-md me-3"></i>System</span></button></li>' +
+        '</ul>' +
+      '</li>';
+
+      navRight.appendChild(switcher);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', injectThemeSwitcher);
+  } else {
+    injectThemeSwitcher();
   }
 })();

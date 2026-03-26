@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="../../assets/vendor/css/core.css">
   <link rel="stylesheet" href="../../assets/css/demo.css">
   <link rel="stylesheet" href="../../assets/vendor/css/pages/front-page.css">
+  <script src="../../assets/js/theme-init.js"></script>
   <script>
     (function () {
       var AUTH_API = (window.TemaDataPortal_API_BASE || window.location.origin || 'http://localhost:3000');
@@ -30,27 +31,38 @@
     })();
   </script>
 
-  <style>
-    .selection-card {
-      transition: all 0.3s ease;
-      cursor: pointer;
-      border: 2px solid transparent;
-      height: 100%;
-    }
-    .selection-card:hover {
-      transform: translateY(-10px);
-      border-color: #696cff;
-      box-shadow: 0 10px 30px rgba(105, 108, 255, 0.15);
-    }
+<style>
+  .selection-card {
+    transition: all 0.3s ease;
+    cursor: pointer;
+    border: 2px solid transparent;
+    height: 100%;
+  }
+  .selection-card:hover {
+    transform: translateY(-10px);
+    border-color: #696cff;
+    box-shadow: 0 10px 30px rgba(105, 108, 255, 0.15);
+  }
 
-    .hero-section {
-      background: linear-gradient(135deg, #f5f7ff 0%, #ffffff 100%);
-      padding: 100px 0;
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-    }
-  </style>
+  /* ✅ Light mode hero background */
+  .hero-section {
+    background: linear-gradient(135deg, #f5f7ff 0%, #ffffff 100%);
+    padding: 100px 0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+  }
+
+  /* ✅ Dark mode hero background — overrides when data-bs-theme="dark" is on <html> */
+  [data-bs-theme="dark"] .hero-section {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  }
+
+  /* ✅ Dark mode card text fix */
+  [data-bs-theme="dark"] .selection-card .text-muted {
+    color: var(--bs-secondary-color) !important;
+  }
+</style>
 </head>
 <body>
   <nav class="layout-navbar shadow-none py-0">
@@ -62,7 +74,33 @@
           </span>
           <span class="app-brand-text demo menu-text fw-bold ms-2 ps-1">3DHub</span>
         </a>
-        <div class="ms-auto">
+        <div class="ms-auto d-flex align-items-center gap-2">
+          <!-- Style Switcher -->
+          <ul class="navbar-nav flex-row align-items-center">
+            <li class="nav-item dropdown-style-switcher dropdown me-2">
+              <a class="nav-link dropdown-toggle hide-arrow" id="nav-theme" href="javascript:void(0);" data-bs-toggle="dropdown">
+                <i class="icon-base bx bx-sun icon-lg theme-icon-active"></i>
+              </a>
+              <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="nav-theme-text">
+                <li>
+                  <button type="button" class="dropdown-item align-items-center" data-bs-theme-value="light">
+                    <span><i class="icon-base bx bx-sun icon-md me-3"></i>Light</span>
+                  </button>
+                </li>
+                <li>
+                  <button type="button" class="dropdown-item align-items-center" data-bs-theme-value="dark">
+                    <span><i class="icon-base bx bx-moon icon-md me-3"></i>Dark</span>
+                  </button>
+                </li>
+                <li>
+                  <button type="button" class="dropdown-item align-items-center" data-bs-theme-value="system">
+                    <span><i class="icon-base bx bx-desktop icon-md me-3"></i>System</span>
+                  </button>
+                </li>
+              </ul>
+            </li>
+          </ul>
+          <!-- / Style Switcher -->
           <a href="landing-page.html" class="btn btn-outline-primary btn-sm">Back to Home</a>
         </div>
       </div>
@@ -102,9 +140,9 @@
     </div>
   </section>
 
-  <script src="../../assets/vendor/libs/jquery/jquery.js"></script>
   <script src="../../assets/vendor/libs/popper/popper.js"></script>
   <script src="../../assets/vendor/js/bootstrap.js"></script>
+  <script src="../../assets/js/theme-switcher.js"></script>
   <script>
     document.getElementById('sftpCard').addEventListener('click', function() {
       if (window.userRole === 'registered') {

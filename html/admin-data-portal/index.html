@@ -4,6 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Admin - Data Portal | 3DHub</title>
+  <script src="../../assets/js/theme-init.js"></script>
   <link rel="icon" type="image/x-icon" href="../../assets/img/favicon/favicon.ico" />
   <link rel="stylesheet" href="../../assets/vendor/fonts/iconify-icons.css" />
   <link rel="stylesheet" href="../../assets/vendor/css/core.css" />
@@ -81,9 +82,34 @@
           <div class="navbar-brand demo d-flex align-items-center py-0 me-3">
             <button class="admin-menu-toggle btn btn-icon d-xl-none me-2 border-0 bg-transparent p-0" type="button" aria-label="Toggle menu"><i class="bx bx-menu icon-lg"></i></button>
           </div>
-          <div class="navbar-nav-right d-flex align-items-center ms-auto">
-          <div class="navbar-nav-right d-flex align-items-center">
-            <span class="navbar-text">Admin dashboard for 3D models and client image processing</span>
+          <div class="navbar-nav-right d-flex align-items-center ms-auto gap-2">
+            <span class="navbar-text d-none d-md-inline">Admin dashboard for 3D models and client image processing</span>
+            <!-- Style Switcher -->
+            <ul class="navbar-nav flex-row align-items-center">
+              <li class="nav-item dropdown-style-switcher dropdown">
+                <a class="nav-link dropdown-toggle hide-arrow" id="nav-theme" href="javascript:void(0);" data-bs-toggle="dropdown">
+                  <i class="icon-base bx bx-sun icon-lg theme-icon-active"></i>
+                </a>
+                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="nav-theme-text">
+                  <li>
+                    <button type="button" class="dropdown-item align-items-center" data-bs-theme-value="light">
+                      <span><i class="icon-base bx bx-sun icon-md me-3"></i>Light</span>
+                    </button>
+                  </li>
+                  <li>
+                    <button type="button" class="dropdown-item align-items-center" data-bs-theme-value="dark">
+                      <span><i class="icon-base bx bx-moon icon-md me-3"></i>Dark</span>
+                    </button>
+                  </li>
+                  <li>
+                    <button type="button" class="dropdown-item align-items-center" data-bs-theme-value="system">
+                      <span><i class="icon-base bx bx-desktop icon-md me-3"></i>System</span>
+                    </button>
+                  </li>
+                </ul>
+              </li>
+            </ul>
+            <!-- / Style Switcher -->
           </div>
         </nav>
         <div class="content-wrapper">
@@ -178,5 +204,6 @@
     </div>
   </div>
   <script src="../../assets/js/admin-responsive.js"></script>
+  <script src="../../assets/js/theme-switcher.js"></script>
 </body>
 </html>

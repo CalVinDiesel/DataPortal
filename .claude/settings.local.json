@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(find 'C:\\\\Users\\\\User\\\\.cursor\\\\projects\\\\Temadigital Merge Project\\(github\\)\\\\DataPortal' -type d -name routes -o -name controllers -o -name middleware)",
-      "Bash(ls -la \"C:\\\\Users\\\\User\\\\.cursor\\\\projects\\\\Temadigital Merge Project\\(github\\)\\\\DataPortal\\\\react-viewer-app\")"
+      "Bash(ls -la \"C:\\\\Users\\\\User\\\\.cursor\\\\projects\\\\Temadigital Merge Project\\(github\\)\\\\DataPortal\\\\react-viewer-app\")",
+      "Bash(grep:*)"
     ]
   }
 }

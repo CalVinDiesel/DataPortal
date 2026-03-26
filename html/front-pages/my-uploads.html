@@ -7,6 +7,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
   <title>My Projects | 3DHub Data Portal</title>
 
+  <script src="../../assets/js/theme-init.js"></script>
+
   <!-- Favicon -->
   <link rel="icon" type="image/x-icon" href="../../assets/img/favicon/favicon.ico">
 
@@ -78,157 +80,171 @@
     })();
   </script>
 
-  <style>
-    body {
-      background-color: #f8f9fa;
-    }
-    .hero-bg {
-      background: linear-gradient(135deg, rgba(105, 108, 255, 0.05) 0%, rgba(105, 108, 255, 0.01) 100%);
-      padding: 3rem 0;
-      border-bottom: 1px solid #ebedf2;
-    }
-    
-    .storage-card {
-      background: #fff;
-      border: 1px solid #ebedf2;
-      border-radius: 12px;
-      padding: 1.5rem;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.03);
-      height: 100%;
-    }
+<style>
+  body {
+    background-color: var(--bs-body-bg);
+  }
+  .hero-bg {
+    background: linear-gradient(135deg, rgba(105, 108, 255, 0.05) 0%, rgba(105, 108, 255, 0.01) 100%);
+    padding: 3rem 0;
+    border-bottom: 1px solid var(--bs-border-color);
+  }
 
-    .stat-card {
-      background: #fff;
-      border: 1px solid #ebedf2;
-      border-radius: 12px;
-      padding: 1.5rem;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.03);
-      display: flex;
-      align-items: center;
-      gap: 1.25rem;
-      transition: all 0.25s ease;
-      height: 100%;
-    }
-    
-    .stat-card:hover {
-      box-shadow: 0 6px 16px rgba(105, 108, 255, 0.1);
-      transform: translateY(-2px);
-    }
-    .back-btn:hover { color: #696cff !important; background-color: #f8f9fa !important; }
-    .back-btn:hover i { color: inherit !important; }
+  .storage-card {
+    background: var(--bs-card-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+    height: 100%;
+  }
 
-    .stat-icon {
-      width: 50px;
-      height: 50px;
-      border-radius: 12px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1.75rem;
-    }
+  .stat-card {
+    background: var(--bs-card-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    transition: all 0.25s ease;
+    height: 100%;
+  }
 
-    /* Table Styles */
-    .table-container {
-      background: #fff;
-      border: 1px solid #ebedf2;
-      border-radius: 12px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.03);
-      overflow: hidden;
-    }
+  .stat-card:hover {
+    box-shadow: 0 6px 16px rgba(105, 108, 255, 0.1);
+    transform: translateY(-2px);
+  }
 
-    .project-thumb {
-      width: 60px;
-      height: 60px;
-      border-radius: 8px;
-      object-fit: cover;
-      background-color: #f1f1f2;
-      border: 1px solid #d9dee3;
-    }
+  .back-btn {
+    background: var(--bs-card-bg) !important;
+    color: var(--bs-secondary-color) !important;
+  }
+  .back-btn:hover {
+    color: #696cff !important;
+    background-color: var(--bs-tertiary-bg) !important;
+  }
+  .back-btn:hover i { color: inherit !important; }
 
-    .project-name {
-      font-weight: 600;
-      color: #32475c;
-      font-size: 1.05rem;
-      margin-bottom: 0.2rem;
-    }
+  .stat-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.75rem;
+  }
 
-    .project-meta {
-      font-size: 0.85rem;
-      color: #697a8d;
-    }
+  /* Table Styles */
+  .table-container {
+    background: var(--bs-card-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+    overflow: hidden;
+  }
 
-    .badge-status {
-      padding: 0.4rem 0.75rem;
-      font-weight: 500;
-      font-size: 0.75rem;
-      border-radius: 6px;
-    }
+  .project-thumb {
+    width: 60px;
+    height: 60px;
+    border-radius: 8px;
+    object-fit: cover;
+    background-color: var(--bs-tertiary-bg);
+    border: 1px solid var(--bs-border-color);
+  }
 
-    /* Status Colors */
-    .status-completed { background: rgba(113, 221, 55, 0.1); color: #71dd37; border: 1px solid rgba(113, 221, 55, 0.2); }
-    .status-processing { background: rgba(105, 108, 255, 0.1); color: #696cff; border: 1px solid rgba(105, 108, 255, 0.2); }
-    .status-incomplete { background: rgba(216, 16, 219, 0.1); color: #d810db; border: 1px solid rgba(216, 16, 219, 0.2); }
-    .status-failed { background: rgba(255, 62, 29, 0.1); color: #ff3e1d; border: 1px solid rgba(255, 62, 29, 0.2); }
+  .project-name {
+    font-weight: 600;
+    color: var(--bs-heading-color);
+    font-size: 1.05rem;
+    margin-bottom: 0.2rem;
+  }
 
-    .table th {
-      text-transform: uppercase;
-      font-size: 0.75rem;
-      letter-spacing: 0.5px;
-      color: #a1acb8;
-      background: #f8f9fa;
-      border-bottom: 1px solid #ebedf2;
-      padding: 1rem;
-    }
+  .project-meta {
+    font-size: 0.85rem;
+    color: var(--bs-secondary-color);
+  }
 
-    .table td {
-      padding: 1.25rem 1rem;
-      vertical-align: middle;
-      border-bottom: 1px solid #ebedf2;
-    }
+  .badge-status {
+    padding: 0.4rem 0.75rem;
+    font-weight: 500;
+    font-size: 0.75rem;
+    border-radius: 6px;
+  }
 
-    .table tr:last-child td {
-      border-bottom: none;
-    }
+  /* Status Colors */
+  .status-completed  { background: rgba(113, 221, 55, 0.1);  color: #71dd37; border: 1px solid rgba(113, 221, 55, 0.2); }
+  .status-processing { background: rgba(105, 108, 255, 0.1); color: #696cff; border: 1px solid rgba(105, 108, 255, 0.2); }
+  .status-incomplete { background: rgba(216, 16, 219, 0.1);  color: #d810db; border: 1px solid rgba(216, 16, 219, 0.2); }
+  .status-failed     { background: rgba(255, 62, 29, 0.1);   color: #ff3e1d; border: 1px solid rgba(255, 62, 29, 0.2); }
 
-    .action-btn {
-      color: #697a8d;
-      background: transparent;
-      border: none;
-      padding: 0.5rem;
-      border-radius: 6px;
-      transition: all 0.2s;
-    }
-    
-    .action-btn:hover {
-      background: rgba(105, 108, 255, 0.1);
-      color: #696cff;
-    }
-    
-    .btn-dropdown-link {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
+  .table th {
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.5px;
+    color: var(--bs-secondary-color);
+    background: var(--bs-tertiary-bg);
+    border-bottom: 1px solid var(--bs-border-color);
+    padding: 1rem;
+  }
 
-    /* Modal Styling */
-    .detail-label {
-      font-size: 0.75rem;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      color: #a1acb8;
-      font-weight: 600;
-      margin-bottom: 0.25rem;
-    }
-    .detail-value {
-      color: #32475c;
-      font-weight: 500;
-      margin-bottom: 1.25rem;
-    }
-    .modal-header {
-      background: #f8f9fa;
-      border-bottom: 1px solid #ebedf2;
-    }
-  </style>
+  .table td {
+    padding: 1.25rem 1rem;
+    vertical-align: middle;
+    border-bottom: 1px solid var(--bs-border-color);
+    color: var(--bs-body-color);
+  }
+
+  .table tr:last-child td {
+    border-bottom: none;
+  }
+
+  .action-btn {
+    color: var(--bs-secondary-color);
+    background: transparent;
+    border: none;
+    padding: 0.5rem;
+    border-radius: 6px;
+    transition: all 0.2s;
+  }
+
+  .action-btn:hover {
+    background: rgba(105, 108, 255, 0.1);
+    color: #696cff;
+  }
+
+  .btn-dropdown-link {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  /* Modal Styling */
+  .detail-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--bs-secondary-color);
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+  }
+  .detail-value {
+    color: var(--bs-body-color);
+    font-weight: 500;
+    margin-bottom: 1.25rem;
+  }
+  .modal-header {
+    background: var(--bs-tertiary-bg);
+    border-bottom: 1px solid var(--bs-border-color);
+  }
+
+  /* Pagination strip */
+  .bg-lighter {
+    background: var(--bs-tertiary-bg) !important;
+  }
+</style>
 </head>
 
 <body>
@@ -236,9 +252,37 @@
   <!-- Hero Section -->
   <div class="hero-bg">
     <div class="container">
-      <a href="landing-page.html" class="btn btn-label-secondary btn-sm mb-4 fw-medium border shadow-sm back-btn" style="background: white; color: #566a7f;">
-        <i class="bx bx-arrow-back me-1"></i> Back
-      </a>
+      <div class="d-flex align-items-center justify-content-between mb-4">
+        <a href="landing-page.html" class="btn btn-label-secondary btn-sm fw-medium border shadow-sm back-btn" style="background: white; color: #566a7f;">
+          <i class="bx bx-arrow-back me-1"></i> Back
+        </a>
+        <!-- Style Switcher -->
+        <ul class="navbar-nav flex-row align-items-center mb-0">
+          <li class="nav-item dropdown-style-switcher dropdown">
+            <a class="nav-link dropdown-toggle hide-arrow" id="nav-theme" href="javascript:void(0);" data-bs-toggle="dropdown">
+              <i class="icon-base bx bx-sun icon-lg theme-icon-active"></i>
+            </a>
+            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="nav-theme-text">
+              <li>
+                <button type="button" class="dropdown-item align-items-center" data-bs-theme-value="light">
+                  <span><i class="icon-base bx bx-sun icon-md me-3"></i>Light</span>
+                </button>
+              </li>
+              <li>
+                <button type="button" class="dropdown-item align-items-center" data-bs-theme-value="dark">
+                  <span><i class="icon-base bx bx-moon icon-md me-3"></i>Dark</span>
+                </button>
+              </li>
+              <li>
+                <button type="button" class="dropdown-item align-items-center" data-bs-theme-value="system">
+                  <span><i class="icon-base bx bx-desktop icon-md me-3"></i>System</span>
+                </button>
+              </li>
+            </ul>
+          </li>
+        </ul>
+        <!-- / Style Switcher -->
+      </div>
       <div class="d-flex justify-content-between align-items-center mb-0">
         <div>
           <h2 class="h3 fw-bold text-dark mb-2">My Datasets</h2>
@@ -458,9 +502,9 @@
   </div>
 
   <!-- Core Scripts -->
-  <script src="../../assets/vendor/libs/jquery/jquery.js"></script>
   <script src="../../assets/vendor/libs/popper/popper.js"></script>
   <script src="../../assets/vendor/js/bootstrap.js"></script>
+  <script src="../../assets/js/theme-switcher.js"></script>
   
   <script>
     function logout() {
