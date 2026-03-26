@@ -5,6 +5,7 @@
   "description": "TemaDataPortal – run the auth server with npm start",
   "scripts": {
     "start": "node auth-server/server.js",
+    "setup": "npm install && cd auth-server && npm install && cd ../react-viewer-app && npm install",
     "build-viewer": "cd react-viewer-app && npm run build && powershell -Command \"Copy-Item -Recurse -Force dist/* ../html/cesium-viewer; Copy-Item -Recurse -Force ../html/cesium-viewer/html/cesium-viewer/cesium ../html/cesium-viewer -ErrorAction SilentlyContinue\"",
     "seed-mapdata": "node auth-server/scripts/seed-mapdata-from-locations.js"
   },
